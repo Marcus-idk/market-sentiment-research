@@ -12,7 +12,7 @@ class GeminiProvider(LLMProvider):
         model_name: str,
         temperature: Optional[float] = None,
         tools: Optional[List[Dict]] = None,
-        thinking_config: Optional[Dict] = None,  # e.g. {"thinking_budget": 2048}
+        thinking_config: Optional[Dict] = None,
         **kwargs
     ):
         super().__init__(api_key, **kwargs)
@@ -21,7 +21,7 @@ class GeminiProvider(LLMProvider):
         self.tools = tools
         self.thinking_config = thinking_config
         self.client = genai.Client(api_key=api_key)
-    
+
     async def generate(self, prompt: str) -> str:
         cfg = {
             "temperature": self.temperature,
@@ -32,7 +32,7 @@ class GeminiProvider(LLMProvider):
         if self.tools:
             cfg["tools"] = self.tools
         if self.thinking_config:
-            cfg["thinking_config"] = types.ThinkingConfig(**self.thinking_config)  # thinking_budget: int
+            cfg["thinking_config"] = types.ThinkingConfig(**self.thinking_config)
 
         config = types.GenerateContentConfig(**cfg)
         resp = await self.client.aio.models.generate_content(
@@ -41,7 +41,7 @@ class GeminiProvider(LLMProvider):
             config=config
         )
         return resp.text
-    
+
     async def validate_connection(self) -> bool:
         try:
             await self.client.aio.models.list()
