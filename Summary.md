@@ -30,6 +30,7 @@ Functions:
 
 Constructor:
 - `__init__(api_key, model_name, temperature, **kwargs)` - Configure provider behavior once
+- Providers accept additional parameters for advanced features (reasoning, tools, thinking_config)
 
 #### providers/ - LLM Provider Implementations
 Organization folder for provider implementations (no __init__.py).
@@ -38,10 +39,27 @@ Organization folder for provider implementations (no __init__.py).
 Purpose: OpenAI provider implementation using AsyncOpenAI client.
 
 Classes:
-- `OpenAIProvider(LLMProvider)` - Implements OpenAI chat completions API
+- `OpenAIProvider(LLMProvider)` - Implements OpenAI Responses API with reasoning support
+
+Advanced Features:
+- `reasoning` - Enable reasoning with effort levels (low/medium/high)
+- `tools` - Built-in tools (web_search) and function calling
+- `tool_choice` - Control tool selection behavior
 
 ##### providers/gemini.py
 Purpose: Google Gemini provider implementation using new unified SDK.
 
 Classes:
 - `GeminiProvider(LLMProvider)` - Implements Google Gemini generate content API
+
+Advanced Features:
+- `tools` - Function calling and built-in tools integration
+- `thinking_config` - Control thinking behavior with thinking_budget parameter
+
+### main.py - Testing Framework
+Purpose: Test both LLM providers with their enhanced capabilities.
+
+Features:
+- Tests OpenAI reasoning with medium effort level
+- Tests Gemini thinking with 1024 token budget
+- Validates provider functionality with environment variables
