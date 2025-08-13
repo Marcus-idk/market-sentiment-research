@@ -37,7 +37,7 @@ Raw Data → Specialized LLM Agents → Final Decision Agent → User
 
 ### LLM Selection
 - **Gemini 2.5 Flash**: Cost-effective for the 3 specialist analyst roles
-- **O3** (or GPT-4/Claude): Premium model for final trading decisions
+- **GPT-5**: Premium model for final trading decisions
 
 ## Technical Stack
 - **Python**: Best financial libraries, all APIs have Python SDKs

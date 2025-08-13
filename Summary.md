@@ -29,8 +29,8 @@ Functions:
 - `validate_connection()` - Test if provider is properly configured (async, zero-cost)
 
 Constructor:
-- `__init__(api_key, model_name, temperature, **kwargs)` - Configure provider behavior once
-- Providers accept additional parameters for advanced features (reasoning, tools, thinking_config)
+- `__init__(api_key, **kwargs)` - Base class constructor for all providers
+- Individual providers extend with specific parameters (model_name, temperature, reasoning, tools, thinking_config)
 
 #### providers/ - LLM Provider Implementations
 Organization folder for provider implementations (no __init__.py).
@@ -54,12 +54,32 @@ Classes:
 
 Advanced Features:
 - `tools` - Function calling and built-in tools integration
+- `tool_choice` - Control tool usage (none/auto/any modes)
 - `thinking_config` - Control thinking behavior with thinking_budget parameter
 
-### main.py - Testing Framework
-Purpose: Test both LLM providers with their enhanced capabilities.
+#### llm-providers-guide.md
+Purpose: Developer reference documentation for LLM provider configuration and usage.
 
 Features:
-- Tests OpenAI reasoning with medium effort level
-- Tests Gemini thinking with 1024 token budget
-- Validates provider functionality with environment variables
+- Parameter cheatsheets for OpenAI and Gemini providers
+- Constructor field documentation with examples
+- Minimal usage patterns and code examples
+- Tool configuration guides (web_search, code_execution, reasoning, etc.)
+
+### tests/ - Testing Framework
+Purpose: Validate LLM provider functionality and reliability for automated trading system.
+
+#### tests/test_llm_providers.py
+Purpose: Basic connectivity and functionality testing for production readiness.
+
+Features:
+- Connection validation tests for both OpenAI and Gemini providers
+- SHA-256 hash tool validation to verify code execution functionality
+- Environment variable validation
+- Graceful skipping when API keys are unavailable
+- Direct execution support for development workflow
+
+Testing Strategy:
+- SHA-256 tool validation tests to ensure code execution works correctly
+- Critical for automated financial system reliability
+- Foundation for expanded integration testing
