@@ -68,6 +68,7 @@ data/
 - **Finnhub Provider**: HTTP client, incremental fetch + **data conversion** (raw API → NewsItem/PriceData)
 - **Basic Scheduler**: Simple polling loop (local execution)
 - **Configuration**: API key management
+- **Interface Update**: Update `fetch_incremental()` return type from raw data to standardized models
 
 #### Success Criteria
 - ✅ Connects to Finnhub API successfully

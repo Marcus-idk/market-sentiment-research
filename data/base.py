@@ -84,7 +84,7 @@ class DataSource(ABC):
             timestamp: When the last successful fetch occurred
             
         Raises:
-            ValueError: If timestamp is None, in the future, or too far in the past
+            ValueError: If timestamp is None or in the future
             TypeError: If timestamp is not a datetime object
         """
         if timestamp is None:
