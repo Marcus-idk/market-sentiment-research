@@ -65,7 +65,7 @@ data/
 ### Goal: Add Finnhub API, Local Polling Only
 
 #### New Components
-- **Finnhub Provider**: HTTP client, incremental fetch
+- **Finnhub Provider**: HTTP client, incremental fetch + **data conversion** (raw API → NewsItem/PriceData)
 - **Basic Scheduler**: Simple polling loop (local execution)
 - **Configuration**: API key management
 
@@ -147,9 +147,16 @@ data/ (adds to v0.22)
 ### Technical Flow (Complete)
 ```
 Every 5min: scheduler → providers.fetch_incremental(last_seen_id) 
-→ deduplication.is_processed() → storage.store() 
+→ [Raw API Response → Provider converts to NewsItem/PriceData] 
+→ deduplication.is_processed() → storage.store(standardized_models) 
 → filters.is_urgent() → [urgent: trigger LLM | normal: store for 30min batch]
 ```
+
+#### Provider Responsibility
+Each provider (Finnhub, RSS, Reddit, etc.) is responsible for:
+1. **API Communication**: HTTP requests, authentication, error handling
+2. **Data Conversion**: Transform raw API responses into standardized `NewsItem`, `PriceData` models
+3. **Incremental Fetching**: Only request new data since last successful fetch
 
 ### Cost: $0 (All free tiers)
 
