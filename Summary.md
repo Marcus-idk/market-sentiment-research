@@ -83,3 +83,46 @@ Testing Strategy:
 - SHA-256 tool validation tests to ensure code execution works correctly
 - Critical for automated financial system reliability
 - Foundation for expanded integration testing
+
+### data/ - Data Collection Module
+
+#### __init__.py
+Purpose: Clean exports for data collection components.
+
+Exports:
+- `DataSource` - Abstract base class for all data providers
+
+#### base.py
+Purpose: Abstract base class defining the contract for all data source providers.
+
+Classes:
+- `DataSource` - Abstract base class with exception hierarchy and input validation
+- `DataSourceError` - Base exception for data source related errors
+- `RateLimitError` - Exception for API rate limit exceeded scenarios
+
+Functions:
+- `fetch_incremental(since)` - Fetch new data since timestamp (async, returns raw API data)
+- `validate_connection()` - Test if data source is reachable (async, returns bool)
+- `update_last_fetch_time(timestamp)` - Update last successful fetch timestamp
+- `get_last_fetch_time()` - Get last successful fetch timestamp
+
+Input Validation:
+- Constructor validates source_name (non-empty string, max 100 chars)
+- update_last_fetch_time validates timestamp (not None, not future, proper type)
+- Comprehensive error messages for debugging
+
+#### API_Reference.md
+Purpose: Comprehensive documentation of 5 data source APIs for trading bot integration.
+
+Data Sources Documented:
+- **Finnhub API** - Primary financial data (60 calls/min free, stocks + crypto + news)
+- **Polygon.io API** - Enhanced market data backup (5 calls/min free, batch requests)
+- **RSS Feeds** - Free news aggregation (no limits, multiple financial sources)
+- **Reddit API (PRAW)** - Social sentiment analysis (100 queries/min free)
+- **SEC EDGAR API** - Official regulatory filings (10 req/sec free, stocks only)
+
+Technical Details:
+- Rate limits and cost analysis for each API
+- Data coverage (stocks vs crypto) per source
+- Implementation strategies and polling schedules
+- 5-minute polling architecture with usage calculations
