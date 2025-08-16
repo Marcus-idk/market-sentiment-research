@@ -1,7 +1,7 @@
 # Trading Bot Development Plan
 
 ## Project Goal
-Build an automated trading bot that leverages LLMs for fundamental analysis to gain an edge over retail traders. The bot will monitor existing holdings and provide hold/sell recommendations every 30 minutes.
+Build an automated trading bot that leverages LLMs for fundamental analysis to gain an edge over retail traders. The bot will poll data sources every 5 minutes, filter for urgent events, and provide hold/sell recommendations via scheduled LLM analysis.
 
 ## Core Strategy
 - **Target Competition**: Retail traders (not institutional HFT firms)
@@ -27,55 +27,195 @@ Build an automated trading bot that leverages LLMs for fundamental analysis to g
 
 ---
 
-## v0.2 - Data Source Integrations 🔄 **NEXT PHASE**
+## v0.2 - Core Infrastructure Foundation 🏗️ **PHASE 1**
 
-### Target Data Sources (5 APIs)
+### Goal: Build Solid Foundation Without APIs
 
-#### Price and News Data
-- **Finnhub** (Primary): Stock/crypto prices + financial news
-  - Free: 60 calls/min → Paid: $50/month unlimited
-- **Polygon.io** (Backup): Price data + news when Finnhub fails  
-  - Free: 5 calls/min (useless) → Paid: $99/month minimum
-- **RSS Feeds** (Always-on): Unlimited news backup source
-  - Cost: **FREE** from major financial outlets
+#### Core Components
+- **Data Models**: NewsItem, PriceData DTOs with validation
+- **Storage Layer**: SQLite schema, CRUD operations
+- **Abstract Interface**: DataSource base class
+- **Local Testing**: Test with mock/hardcoded data
 
-#### Crowd Sentiment Analysis
-- **Reddit API** (via PRAW): Retail trader sentiment and discussions
-  - Free: 100 queries/min (non-commercial) → Paid: Contact for pricing
+#### Success Criteria
+- ✅ SQLite database creates tables correctly
+- ✅ Data models serialize/deserialize properly
+- ✅ Storage operations work (insert, retrieve, update)
+- ✅ Abstract DataSource interface defined
+- ✅ Basic deduplication logic functional
 
-#### Official Company Data  
-- **SEC EDGAR**: Earnings reports, insider trading, official filings
-  - Cost: **FREE** (10 requests/sec limit)
-  - Note: Stocks only, crypto doesn't have SEC filings
-
-### Implementation Plan
-1. **Abstract DataSource Interface**: Clean provider pattern like LLMs
-2. **Data Models**: Standardized DTOs for all data types  
-3. **Configuration Management**: API keys and provider settings
-4. **Concrete Implementations**: One file per data source
-5. **Aggregation Service**: Coordinate multiple data sources
-
-### File Structure
+### File Structure (v0.2)
 ```
 data/
 ├── __init__.py          # Clean exports
-├── base.py              # Abstract DataSource interface  
-├── models.py            # Data models/DTOs
-├── config.py            # Configuration management
-├── aggregator.py        # Simple data combination
+├── base.py              # Abstract DataSource(ABC): fetch_incremental(), validate_connection()
+├── models.py            # @dataclass NewsItem, PriceData with validation
+├── storage.py           # SQLite CRUD: store_items(), get_items_since(), schema setup
+├── deduplication.py     # Set-based tracking: is_processed(id), mark_processed(id)
 └── providers/
-    ├── __init__.py
-    ├── finnhub.py       # Stock data
-    ├── polygon.py       # Market data
-    ├── rss.py           # News feeds
-    ├── reddit.py        # Social sentiment
-    └── sec_edgar.py     # SEC filings
+    └── __init__.py      # Provider exports (empty for now)
 ```
 
-### Cost Estimate for v0.2
-- **Minimal**: $0/month (use all free tiers)
-- **Recommended**: $50/month (Finnhub paid tier)
-- **Premium**: $150/month (Finnhub + Polygon.io)
+### Cost: $0 (No APIs yet)
+
+---
+
+## v0.21 - Single API Integration 📡 **PHASE 2**
+
+### Goal: Add Finnhub API, Local Polling Only
+
+#### New Components
+- **Finnhub Provider**: HTTP client, incremental fetch
+- **Basic Scheduler**: Simple polling loop (local execution)
+- **Configuration**: API key management
+
+#### Success Criteria
+- ✅ Connects to Finnhub API successfully
+- ✅ Fetches real financial data
+- ✅ Stores data in SQLite locally
+- ✅ Deduplication prevents reprocessing
+- ✅ Can poll manually (no automation yet)
+
+### File Structure (v0.21)
+```
+data/ (adds to v0.2)
+├── config.py            # Dataclass with API keys, local env management
+├── scheduler.py         # Simple polling coordinator (local only)
+└── providers/
+    ├── __init__.py      # Provider exports
+    └── finnhub.py       # HTTP client, incremental fetch via timestamp
+```
+
+### Cost: $0 (Finnhub free tier)
+
+---
+
+## v0.22 - GitHub Actions Automation ☁️ **PHASE 3**
+
+### Goal: Move to Cloud Execution
+
+#### New Components
+- **GitHub Actions Workflow**: 5-minute cron scheduling
+- **Repository Storage**: SQLite committed back to repo
+- **GitHub Secrets**: Secure API key management
+
+#### Success Criteria
+- ✅ GitHub Actions runs every 5 minutes
+- ✅ Fetches data in cloud environment
+- ✅ SQLite database persists across runs
+- ✅ No local execution needed
+- ✅ 24/7 automated operation
+
+### File Structure (v0.22)
+```
+data/ (same as v0.21)
+config.py            # Enhanced: GitHub Secrets integration
+
+.github/workflows/
+└── trading-bot.yml  # NEW: Every 5min polling + commit SQLite back to repo
+```
+
+### Cost: $0 (GitHub Actions free tier)
+
+---
+
+## v0.23 - Complete Basic System 🎯 **PHASE 4**
+
+### Goal: Add Second Source + Filtering
+
+#### New Components
+- **RSS Provider**: Free news feeds backup
+- **Keyword Filtering**: Urgent event detection
+- **Enhanced Scheduler**: Coordinate multiple sources
+
+#### Success Criteria
+- ✅ Two data sources working (Finnhub + RSS)
+- ✅ Keyword filtering detects urgent events
+- ✅ Cross-source deduplication working
+- ✅ Complete end-to-end system functional
+- ✅ Ready for LLM integration (v0.3)
+
+### File Structure (v0.23)
+```
+data/ (adds to v0.22)
+├── filters.py           # NEW: Keyword matching: is_urgent(item), URGENT_KEYWORDS
+├── scheduler.py         # Enhanced: poll multiple sources
+└── providers/
+    └── rss.py           # NEW: feedparser, publication date comparison
+```
+
+### Technical Flow (Complete)
+```
+Every 5min: scheduler → providers.fetch_incremental(last_seen_id) 
+→ deduplication.is_processed() → storage.store() 
+→ filters.is_urgent() → [urgent: trigger LLM | normal: store for 30min batch]
+```
+
+### Cost: $0 (All free tiers)
+
+---
+
+## v0.25 - Complete Data Collection 📊 **EXPANSION MVP**
+
+### Goal: Add Remaining Data Sources + Enhanced Features
+
+#### Additional Data Sources (3 APIs)
+
+##### Market Data & Backup
+- **Polygon.io** (Enhanced Backup): Multi-ticker batching + advanced market data
+  - Free: 5 calls/min (sufficient for 1 call per 5min polling)
+  - Implementation: Batch API calls, timestamp-based incremental fetch
+
+##### Sentiment & Regulatory Data  
+- **Reddit API** (via PRAW): Social sentiment from retail traders
+  - Free: 100 queries/min (non-commercial use)
+  - Implementation: PRAW wrapper, subreddit monitoring, async coordination
+- **SEC EDGAR**: Official company filings and insider trading
+  - Free: 10 req/sec limit
+  - Implementation: REST API, filing date filtering, XML/JSON parsing
+  - Note: Stocks only, crypto doesn't have SEC filings
+
+#### Enhanced Features
+- **Advanced Filtering**: ML-ready keyword engine with configurable rules
+- **Error Handling**: Circuit breakers, retry logic, graceful degradation
+- **Performance Monitoring**: API response times, storage metrics, health checks
+- **Data Quality**: Cross-source validation, freshness checks, anomaly detection
+
+#### v0.25 Success Criteria
+- ✅ All 5 data sources integrated and working
+- ✅ Enhanced error handling and recovery
+- ✅ Performance monitoring and alerting
+- ✅ Data quality validation across sources
+- ✅ Ready for LLM agent integration (v0.3+)
+
+### Complete File Structure (v0.25)
+```
+data/
+├── __init__.py          # Clean exports (DataSource, providers, scheduler)
+├── base.py              # Abstract DataSource(ABC): fetch_incremental(), validate_connection()
+├── models.py            # @dataclass NewsItem, PriceData, SentimentItem, FilingItem
+├── config.py            # Dataclass with all API keys, GitHub Secrets integration
+├── storage.py           # SQLite CRUD: store_items(), get_items_since(), schema setup  
+├── deduplication.py     # Set-based tracking: is_processed(id), mark_processed(id)
+├── filters.py           # Enhanced keyword matching + ML-ready architecture
+├── scheduler.py         # Async coordinator: poll_all_sources(), error handling
+├── health_monitor.py    # API health checks, performance metrics, alerting
+└── providers/
+    ├── __init__.py      # Provider exports
+    ├── finnhub.py       # HTTP client, incremental fetch via timestamp
+    ├── polygon.py       # Batch API calls, timestamp-based incremental fetch
+    ├── rss.py           # feedparser, compare publication dates, XML parsing
+    ├── reddit.py        # PRAW wrapper, subreddit monitoring, async wrapper  
+    └── sec_edgar.py     # REST API, filing date filtering, XML/JSON parsing
+
+.github/workflows/
+└── trading-bot.yml      # GitHub Actions: every 5min polling + commit SQLite back to repo
+```
+
+### Cost Estimate for v0.25
+- **Free Tier**: $0/month (all APIs within free limits)
+- **Recommended**: $50/month (Finnhub paid tier for reliability)
+- **Premium**: $150/month (Finnhub + Polygon.io paid tiers)
 
 ---
 
@@ -83,14 +223,19 @@ data/
 
 ### Multi-Agent Architecture
 ```
-Raw Data → Specialized LLM Agents → Final Decision Agent → User
+Stored Data → Specialized LLM Agents → Final Decision Agent → User
 ```
 
-#### Agent Roles
-1. **News Analyst LLM**: Processes Finnhub + RSS financial news
-2. **Sentiment Analyst LLM**: Analyzes Reddit social sentiment  
-3. **SEC Filings Analyst LLM**: Reviews EDGAR official company data
-4. **Head Trader LLM**: Synthesizes all data + current holdings for final decision
+#### Agent Roles (Process Stored Data Only)
+1. **News Analyst LLM**: Processes stored Finnhub + RSS financial news
+2. **Sentiment Analyst LLM**: Analyzes stored Reddit social sentiment  
+3. **SEC Filings Analyst LLM**: Reviews stored EDGAR official company data
+4. **Head Trader LLM**: Synthesizes all filtered data + current holdings for final decision
+
+#### LLM Trigger Conditions
+- **Urgent Events**: Immediate processing when keywords detected
+- **Scheduled Analysis**: Every 30 minutes on accumulated filtered dataset
+- **Data Source**: Always from local storage, never direct API calls
 
 ### Core Trading Logic
 - **Portfolio Management**: Current holdings tracking
@@ -98,8 +243,11 @@ Raw Data → Specialized LLM Agents → Final Decision Agent → User
 - **Decision Engine**: HOLD/SELL recommendation logic
 
 ### Orchestration & Infrastructure
-- **Scheduling**: GitHub Actions every 30 minutes during market hours
-- **Storage**: Results append to file in GitHub repo
+- **Execution Environment**: GitHub Actions cloud runners (laptop can be off)
+- **Data Polling**: Automated every 5 minutes during market hours
+- **LLM Analysis**: Every 30 minutes + immediate urgent triggers
+- **Storage**: SQLite database committed to GitHub repository
+- **Persistence**: No local storage needed, fully cloud-based
 - **Output Format**: Holdings analysis + summaries + recommendations
 
 ### Technical Implementation
@@ -122,10 +270,12 @@ Raw Data → Specialized LLM Agents → Final Decision Agent → User
 
 ### Production Infrastructure Additions
 - **Rate Limiting**: Per-provider API throttling to prevent bans
-- **Caching Layer**: TTL-based caching to reduce API calls and costs
+- **Advanced Filtering**: Replace keywords with lightweight local ML model
 - **Data Validation**: Financial data accuracy and freshness checks
 - **Error Handling**: Circuit breaker patterns and graceful degradation
-- **Monitoring**: Comprehensive logging and health checks
+- **Monitoring**: Comprehensive logging and health checks for both polling and LLM layers
+- **Database Optimization**: Efficient storage and retrieval for high-frequency polling
+- **Backup Systems**: Redundant data sources and failover mechanisms
 
 ### Success Metrics
 - **Performance**: Beat buy-and-hold strategy
