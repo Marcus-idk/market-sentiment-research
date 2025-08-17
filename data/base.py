@@ -2,6 +2,8 @@ from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
 from datetime import datetime
 
+from .models import NewsItem, PriceData
+
 
 class DataSource(ABC):
     """
@@ -36,32 +38,6 @@ class DataSource(ABC):
         self.source_name = source_name.strip()
         self.last_fetch_time: Optional[datetime] = None
     
-    @abstractmethod
-    async def fetch_incremental(self, since: Optional[datetime] = None) -> List[Dict[str, Any]]:
-        """
-        Fetch new data since the specified timestamp
-        
-        Args:
-            since: Only fetch data newer than this timestamp. 
-                   If None, fetch recent data (provider-dependent window)
-                   Must not be in the future if provided
-        
-        Returns:
-            List of raw data items from the API (not yet normalized to our models)
-            Each provider returns different format - normalization happens elsewhere
-        
-        Raises:
-            ConnectionError: If API is unreachable
-            ValueError: If API returns invalid data or since parameter is invalid
-            RateLimitError: If rate limit exceeded
-            
-        Note:
-            Implementations must validate the since parameter:
-            - If not None, must be a datetime object
-            - Must not be in the future
-            - Should handle timezone-naive vs timezone-aware appropriately
-        """
-        pass
     
     @abstractmethod
     async def validate_connection(self) -> bool:
@@ -116,3 +92,21 @@ class DataSourceError(Exception):
 class RateLimitError(DataSourceError):
     """Raised when API rate limit is exceeded"""
     pass
+
+
+class NewsDataSource(DataSource):
+    """Abstract base class for data sources that provide news content"""
+    
+    @abstractmethod
+    async def fetch_incremental(self, since: Optional[datetime] = None) -> List[NewsItem]:
+        """Fetch new news items since the specified timestamp"""
+        pass
+
+
+class PriceDataSource(DataSource):
+    """Abstract base class for data sources that provide price/market data"""
+    
+    @abstractmethod
+    async def fetch_incremental(self, since: Optional[datetime] = None) -> List[PriceData]:
+        """Fetch new price data since the specified timestamp"""
+        pass

@@ -91,17 +91,25 @@ Purpose: Clean exports for data collection components.
 
 Exports:
 - `DataSource` - Abstract base class for all data providers
+- `NewsDataSource` - Abstract base class for news content providers
+- `PriceDataSource` - Abstract base class for price/market data providers
+- `NewsItem` - Data model for news articles
+- `PriceData` - Data model for financial price/market data
 
 #### base.py
 Purpose: Abstract base class defining the contract for all data source providers.
 
 Classes:
-- `DataSource` - Abstract base class with exception hierarchy and input validation
+- `DataSource` - Abstract base class with shared functionality and input validation
+- `NewsDataSource` - Abstract base class for news providers (inherits from DataSource)
+- `PriceDataSource` - Abstract base class for price data providers (inherits from DataSource)
 - `DataSourceError` - Base exception for data source related errors
 - `RateLimitError` - Exception for API rate limit exceeded scenarios
 
 Functions:
-- `fetch_incremental(since)` - Fetch new data since timestamp (async, returns raw API data)
+- `fetch_incremental(since)` - Fetch new data since timestamp (async, returns typed models)
+  - NewsDataSource returns List[NewsItem]
+  - PriceDataSource returns List[PriceData]
 - `validate_connection()` - Test if data source is reachable (async, returns bool)
 - `update_last_fetch_time(timestamp)` - Update last successful fetch timestamp
 - `get_last_fetch_time()` - Get last successful fetch timestamp
@@ -110,6 +118,30 @@ Input Validation:
 - Constructor validates source_name (non-empty string, max 100 chars)
 - update_last_fetch_time validates timestamp (not None, not future, proper type)
 - Comprehensive error messages for debugging
+
+#### models.py
+Purpose: Data Transfer Objects (DTOs) for standardized data representation across all providers.
+
+Classes:
+- `NewsItem` - Data model for news articles from various sources
+  - Required fields: title, content, timestamp, source
+  - Optional fields: url, author, tags, unique_id, raw_data
+  - Input validation in __post_init__ (non-empty strings, proper datetime type)
+- `PriceData` - Data model for financial price/market data from various sources
+  - Required fields: symbol, price (Decimal), timestamp
+  - Optional fields: volume, market, data_type, currency, 24h data, change percentages
+  - Input validation in __post_init__ (non-empty symbol, Decimal price, non-negative volume)
+
+Features:
+- Uses @dataclass for clean field definitions and automatic methods
+- Raw data preservation for debugging and audit trails
+- Comprehensive validation to catch data quality issues early
+
+Design Choices:
+- **Decimal vs Float**: Critical distinction for financial data integrity
+  - Decimal: Used for all money amounts (price, high_24h, low_24h, change_24h) to prevent floating-point rounding errors that could affect financial calculations
+  - Float: Used for ratios and scores (sentiment_score, change_percent_24h) where minor precision loss is acceptable
+  - Example: `0.1 + 0.2 == 0.3` is False with float, True with Decimal
 
 #### API_Reference.md
 Purpose: Comprehensive documentation of 5 data source APIs for trading bot integration.
