@@ -120,28 +120,24 @@ Input Validation:
 - Comprehensive error messages for debugging
 
 #### models.py
-Purpose: Data Transfer Objects (DTOs) for standardized data representation across all providers.
+Purpose: Clean, minimal Data Transfer Objects (DTOs) for v0.2 core functionality.
 
 Classes:
 - `NewsItem` - Data model for news articles from various sources
-  - Required fields: title, content, timestamp, source
-  - Optional fields: url, author, tags, unique_id, raw_data
-  - Input validation in __post_init__ (non-empty strings, proper datetime type)
+  - Required fields: symbol, url, headline, published (datetime), source
+  - Optional fields: content
+  - Input validation in __post_init__ (non-empty strings, valid HTTP URLs, timezone handling)
 - `PriceData` - Data model for financial price/market data from various sources
-  - Required fields: symbol, price (Decimal), timestamp
-  - Optional fields: volume, market, data_type, currency, 24h data, change percentages
-  - Input validation in __post_init__ (non-empty symbol, Decimal price, non-negative volume)
+  - Required fields: symbol, timestamp (datetime), price (Decimal)
+  - Optional fields: volume, is_extended (bool for pre/post-market hours)
+  - Input validation in __post_init__ (non-empty symbol, non-negative price/volume, timezone handling)
 
 Features:
+- Minimal field set focused on v0.2 requirements (storage + LLM analysis)
+- Robust input validation with automatic string trimming and timezone normalization
+- URL validation for news items to ensure data quality
 - Uses @dataclass for clean field definitions and automatic methods
-- Raw data preservation for debugging and audit trails
-- Comprehensive validation to catch data quality issues early
-
-Design Choices:
-- **Decimal vs Float**: Critical distinction for financial data integrity
-  - Decimal: Used for all money amounts (price, high_24h, low_24h, change_24h) to prevent floating-point rounding errors that could affect financial calculations
-  - Float: Used for ratios and scores (sentiment_score, change_percent_24h) where minor precision loss is acceptable
-  - Example: `0.1 + 0.2 == 0.3` is False with float, True with Decimal
+- Decimal precision for financial data to prevent floating-point errors
 
 #### schema.sql
 Purpose: SQLite database schema with expert performance optimizations for 5-minute polling cycles.
