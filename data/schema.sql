@@ -23,22 +23,20 @@ CREATE TABLE news_items (
     headline TEXT NOT NULL,
     content TEXT,                       -- Full article body (short retention)
     published_iso TEXT NOT NULL,        -- ISO format: "2024-01-15T10:30:00Z"
-    published_unix INTEGER NOT NULL,    -- Unix timestamp for fast queries
     source TEXT NOT NULL,               -- finnhub, polygon, rss, etc.
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
+    created_at_iso TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol, url)
 ) WITHOUT ROWID;
 
 -- Price Data (30-minute staging)
 CREATE TABLE price_data (
     symbol TEXT NOT NULL,
-    timestamp_unix INTEGER NOT NULL,    -- When the bar closed (UTC, seconds)
-    timestamp_iso TEXT,                 -- Same time but human-readable (optional)
+    timestamp_iso TEXT NOT NULL,        -- When the bar closed (UTC): "2024-01-15T10:30:00Z"
     price_micros INTEGER NOT NULL,      -- Close price × 1,000,000 for exact precision
     volume INTEGER,                     -- Traded amount (whole shares for stocks)
-    is_extended INTEGER DEFAULT 0,      -- 0=regular hours, 1=pre/post-market
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-    PRIMARY KEY (symbol, timestamp_unix)
+    session TEXT DEFAULT 'REG' CHECK(session IN ('REG', 'PRE', 'POST')),  -- REG=regular, PRE=pre-market, POST=post-market
+    created_at_iso TEXT NOT NULL DEFAULT (datetime('now')),
+    PRIMARY KEY (symbol, timestamp_iso)
 ) WITHOUT ROWID;
 
 -- ===============================
@@ -49,16 +47,13 @@ CREATE TABLE price_data (
 
 CREATE TABLE analysis_results (
     symbol TEXT NOT NULL,
-    analysis_type TEXT NOT NULL,        -- "news_analysis", "sentiment_analysis", "sec_filings", "head_trader_decision"
+    analysis_type TEXT NOT NULL CHECK(analysis_type IN ('news_analysis', 'sentiment_analysis', 'sec_filings', 'head_trader')),
     model_name TEXT NOT NULL,           -- "gpt-5", "gemini-2.5-flash"
-    stance TEXT NOT NULL,               -- "bullish" | "neutral" | "bearish" (quick filter)
-    confidence_score REAL,              -- 0.0 to 1.0
-    last_updated_unix INTEGER NOT NULL,
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-    
-    -- LLM analysis in JSON format
-    result_json TEXT NOT NULL,          -- Structure: summary, key_points[{title, details, price_impact}], thoughts
-    
+    stance TEXT NOT NULL CHECK(stance IN ('BULL', 'BEAR', 'NEUTRAL')),
+    confidence_score REAL NOT NULL,     -- 0.0 to 1.0
+    last_updated_iso TEXT NOT NULL,     -- ISO format: "2024-01-15T10:30:00Z"
+    result_json TEXT NOT NULL,          -- LLM analysis in JSON format
+    created_at_iso TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol, analysis_type)
 ) WITHOUT ROWID;
 
@@ -69,16 +64,12 @@ CREATE TABLE analysis_results (
 
 CREATE TABLE holdings (
     symbol TEXT NOT NULL,
-    quantity REAL NOT NULL,             -- Shares/units owned (can be fractional for crypto)
-    average_cost_per_unit INTEGER NOT NULL,  -- Average cost × 1,000,000 (micros for precision)
-    break_even_price INTEGER NOT NULL, -- Price needed to break even after fees × 1,000,000
-    total_cost_basis INTEGER NOT NULL, -- Total amount invested × 1,000,000
-    first_purchase_unix INTEGER NOT NULL,    -- When first bought this symbol
-    last_purchase_unix INTEGER NOT NULL,     -- Most recent purchase
-    notes TEXT,                        -- Optional notes about position
-    created_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-    updated_at INTEGER NOT NULL DEFAULT (strftime('%s', 'now')),
-    
+    quantity_micros INTEGER NOT NULL,   -- Position size × 1,000,000 (supports fractional)
+    break_even_micros INTEGER NOT NULL, -- Break even price × 1,000,000
+    total_cost_micros INTEGER NOT NULL, -- Total cost basis × 1,000,000
+    notes TEXT,                         -- Optional notes about position
+    created_at_iso TEXT NOT NULL DEFAULT (datetime('now')),
+    updated_at_iso TEXT NOT NULL DEFAULT (datetime('now')),
     PRIMARY KEY (symbol)
 ) WITHOUT ROWID;
 

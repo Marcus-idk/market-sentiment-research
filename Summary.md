@@ -95,6 +95,11 @@ Exports:
 - `PriceDataSource` - Abstract base class for price/market data providers
 - `NewsItem` - Data model for news articles
 - `PriceData` - Data model for financial price/market data
+- `AnalysisResult` - Data model for LLM analysis results
+- `Holdings` - Data model for portfolio positions
+- `Session` - Enum for trading session types (REG, PRE, POST)
+- `Stance` - Enum for analysis stance types (BULL, BEAR, NEUTRAL)
+- `AnalysisType` - Enum for LLM analysis types (NEWS_ANALYSIS, SENTIMENT_ANALYSIS, SEC_FILINGS, HEAD_TRADER)
 
 #### base.py
 Purpose: Abstract base class defining the contract for all data source providers.
@@ -120,7 +125,12 @@ Input Validation:
 - Comprehensive error messages for debugging
 
 #### models.py
-Purpose: Clean, minimal Data Transfer Objects (DTOs) for v0.2 core functionality.
+Purpose: Complete Data Transfer Objects (DTOs) for v0.2 core functionality with LLM analysis and portfolio tracking.
+
+Enums:
+- `Session` - Trading session types (REG, PRE, POST)
+- `Stance` - Analysis stance types (BULL, BEAR, NEUTRAL)
+- `AnalysisType` - LLM analysis types (NEWS_ANALYSIS, SENTIMENT_ANALYSIS, SEC_FILINGS, HEAD_TRADER)
 
 Classes:
 - `NewsItem` - Data model for news articles from various sources
@@ -129,15 +139,24 @@ Classes:
   - Input validation in __post_init__ (non-empty strings, valid HTTP URLs, timezone handling)
 - `PriceData` - Data model for financial price/market data from various sources
   - Required fields: symbol, timestamp (datetime), price (Decimal)
-  - Optional fields: volume, is_extended (bool for pre/post-market hours)
+  - Optional fields: volume, session (Session enum for REG/PRE/POST market hours)
   - Input validation in __post_init__ (non-empty symbol, non-negative price/volume, timezone handling)
+- `AnalysisResult` - Data model for LLM analysis results
+  - Required fields: symbol, analysis_type (AnalysisType enum), model_name, stance (Stance enum), confidence_score (0.0-1.0), last_updated (datetime), result_json
+  - Optional fields: created_at (datetime)
+  - Input validation in __post_init__ (non-empty strings, enum validation, confidence range validation, timezone handling)
+- `Holdings` - Data model for portfolio positions
+  - Required fields: symbol, quantity (Decimal), break_even_price (Decimal), total_cost (Decimal)
+  - Optional fields: notes, created_at (datetime), updated_at (datetime)
+  - Input validation in __post_init__ (non-empty symbol, non-negative financial values, timezone handling)
 
 Features:
-- Minimal field set focused on v0.2 requirements (storage + LLM analysis)
+- Complete model set for v0.2 requirements (storage + LLM analysis + portfolio tracking)
 - Robust input validation with automatic string trimming and timezone normalization
-- URL validation for news items to ensure data quality
+- URL validation for news items and JSON validation for analysis results
 - Uses @dataclass for clean field definitions and automatic methods
 - Decimal precision for financial data to prevent floating-point errors
+- Enum validation for structured data consistency
 
 #### schema.sql
 Purpose: SQLite database schema with expert performance optimizations for 5-minute polling cycles.
@@ -149,7 +168,7 @@ Database Architecture:
 
 Tables:
 - `news_items` - Temporary storage for news articles (PRIMARY KEY: symbol, url)
-- `price_data` - Temporary storage for financial price data (PRIMARY KEY: symbol, timestamp_unix)
+- `price_data` - Temporary storage for financial price data (PRIMARY KEY: symbol, timestamp_iso)
 - `analysis_results` - Persistent LLM analysis results per (symbol, analysis_type) with structured reasoning
 - `holdings` - Portfolio tracking with break-even calculations (PRIMARY KEY: symbol)
 
@@ -157,14 +176,15 @@ Expert Optimizations:
 - **WAL Mode** - Allows concurrent reads during writes (prevents database locks)
 - **Busy Timeout** - 5-second wait instead of instant failure when database busy
 - **WITHOUT ROWID** - Performance optimization for natural primary keys
+- **ISO Timestamps Only** - Human-readable ISO format for easier querying and debugging
 - **URL Normalization** - Strip tracking parameters for cross-provider deduplication
 - **Scaled Integers** - Store financial prices as integers (price × 1,000,000) for exact precision
-- **Price Deduplication** - One price per (symbol, timestamp) regardless of data source
-- **Extended Hours Tracking** - is_extended field to distinguish regular vs pre/post-market hours
+- **Price Deduplication** - One price per (symbol, timestamp_iso) regardless of data source
+- **Session Tracking** - session field with enum values (REG/PRE/POST) to distinguish trading sessions
 - **Volume Strategy** - Plain integers for stocks (whole shares), micros only for fractional crypto volumes
-- **Structured Analysis** - Rich JSON format with actual prices, targets, and detailed reasoning
-- **Quick Stance Filter** - Bullish/neutral/bearish classification for rapid signal filtering
-- **Break-Even Tracking** - Portfolio cost basis with trading fees factored into break-even price
+- **Structured Analysis** - Rich JSON format with stance filtering and confidence scoring
+- **Quick Stance Filter** - CHECK constraints for BULL/BEAR/NEUTRAL classification
+- **Simplified Holdings** - Essential fields only (quantity, break-even, total cost) for v0.2 core functionality
 
 #### API_Reference.md
 Purpose: Comprehensive documentation of 5 data source APIs for trading bot integration.

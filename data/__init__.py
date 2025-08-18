@@ -5,7 +5,7 @@
 from .base import DataSource, NewsDataSource, PriceDataSource
 
 # Data models
-from .models import NewsItem, PriceData
+from .models import NewsItem, PriceData, AnalysisResult, Holdings, Session, Stance, AnalysisType
 
 # Storage and utilities (to be implemented)  
 # from .storage import DataStorage
@@ -13,6 +13,7 @@ from .models import NewsItem, PriceData
 
 __all__ = [
     'DataSource', 'NewsDataSource', 'PriceDataSource',
-    'NewsItem', 'PriceData',
+    'NewsItem', 'PriceData', 'AnalysisResult', 'Holdings', 
+    'Session', 'Stance', 'AnalysisType',
     # 'DataStorage', 'DeduplicationTracker'
 ]
