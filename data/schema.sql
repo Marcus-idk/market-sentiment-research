@@ -3,7 +3,6 @@
 
 -- Critical settings to prevent failures
 PRAGMA journal_mode = WAL;        -- Allows reading while writing (no "database locked" errors)
-PRAGMA busy_timeout = 5000;       -- Wait 5 seconds instead of failing instantly when busy
 PRAGMA synchronous = NORMAL;      -- Fast writes for GitHub Actions (vs painfully slow default)
 
 -- ===============================

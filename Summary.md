@@ -1,10 +1,15 @@
 # TradingBot Codebase Summary
 
+## Current Implementation Status
+- **✅ v0.1 COMPLETED**: LLM Provider Module (OpenAI, Gemini with full async support)
+- **✅ v0.2 Phase 1 COMPLETED**: Core Data Infrastructure (models, storage, database schema)
+- **🔄 v0.2+ PLANNED**: API Data Providers (Finnhub, RSS, Reddit, SEC EDGAR, Polygon)
+
 ## Technical Stack
 - **Python** - Core language for financial libraries and LLM integrations
-- **Async/Await** - For concurrent API calls to multiple data sources
-- **GitHub Actions** - Data polling every 5 minutes + LLM analysis every 30 minutes
-- **Environment Variables** - Use `load_dotenv(override=True)` to force reload .env files
+- **Async/Await** - For concurrent API calls to multiple data sources (LLM providers implemented)
+- **SQLite Database** - Local storage with optimized schema and WAL mode
+- **Dataclasses** - Type-safe models with validation for financial data
 
 ## Project Structure
 
@@ -26,7 +31,7 @@ Classes:
 
 Functions:
 - `generate(prompt)` - Generate text response from LLM (async, uses config from init)
-- `validate_connection()` - Test if provider is properly configured (async, zero-cost)
+- `validate_connection()` - Test if provider is properly configured (async)
 
 Constructor:
 - `__init__(api_key, **kwargs)` - Base class constructor for all providers
@@ -91,7 +96,7 @@ Purpose: Clean exports for data collection components.
 
 Exports:
 - `DataSource` - Abstract base class for all data providers
-- `NewsDataSource` - Abstract base class for news content providers
+- `NewsDataSource` - Abstract base class for news content providers  
 - `PriceDataSource` - Abstract base class for price/market data providers
 - `NewsItem` - Data model for news articles
 - `PriceData` - Data model for financial price/market data
@@ -100,6 +105,15 @@ Exports:
 - `Session` - Enum for trading session types (REG, PRE, POST)
 - `Stance` - Enum for analysis stance types (BULL, BEAR, NEUTRAL)
 - `AnalysisType` - Enum for LLM analysis types (NEWS_ANALYSIS, SENTIMENT_ANALYSIS, SEC_FILINGS, HEAD_TRADER)
+- `init_database` - Initialize SQLite database from schema
+- `store_news_items` - Store news items with deduplication
+- `store_price_data` - Store price data with type conversion
+- `get_news_since` - Query news items since timestamp
+- `get_price_data_since` - Query price data since timestamp
+- `upsert_analysis_result` - Insert/update analysis results
+- `upsert_holdings` - Insert/update portfolio holdings
+- `get_all_holdings` - Query all current holdings
+- `get_analysis_results` - Query analysis results by symbol
 
 #### base.py
 Purpose: Abstract base class defining the contract for all data source providers.
@@ -107,14 +121,13 @@ Purpose: Abstract base class defining the contract for all data source providers
 Classes:
 - `DataSource` - Abstract base class with shared functionality and input validation
 - `NewsDataSource` - Abstract base class for news providers (inherits from DataSource)
+  - `fetch_incremental(since)` - Fetch new news items since timestamp (async, returns List[NewsItem])
 - `PriceDataSource` - Abstract base class for price data providers (inherits from DataSource)
+  - `fetch_incremental(since)` - Fetch new price data since timestamp (async, returns List[PriceData])
 - `DataSourceError` - Base exception for data source related errors
 - `RateLimitError` - Exception for API rate limit exceeded scenarios
 
 Functions:
-- `fetch_incremental(since)` - Fetch new data since timestamp (async, returns typed models)
-  - NewsDataSource returns List[NewsItem]
-  - PriceDataSource returns List[PriceData]
 - `validate_connection()` - Test if data source is reachable (async, returns bool)
 - `update_last_fetch_time(timestamp)` - Update last successful fetch timestamp
 - `get_last_fetch_time()` - Get last successful fetch timestamp
@@ -159,13 +172,34 @@ Features:
 - Enum validation for structured data consistency
 - Positive value validation (price, quantity, costs must be > 0, not just >= 0)
 
+#### storage.py
+Purpose: SQLite storage operations providing CRUD functionality for all trading bot data models.
+
+Functions:
+- `init_database(db_path)` - Initialize database by executing schema.sql with performance optimizations
+- `store_news_items(db_path, items)` - Store news with URL normalization and duplicate handling
+- `store_price_data(db_path, items)` - Store price data with Decimal-to-TEXT conversion
+- `get_news_since(db_path, timestamp)` - Retrieve news items since timestamp (returns raw dicts)
+- `get_price_data_since(db_path, timestamp)` - Retrieve price data since timestamp (returns raw dicts)
+- `upsert_analysis_result(db_path, result)` - Insert/update LLM analysis results with conflict resolution
+- `upsert_holdings(db_path, holdings)` - Insert/update portfolio positions with conflict resolution
+- `get_all_holdings(db_path)` - Retrieve all current holdings (returns raw dicts)
+- `get_analysis_results(db_path, symbol=None)` - Retrieve analysis results, optionally filtered by symbol
+
+Key Features:
+- **URL Normalization** - `_normalize_url()` strips tracking parameters for cross-provider deduplication
+- **Type Conversions** - `_datetime_to_iso()` and `_decimal_to_text()` for database storage format
+- **INSERT OR IGNORE** - Graceful duplicate handling for raw data storage
+- **ON CONFLICT** - Upsert operations for analysis results and holdings updates
+- **Raw Dict Returns** - Query functions return raw dictionaries for flexible processing
+- **Transaction Safety** - All operations use context managers for automatic commit/rollback
+
 #### schema.sql
-Purpose: SQLite database schema with expert performance optimizations for 5-minute polling cycles.
+Purpose: SQLite database schema with expert performance optimizations.
 
 Database Architecture:
-- **Temporary Raw Data** - 30-minute staging tables deleted after successful LLM processing
-- **Persistent Analysis Results** - LLM memory that accumulates and updates over time
-- **Failure Recovery** - Raw data preserved if any LLM processing fails
+- **Raw Data Tables** - Temporary storage for news and price data
+- **Analysis Results Tables** - Persistent storage for LLM analysis results and portfolio holdings
 
 Tables:
 - `news_items` - Temporary storage for news articles (PRIMARY KEY: symbol, url)
@@ -175,7 +209,6 @@ Tables:
 
 Expert Optimizations:
 - **WAL Mode** - Allows concurrent reads during writes (prevents database locks)
-- **Busy Timeout** - 5-second wait instead of instant failure when database busy
 - **WITHOUT ROWID** - Performance optimization for natural primary keys
 - **ISO Timestamps Only** - Human-readable ISO format (YYYY-MM-DDTHH:MM:SSZ) for easier querying and debugging
 - **URL Normalization** - Strip tracking parameters for cross-provider deduplication
@@ -188,6 +221,18 @@ Expert Optimizations:
 - **JSON Validation** - CHECK constraints and Python validation for properly formed JSON content
 - **Positive Value Enforcement** - All financial values must be > 0 (price, quantity, costs)
 - **Simplified Holdings** - Essential fields only (quantity, break-even, total cost) for v0.2 core functionality
+
+#### providers/
+Purpose: Directory for data API provider implementations.
+
+**STATUS: 🔄 NOT IMPLEMENTED** - Directory exists but contains no provider implementations yet.
+
+Planned implementations (v0.21+):
+- Finnhub API providers (news + price data)
+- RSS feed providers (news)  
+- Reddit PRAW providers (sentiment)
+- SEC EDGAR providers (regulatory filings)
+- Polygon.io providers (market data backup)
 
 #### API_Reference.md
 Purpose: Comprehensive documentation of 5 data source APIs for trading bot integration.

@@ -7,13 +7,18 @@ from .base import DataSource, NewsDataSource, PriceDataSource
 # Data models
 from .models import NewsItem, PriceData, AnalysisResult, Holdings, Session, Stance, AnalysisType
 
-# Storage and utilities (to be implemented)  
-# from .storage import DataStorage
-# from .deduplication import DeduplicationTracker
+# Storage operations
+from .storage import (
+    init_database, store_news_items, store_price_data, 
+    get_news_since, get_price_data_since, upsert_analysis_result,
+    upsert_holdings, get_all_holdings, get_analysis_results
+)
 
 __all__ = [
     'DataSource', 'NewsDataSource', 'PriceDataSource',
     'NewsItem', 'PriceData', 'AnalysisResult', 'Holdings', 
     'Session', 'Stance', 'AnalysisType',
-    # 'DataStorage', 'DeduplicationTracker'
+    'init_database', 'store_news_items', 'store_price_data',
+    'get_news_since', 'get_price_data_since', 'upsert_analysis_result',
+    'upsert_holdings', 'get_all_holdings', 'get_analysis_results'
 ]
