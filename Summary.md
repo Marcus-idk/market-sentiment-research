@@ -3,7 +3,9 @@
 ## Current Implementation Status
 - **✅ v0.1 COMPLETED**: LLM Provider Module (OpenAI, Gemini with full async support)
 - **✅ v0.2 Phase 1 COMPLETED**: Core Data Infrastructure (models, storage, database schema)
-- **✅ v0.2 Phase 1 Testing**: Data Model Validation Test Suite (comprehensive __post_init__ validation)
+- **✅ v0.2 Phase 1 Testing COMPLETED**: Data Model Validation Test Suite (comprehensive __post_init__ validation)
+- **✅ v0.2 Phase 2 Testing COMPLETED**: Storage Operations Test Suite (CRUD, Windows-safe SQLite cleanup)
+- **✅ v0.2 Phase 3 Testing COMPLETED**: Database Schema Constraint Test Suite (direct SQL constraint validation)
 - **🔄 v0.2+ PLANNED**: API Data Providers (Finnhub, RSS, Reddit, SEC EDGAR, Polygon)
 
 ## Technical Stack
@@ -11,6 +13,18 @@
 - **Async/Await** - For concurrent API calls to multiple data sources (LLM providers implemented)
 - **SQLite Database** - Local storage with optimized schema and WAL mode
 - **Dataclasses** - Type-safe models with validation for financial data
+
+## Market Focus & Timezone Strategy
+- **Target Market**: US Stock Market (NYSE, NASDAQ) exclusively
+- **Trading Sessions**: 
+  - Pre-market: 4:00 AM - 9:30 AM ET
+  - Regular: 9:30 AM - 4:00 PM ET
+  - Post-market: 4:00 PM - 8:00 PM ET
+- **Timezone Handling**: All timestamps stored in UTC (Z suffix) for consistency
+  - Database storage: ISO format with UTC (e.g., `2024-01-01T14:30:00Z`)
+  - Internal processing: Convert to ET for trading logic
+  - Session enum: `REG`, `PRE`, `POST` correspond to US market sessions
+- **Supported Securities**: US-listed stocks only (no crypto, forex, or international markets in v0.2)
 
 ## Project Structure
 
@@ -75,6 +89,11 @@ Features:
 ### tests/ - Testing Framework
 Purpose: Comprehensive validation of LLM provider functionality and data infrastructure for automated trading system.
 
+#### tests/conftest.py
+Purpose: Shared pytest fixtures and utilities for all tests.
+- `cleanup_sqlite_artifacts()` - Windows-safe SQLite cleanup for WAL databases (solves file locking issues)
+- Automatically discovered by pytest and available to all test files
+
 #### tests/test_llm_providers.py
 Purpose: Basic connectivity and functionality testing for production readiness.
 
@@ -98,9 +117,41 @@ Key Features:
 - **Comprehensive Coverage** - All enum validations, financial value constraints, JSON validation, timezone handling
 - **Pytest Integration** - Uses pytest framework with clear test organization and error matching
 
-**Planned Test Files (🔄 v0.2 Phases 2-5)**:
-- `test_data_storage.py` - Phase 2: Storage operations, CRUD, URL normalization, type conversions
-- `test_data_schema.py` - Phase 3: Database schema constraints, CHECK constraint validation
+#### tests/test_data_storage.py
+Purpose: Phase 2 storage operations testing - comprehensive SQLite CRUD operations with Windows-safe cleanup.
+- **Windows-Safe SQLite Cleanup** - Solves Windows file locking with WAL checkpoint and journal mode switching
+- **Storage CRUD Operations** - Tests for all storage functions with type conversions
+- **URL Normalization** - Validates tracking parameter stripping for deduplication
+- **Decimal/DateTime Conversions** - Tests TEXT storage precision and ISO timestamp formatting
+- **Database Initialization** - Validates schema loading and constraint setup
+
+Key Features:
+- **856 Lines of Tests** - Comprehensive coverage of all storage operations
+- **Windows Compatibility** - Uses mkstemp() + cleanup_sqlite_artifacts() pattern
+- **WAL Mode Testing** - Production parity with Write-Ahead Logging mode
+- **Type Safety** - Validates all Decimal↔TEXT and datetime↔ISO conversions
+
+#### tests/test_data_schema.py
+Purpose: Phase 3 database schema constraint testing - direct SQL validation bypassing Python models.
+- `TestNotNullConstraints` - Validates NOT NULL constraints across all 24 required fields
+- `TestFinancialConstraints` - Tests positive value constraints (price, quantity, costs > 0)
+- `TestPrimaryKeyConstraints` - Tests duplicate key violations for all 4 tables
+- `TestVolumeConstraints` - Tests volume >= 0 with NULL handling
+- `TestEnumConstraints` - Tests session, stance, analysis_type valid/invalid values (fixed UTC timestamps)
+- `TestConfidenceScoreRange` - Tests BETWEEN 0 AND 1 constraint with boundaries
+- `TestJSONConstraints` - Tests json_valid() and json_type()='object' (conditional on JSON1)
+- `TestDefaultValues` - Tests session='REG' and timestamp defaults
+- `TestTableStructure` - Validates WITHOUT ROWID optimization
+
+Key Features:
+- **Direct SQL Testing** - Bypasses Python validation to test database constraints
+- **JSON1 Detection** - Conditional testing based on SQLite extension availability
+- **Windows-Safe Pattern** - Uses shared cleanup_sqlite_artifacts() from conftest.py
+- **Comprehensive Coverage** - ~30 tests covering all CHECK, NOT NULL, and PRIMARY KEY constraints
+- **Boundary Testing** - Explicit edge cases (0.000001, 999999999.99, etc.)
+- **Fixed Session Timestamps** - Proper UTC hour mapping for REG/PRE/POST sessions
+
+**Planned Test Files (🔄 v0.2 Phases 4-5)**:
 - `test_data_base_classes.py` - Phase 4: Base class validation, DataSource abstract method enforcement
 - `test_data_integration.py` - Phase 5: Integration tests, end-to-end workflows
 

@@ -8,6 +8,19 @@ Build an automated trading bot that leverages LLMs for fundamental analysis to g
 - **Edge**: LLM analyzing hundreds of sources 24/7 vs manual traders reading 2-3 sources
 - **Final Scope**: Monitor existing positions only (no new trade discovery)
 
+## Market Focus & Technical Specifications
+- **Target Market**: US Stock Market exclusively (NYSE, NASDAQ)
+- **Supported Securities**: US-listed stocks only (no crypto, forex, or international markets)
+- **Trading Sessions**: 
+  - Pre-market: 4:00 AM - 9:30 AM ET
+  - Regular: 9:30 AM - 4:00 PM ET
+  - Post-market: 4:00 PM - 8:00 PM ET
+- **Timezone Strategy**: 
+  - All timestamps stored as UTC in database (ISO format with Z suffix)
+  - Convert to Eastern Time (ET) for trading logic and session determination
+  - Session enum values (REG, PRE, POST) correspond to US market sessions
+- **Data Sources**: US-focused financial data providers (Finnhub, Polygon.io, SEC EDGAR, etc.)
+
 ---
 
 ## v0.1 - LLM Foundation ✅ **COMPLETED**
@@ -27,7 +40,7 @@ Build an automated trading bot that leverages LLMs for fundamental analysis to g
 
 ---
 
-## v0.2 - Core Infrastructure Foundation 🏗️ **PHASE 1**
+## v0.2 - Core Infrastructure Foundation 🏗️ **COMPLETED**
 
 ### Goal: Build Solid Foundation Without APIs
 
@@ -43,6 +56,11 @@ Build an automated trading bot that leverages LLMs for fundamental analysis to g
 - ✅ Storage operations work (specialized CRUD for each model type)
 - ✅ Abstract DataSource interface defined (with proper inheritance hierarchy)
 - ✅ Database-level deduplication functional (INSERT OR IGNORE + natural primary keys + URL normalization)
+
+#### Testing Phases ✅ **ALL COMPLETED**
+- ✅ **Phase 1 Testing**: Data model validation (__post_init__ validation for all models)
+- ✅ **Phase 2 Testing**: Storage operations (CRUD operations, Windows-safe SQLite cleanup, type conversions)
+- ✅ **Phase 3 Testing**: Database schema constraints (direct SQL constraint validation, bypassing Python)
 
 #### Advanced Features Implemented (Beyond Original v0.2 Plan)
 - **LLM Analysis Models**: AnalysisResult with JSON validation for future LLM integration
