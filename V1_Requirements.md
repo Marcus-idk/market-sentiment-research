@@ -27,6 +27,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 ## v0.2 — Core Infrastructure ✅
 - Data models: NewsItem, PriceData, AnalysisResult, Holdings (strict validation)
 - Storage: SQLite schema (4 tables, WAL, constraints) + CRUD, URL normalization, DB-level dedup (INSERT OR IGNORE, natural PKs)
+- Environment: Requires SQLite JSON1 extension (init_database fails fast if missing) to enforce JSON object constraints at the DB level.
 - Interfaces: Typed DataSource base classes (DataSource, NewsDataSource, PriceDataSource)
 - Enums: Session, Stance, AnalysisType; Decimal precision for finance
 - Tests: Model validation; CRUD + type conversions; direct SQL constraint checks
@@ -74,6 +75,7 @@ config.py (GH secrets integration)
 
 .github/workflows/trading-bot.yml  # 5-min polling + commit DB
 ```
+- CI note: Call `finalize_database(db_path)` before committing the DB so recent writes in WAL are checkpointed into the main `.db` and sidecar files aren’t needed.
 - Cost: $0 (GH free tier)
 
 ---
@@ -171,4 +173,3 @@ data/
 - Infra: Rate limiting; lightweight local ML filtering; data validation; circuit breakers; monitoring/health; DB optimization; redundant failover
 - Metrics: Beat buy-and-hold; 99%+ collection uptime; $10–$50/month; recommend-only (no auto-execution)
 - Stack: Python; GitHub Actions; clean architecture; async I/O
-

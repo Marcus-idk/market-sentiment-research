@@ -58,7 +58,8 @@ Automated US equities bot that polls data sources, stores all timestamps in UTC,
   - `_decimal_to_text(d: Decimal) -> str` — exact precision as TEXT.
 
 - Database
-  - `init_database(db_path: str) -> None` — executes `schema.sql` (WAL, constraints).
+  - `init_database(db_path: str) -> None` — executes `schema.sql` (WAL, constraints) and requires SQLite JSON1 (fails fast if missing).
+  - `finalize_database(db_path: str) -> None` — checkpoints WAL and switches to DELETE journal mode; run before committing/copying the DB in CI so the `.db` contains all writes (no sidecars needed).
 
 - Writes
   - `store_news_items(db_path: str, items: List[NewsItem]) -> None` — INSERT OR IGNORE by `(symbol, normalized_url)`.
@@ -108,4 +109,3 @@ Automated US equities bot that polls data sources, stores all timestamps in UTC,
 ## Next Steps
 - Implement providers under `data/providers/` (Finnhub, RSS, etc.) using `DataSource` contracts.
 - Add timezone helpers for UTC↔US/Eastern when implementing trading/session logic.
-
