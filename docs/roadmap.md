@@ -16,6 +16,13 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 ---
 
+## Versioning Scheme
+- Pre-1.0 semantic style: `0.1.x` = LLM foundation, `0.2.x` = core data infra and ingestion, `0.3.x` = trading intelligence layer.
+- Use patch-level increments like `0.2.1`, `0.2.2`, etc. Avoid ambiguous labels like `0.21`.
+- Constraint: Do not change feature scope of `v0.1` and `v0.2` (already completed).
+
+---
+
 ## v0.1 — LLM Foundation ✅
 - LLM provider module (abstract base + clean provider pattern)
 - Providers: GPT-5 (final decisions), Gemini 2.5 Flash (specialists)
@@ -47,7 +54,7 @@ data/
 
 ---
 
-## v0.21 — Single API Integration 📡
+## v0.2.1 — Single API Integration 📡
 - Goal: Add Finnhub; local polling only
 - Components: Finnhub provider (news + price), basic scheduler, config (API key)
 - Success: Connects, fetches, stores locally; dedup works; manual polling
@@ -64,7 +71,7 @@ data/
 
 ---
 
-## v0.22 — GitHub Actions Automation ☁️
+## v0.2.2 — GitHub Actions Automation ☁️
 - Goal: Cloud execution; 5-min cron
 - Components: GH Actions workflow; commit SQLite to repo; secrets for keys
 - Success: Runs every 5 min; cloud fetch; DB persists; 24/7; no local runs
@@ -80,7 +87,7 @@ config.py (GH secrets integration)
 
 ---
 
-## v0.23 — Complete Basic System 🎯
+## v0.2.3 — Complete Basic System 🎯
 - Goal: Second source + filtering
 - Components: RSS provider; keyword filtering (urgent); enhanced scheduler; UTC standardization
 - Success: Finnhub + RSS; urgent detection; cross-source dedup; end-to-end ready; unblock LLM (v0.3)
@@ -120,7 +127,7 @@ class RedditSentimentProvider(NewsDataSource):
 
 ---
 
-## v0.25 — Complete Data Collection 📊 (Expansion MVP)
+## v0.2.4 — Complete Data Collection 📊 (Expansion MVP)
 - Goal: Add remaining sources + robustness
 - Sources:
   - Polygon.io (backup market data): batch queries; 5 calls/min free
@@ -129,7 +136,7 @@ class RedditSentimentProvider(NewsDataSource):
   - Note: SEC is stocks only (no crypto)
 - Enhancements: Advanced filtering engine; retries/circuit breakers; perf/health metrics; data quality (cross-source validation, freshness, anomalies)
 - Success: All 5 sources working; robust recovery; monitoring; validated data; LLM-ready
-- Files (v0.25):
+- Files (v0.2.4):
 ```
 data/
 ├── __init__.py          # DataSource, providers, scheduler
@@ -154,7 +161,7 @@ data/
 
 ---
 
-## v0.3+ — Trading Intelligence Layer (Future)
+## v0.3.x — Trading Intelligence Layer (Future)
 - Pipeline:
 ```
 30-min raw batches → Specialist LLMs → Persistent analysis → Head Trader LLM → HOLD/SELL
