@@ -54,18 +54,20 @@ data/
 
 ---
 
-## v0.2.1 — Single API Integration 📡
+-## v0.2.1 — Single API Integration 📡
 - Goal: Add Finnhub; local polling only
-- Components: Finnhub provider (news + price), basic scheduler, config (API key)
+- Components: Finnhub provider (news + price), basic scheduler, config package (API key)
 - Success: Connects, fetches, stores locally; dedup works; manual polling
 - Files (adds to v0.2):
 ```
-data/
-├── config.py            # API keys, local env
-├── scheduler.py         # Local polling
+config/
 └── providers/
-    ├── __init__.py
-    └── finnhub.py       # News + Price providers
+    └── finnhub.py        # FinnhubSettings
+
+data/
+├── scheduler.py          # Local polling
+└── providers/
+    └── finnhub.py        # News + Price providers
 ```
 - Cost: $0 (Finnhub free tier)
 
@@ -77,8 +79,8 @@ data/
 - Success: Runs every 5 min; cloud fetch; DB persists; 24/7; no local runs
 - Files:
 ```
-data/ (as v0.21)
-config.py (GH secrets integration)
+data/ (as v0.2.1)
+config/ (GH secrets integration via env)
 
 .github/workflows/trading-bot.yml  # 5-min polling + commit DB
 ```
@@ -142,7 +144,7 @@ data/
 ├── __init__.py          # DataSource, providers, scheduler
 ├── base.py              # ABC: fetch_incremental(), validate_connection()
 ├── models.py            # News, Price, Sentiment, Filing
-├── config.py            # All API keys; GH secrets
+├── config/              # Provider settings; GH secrets via env
 ├── storage.py           # store_items(), get_items_since()
 ├── deduplication.py     # is_processed(), mark_processed()
 ├── filters.py           # Keyword/ML-ready rules

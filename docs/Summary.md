@@ -8,6 +8,7 @@ Automated US equities bot that polls data sources, stores all timestamps in UTC,
 - Trading logic: Convert UTC to US/Eastern for session-aware decisions (REG, PRE, POST).
 
 ## Project Structure
+- `config/` — typed settings per provider (data + LLM) and optional env loader.
 - `data/` — data models, base abstractions, SQLite schema and storage ops, docs.
 - `llm/` — LLM provider base + OpenAI/Gemini implementations and docs.
 - `tests/` — model validation, storage CRUD, schema constraints, base-class contracts, LLM connectivity (skips without keys).
@@ -118,7 +119,7 @@ Automated US equities bot that polls data sources, stores all timestamps in UTC,
   - `test_wal_sqlite.py` — WAL mode functionality and concurrent operations
 
 Notes:
-- Async tests require `pytest-asyncio` (already in `requirements.txt`).
+- Async tests require `pytest-asyncio` (ensure it is installed).
 - SQLite JSON1 is required by `init_database`; ensure your Python/SQLite has JSON1 (e.g., `pysqlite3-binary` on Windows).
 
 ## Next Steps
