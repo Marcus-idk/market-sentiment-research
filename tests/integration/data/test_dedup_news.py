@@ -55,7 +55,7 @@ class TestNewsDeduplication:
         # Source 3: Google Analytics with additional tracking parameters
         google_article = NewsItem(
             symbol=symbol,
-            url=f"{base_url}?gclid=Cj0KCQjw-uH1BRCm&UTM_CAMPAIGN=finance&source=google&utm_medium=cpc&fbclid=different123",
+            url=f"{base_url}?gclid=Cj0KCQjw-uH1BRCm&UTM_CAMPAIGN=finance&utm_medium=cpc&fbclid=different123",
             headline="Apple Reports Strong Q4 Earnings Beat Expectations",  # Same headline  
             content="Apple Inc. exceeded analyst expectations with quarterly earnings showing robust iPhone sales and services growth.",  # Same content
             source="Google News",

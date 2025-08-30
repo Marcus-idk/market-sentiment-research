@@ -90,13 +90,13 @@ class TestURLNormalization:
             ("https://example.com?gclid=xyz789&msclkid=def456", 
              "https://example.com"),
             ("https://example.com?source=newsletter&campaign=promo", 
-             "https://example.com"),
+             "https://example.com?source=newsletter"),
              
             # Case insensitive removal
             ("https://example.com?UTM_Source=google&CAMPAIGN=test", 
              "https://example.com"),
             ("https://example.com?REF=twitter&Source=email", 
-             "https://example.com"),
+             "https://example.com?Source=email"),
         ]
         
         for original, expected in test_cases:

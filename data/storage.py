@@ -23,7 +23,7 @@ def _normalize_url(url: str) -> str:
     # Common tracking parameters to remove
     tracking_params = {
         'utm_source', 'utm_medium', 'utm_campaign', 'utm_term', 'utm_content',
-        'ref', 'fbclid', 'gclid', 'msclkid', 'source', 'campaign'
+        'ref', 'fbclid', 'gclid', 'msclkid', 'campaign'
     }
     
     # Parse query parameters and filter out tracking ones

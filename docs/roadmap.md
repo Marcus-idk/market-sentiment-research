@@ -54,10 +54,18 @@ data/
 
 ---
 
--## v0.2.1 — Single API Integration 📡
+## v0.2.1 — Single API Integration 📡
 - Goal: Add Finnhub; local polling only
 - Components: Finnhub provider (news + price), basic scheduler, config package (API key)
 - Success: Connects, fetches, stores locally; dedup works; manual polling
+- Data retention + watermarks:
+  - Add state table `last_seen(key TEXT PRIMARY KEY, value TEXT NOT NULL)`.
+  - Keys now: `news_since_iso` (last ingested news publish time, UTC), `llm_last_run_iso` (last analysis cutoff, UTC).
+  - 5‑min loop (continues while LLM runs): read `news_since_iso` → fetch news incrementally → store → upsert `news_since_iso` to max published.
+  - 30‑min loop (cutoff snapshot): when starting an analysis at time `T`, compute `cutoff = T − 5m` and read rows with `created_at_iso ≤ cutoff` only. Ingestion does NOT pause.
+  - Delete-after-success: only after LLM completes successfully, set `llm_last_run_iso = cutoff` and delete raw rows where `created_at_iso ≤ cutoff`. Rows newer than `cutoff` remain for the next batch.
+  - Safety buffer: default 5 minutes to tolerate late/clock-skewed items; tune if needed.
+  - Do not use `analysis_results` timestamps as ingestion watermarks (analysis may be delayed/partial).
 - Files (adds to v0.2):
 ```
 config/
@@ -65,10 +73,13 @@ config/
     └── finnhub.py        # FinnhubSettings
 
 data/
-├── scheduler.py          # Local polling
+├── scheduler.py          # 5‑min + 30‑min loops; watermark updates
 └── providers/
     └── finnhub.py        # News + Price providers
 ```
+- Schema changes:
+  - `data/schema.sql`: add `CREATE TABLE IF NOT EXISTS last_seen (key TEXT PRIMARY KEY, value TEXT NOT NULL);`
+  - Keep WAL and JSON1 requirement (init fails fast if JSON1 missing).
 - Cost: $0 (Finnhub free tier)
 
 ---
