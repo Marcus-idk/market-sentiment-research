@@ -20,9 +20,6 @@ def has_json1_support(db_path: str) -> bool:
     except sqlite3.OperationalError:
         return False
 
-
-
-
 class TestNotNullConstraints:
     """Test NOT NULL constraints across all tables."""
     
@@ -595,26 +592,31 @@ class TestTableStructure:
     """Test table structure and optimizations."""
     
     def test_without_rowid_optimization(self, temp_db):
-        """Test that all tables use WITHOUT ROWID optimization."""
+        """All user tables use WITHOUT ROWID and required tables exist."""
         with sqlite3.connect(temp_db) as conn:
             cursor = conn.cursor()
-            
-            # Get all table creation SQL
-            tables = cursor.execute("""
-                SELECT name, sql FROM sqlite_master 
+
+            # Get all non-internal table creation SQL
+            tables = cursor.execute(
+                """
+                SELECT name, sql FROM sqlite_master
                 WHERE type='table' AND name NOT LIKE 'sqlite_%'
-            """).fetchall()
-            
-            # Verify each table has WITHOUT ROWID
+                """
+            ).fetchall()
+
+            # Required tables (update here when schema grows)
+            required = {
+                'news_items',
+                'price_data',
+                'analysis_results',
+                'holdings',
+                'last_seen',
+            }
+
+            names = {name for name, _ in tables}
+            missing = required - names
+            assert not missing, f"Missing tables: {sorted(missing)}; found: {sorted(names)}"
+
+            # Verify each table uses WITHOUT ROWID
             for name, sql in tables:
                 assert 'WITHOUT ROWID' in sql.upper(), f"Table {name} missing WITHOUT ROWID"
-            
-            # Should have exactly 4 tables
-            assert len(tables) == 4
-            table_names = [name for name, _ in tables]
-            assert 'news_items' in table_names
-            assert 'price_data' in table_names
-            assert 'analysis_results' in table_names
-            assert 'holdings' in table_names
-
-

@@ -66,6 +66,19 @@ data/
   - Delete-after-success: only after LLM completes successfully, set `llm_last_run_iso = cutoff` and delete raw rows where `created_at_iso ≤ cutoff`. Rows newer than `cutoff` remain for the next batch.
   - Safety buffer: default 5 minutes to tolerate late/clock-skewed items; tune if needed.
   - Do not use `analysis_results` timestamps as ingestion watermarks (analysis may be delayed/partial).
+
+  Plain-English summary:
+  - `last_seen` remembers two simple time markers so the system knows where it left off.
+  - `news_since_iso`: providers only fetch articles published at or after this time to avoid refetching everything.
+  - `llm_last_run_iso`: after a successful LLM batch, we prune only rows the LLM definitely processed (those inserted with `created_at_iso` at or before this cutoff).
+  - Two clocks on purpose: providers filter by source publish time (`published_iso`), while pruning uses database insert time (`created_at_iso`) so late arrivals are never deleted before being analyzed.
+  - Scope (v0.2.1): one global `news_since_iso` for all providers/symbols is acceptable with a 5–10 minute overlap window; later we can switch to per‑provider keys if needed.
+
+  Example timeline:
+  - 10:00Z: `news_since_iso = 09:55Z`. Providers fetch published ≥ 09:55Z; DB stores rows and advances `news_since_iso` to the max published (say 10:00Z).
+  - 10:30Z: LLM starts; computes `cutoff = 10:25Z`. It processes rows with `created_at_iso ≤ 10:25Z` only.
+  - 10:27Z: A late article published at 10:23Z arrives now; its `created_at_iso = 10:27Z`, so it is NOT in this batch.
+  - 10:32Z: LLM succeeds → set `llm_last_run_iso = 10:25Z`; delete raw rows where `created_at_iso ≤ 10:25Z`. The 10:27Z row remains for the next batch.
 - Files (adds to v0.2):
 ```
 config/

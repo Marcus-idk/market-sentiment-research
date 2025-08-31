@@ -73,6 +73,16 @@ CREATE TABLE holdings (
 ) WITHOUT ROWID;
 
 -- ===============================
+-- STATE TRACKING (PERSISTENT)
+-- ===============================
+-- Tracks incremental fetch positions and processing cutoffs
+
+CREATE TABLE last_seen (
+    key TEXT PRIMARY KEY,
+    value TEXT NOT NULL
+) WITHOUT ROWID;
+
+-- ===============================
 -- PERFORMANCE INDEXES
 -- ===============================
 -- Indexes will be added later when implementing LLM query patterns

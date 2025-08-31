@@ -1,6 +1,6 @@
 from abc import ABC, abstractmethod
 from typing import List, Optional, Dict, Any
-from datetime import datetime, timezone
+from datetime import datetime
 
 from .models import NewsItem, PriceData
 
@@ -36,7 +36,6 @@ class DataSource(ABC):
             raise ValueError(f"source_name too long: {len(source_name)} characters (max 100)")
         
         self.source_name = source_name.strip()
-        self.last_fetch_time: Optional[datetime] = None
     
     
     @abstractmethod
@@ -52,42 +51,7 @@ class DataSource(ABC):
         """
         pass
     
-    def update_last_fetch_time(self, timestamp: datetime) -> None:
-        """
-        Update the last successful fetch timestamp
-        
-        Args:
-            timestamp: When the last successful fetch occurred
-            
-        Raises:
-            ValueError: If timestamp is None or in the future
-            TypeError: If timestamp is not a datetime object
-        """
-        if timestamp is None:
-            raise ValueError("timestamp cannot be None")
-        if not isinstance(timestamp, datetime):
-            raise TypeError(f"timestamp must be a datetime object, got {type(timestamp).__name__}")
-        
-        # Normalize to UTC like models do
-        if timestamp.tzinfo is None:
-            timestamp = timestamp.replace(tzinfo=timezone.utc)
-        else:
-            timestamp = timestamp.astimezone(timezone.utc)
-        
-        now = datetime.now(timezone.utc)
-        if timestamp > now:
-            raise ValueError(f"timestamp cannot be in the future: {timestamp} > {now}")
-            
-        self.last_fetch_time = timestamp
-    
-    def get_last_fetch_time(self) -> Optional[datetime]:
-        """
-        Get the timestamp of the last successful fetch
-        
-        Returns:
-            Last fetch timestamp, or None if never fetched
-        """
-        return self.last_fetch_time
+    pass
 
 
 class DataSourceError(Exception):

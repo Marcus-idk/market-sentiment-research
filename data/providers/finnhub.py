@@ -172,7 +172,6 @@ class FinnhubNewsProvider(NewsDataSource):
         to_date = now_utc.date()
         
         news_items = []
-        max_published_time = None
         
         for symbol in self.symbols:
             try:
@@ -193,12 +192,7 @@ class FinnhubNewsProvider(NewsDataSource):
                     try:
                         news_item = self._parse_article(article, symbol, since)
                         if news_item:
-                            news_items.append(news_item)
-                            
-                            # Track latest publication time for updating last_fetch_time
-                            if max_published_time is None or news_item.published > max_published_time:
-                                max_published_time = news_item.published
-                                
+                            news_items.append(news_item)                                
                     except Exception:
                         # Skip invalid articles, continue with others
                         continue
@@ -206,10 +200,6 @@ class FinnhubNewsProvider(NewsDataSource):
             except Exception:
                 # Skip symbol on error, continue with remaining symbols
                 continue
-        
-        # Update last fetch time only when items were found
-        if max_published_time:
-            self.update_last_fetch_time(max_published_time)
         
         return news_items
     
@@ -330,9 +320,6 @@ class FinnhubPriceProvider(PriceDataSource):
             except Exception:
                 # Skip symbol on error, continue with remaining symbols
                 continue
-        
-        # Update last fetch time to now
-        self.update_last_fetch_time(datetime.now(timezone.utc))
         
         return price_data
     

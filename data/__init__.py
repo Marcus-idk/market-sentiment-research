@@ -11,7 +11,10 @@ from .models import NewsItem, PriceData, AnalysisResult, Holdings, Session, Stan
 from .storage import (
     init_database, finalize_database, store_news_items, store_price_data, 
     get_news_since, get_price_data_since, upsert_analysis_result,
-    upsert_holdings, get_all_holdings, get_analysis_results
+    upsert_holdings, get_all_holdings, get_analysis_results,
+    get_last_news_time, set_last_news_time,
+    get_news_before, get_prices_before,
+    commit_llm_batch,
 )
 
 __all__ = [
@@ -20,5 +23,8 @@ __all__ = [
     'Session', 'Stance', 'AnalysisType',
     'init_database', 'finalize_database', 'store_news_items', 'store_price_data',
     'get_news_since', 'get_price_data_since', 'upsert_analysis_result',
-    'upsert_holdings', 'get_all_holdings', 'get_analysis_results'
+    'upsert_holdings', 'get_all_holdings', 'get_analysis_results',
+    'get_last_news_time', 'set_last_news_time',
+    'get_news_before', 'get_prices_before',
+    'commit_llm_batch',
 ]

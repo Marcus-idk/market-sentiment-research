@@ -39,10 +39,9 @@ Automated US equities bot that polls data sources, stores all timestamps in UTC,
 
 ### Base Abstractions
 - `class DataSource(ABC)`
-  - `__init__(source_name: str)` — validates id; sets `last_fetch_time: Optional[datetime]`.
+  - `__init__(source_name: str)` — validates identifier string.
   - `async validate_connection() -> bool` — must not raise; return False on issues.
-  - `update_last_fetch_time(timestamp: datetime) -> None` — coerce to UTC; reject future.
-  - `get_last_fetch_time() -> Optional[datetime]`.
+  - Note: No in-memory fetch timestamp; use DB watermarks in `last_seen`.
 
 - `class NewsDataSource(DataSource)`
   - `async fetch_incremental(since: Optional[datetime]) -> List[NewsItem]`.
@@ -57,6 +56,7 @@ Automated US equities bot that polls data sources, stores all timestamps in UTC,
   - `_normalize_url(url: str) -> str` — strips tracking query params for deduplication.
   - `_datetime_to_iso(dt: datetime) -> str` — UTC ISO with `Z`, no micros.
   - `_decimal_to_text(d: Decimal) -> str` — exact precision as TEXT.
+  - `last_seen` state: lightweight key/value table for watermarks (`news_since_iso`, `llm_last_run_iso`).
 
 - Database
   - `init_database(db_path: str) -> None` — executes `schema.sql` (WAL, constraints) and requires SQLite JSON1 (fails fast if missing).
@@ -67,6 +67,7 @@ Automated US equities bot that polls data sources, stores all timestamps in UTC,
   - `store_price_data(db_path: str, items: List[PriceData]) -> None` — INSERT OR IGNORE by `(symbol, timestamp_iso)`.
   - `upsert_analysis_result(db_path: str, result: AnalysisResult) -> None` — upsert by `(symbol, analysis_type)`; preserves initial `created_at`.
   - `upsert_holdings(db_path: str, holdings: Holdings) -> None` — upsert by `symbol`; preserves `created_at`, updates `updated_at`.
+  - `commit_llm_batch(db_path: str, cutoff: datetime) -> Dict[str, int]` — atomic prune: set `llm_last_run_iso=cutoff` and delete `news_items/price_data` where `created_at_iso ≤ cutoff`.
 
 - Reads
   - `get_news_since(db_path: str, timestamp: datetime) -> List[Dict]` — ordered by `published_iso`.
@@ -80,6 +81,7 @@ Automated US equities bot that polls data sources, stores all timestamps in UTC,
   - `price_data(symbol, timestamp_iso, price TEXT, volume INTEGER, session TEXT, created_at_iso)` — PK `(symbol, timestamp_iso)`.
   - `analysis_results(symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json, created_at_iso)` — PK `(symbol, analysis_type)`.
   - `holdings(symbol, quantity TEXT, break_even_price TEXT, total_cost TEXT, notes, created_at_iso, updated_at_iso)` — PK `symbol`.
+  - `last_seen(key, value)` — persistent watermarks for ingestion/pruning.
 - Constraints: NOT NULLs; `price/quantity/break_even_price/total_cost > 0`; `volume >= 0 or NULL`; enums limited; JSON object validation; WAL mode enabled.
 
 ## LLM Module
