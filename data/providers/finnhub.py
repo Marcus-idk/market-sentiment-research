@@ -17,6 +17,7 @@ import httpx
 from config.providers.finnhub import FinnhubSettings
 from data.base import NewsDataSource, PriceDataSource, DataSourceError
 from data.models import NewsItem, PriceData, Session
+from utils.retry import retry_and_call, RetryableError
 
 class FinnhubClient:
     """
@@ -49,66 +50,54 @@ class FinnhubClient:
         Raises:
             DataSourceError: On authentication, client, or persistent server errors
         """
-        # Add authentication token to params
         if params is None:
             params = {}
         params['token'] = self.settings.api_key
-        
         url = f"{self.settings.base_url}{path}"
         timeout = self.settings.timeout_seconds
-        
-        # Retry logic for 429/5xx with jittered backoff
-        last_exception = None
-        for attempt in range(self.settings.max_retries + 1):
-            try:
-                # Run blocking httpx.get in a thread to keep async interface simple
-                def _do_request():
-                    resp = httpx.get(url, params=params, timeout=timeout)
-                    return resp
 
-                response = await asyncio.to_thread(_do_request)
+        async def _op():
+            def _do_request():
+                return httpx.get(url, params=params, timeout=timeout)
+            
+            response = await asyncio.to_thread(_do_request)
+            status = response.status_code
 
-                status = response.status_code
+            # Auth/client errors (non-retryable)
+            if status in (401, 403):
+                raise DataSourceError(f"Authentication failed (status {status})")
+            if 400 <= status < 500 and status != 429:
+                raise DataSourceError(f"Client error (status {status})")
 
-                # Auth errors - don't retry
-                if status in (401, 403):
-                    raise DataSourceError(f"Authentication failed (status {status})")
+            # Success
+            if status == 200:
+                try:
+                    return response.json()
+                except ValueError as e:
+                    raise DataSourceError(f"Invalid JSON response: {e}")
 
-                # Client errors (except 429) - don't retry
-                if 400 <= status < 500 and status != 429:
-                    raise DataSourceError(f"Client error (status {status})")
-
-                # Success
-                if status == 200:
+            # 429/5xx → retryable; honor Retry-After if present
+            if status >= 500 or status == 429:
+                ra = response.headers.get('Retry-After')
+                retry_after = None
+                if ra:
                     try:
-                        return response.json()
-                    except ValueError as e:
-                        raise DataSourceError(f"Invalid JSON response: {e}")
+                        retry_after = float(ra)
+                    except ValueError:
+                        retry_after = None
+                raise RetryableError(f"Transient error (status {status})", retry_after=retry_after)
 
-                # Server errors (5xx) or rate limit (429) - retry with backoff
-                if status >= 500 or status == 429:
-                    if attempt < self.settings.max_retries:
-                        # Exponential backoff with jitter: 0.25s, 0.5s, 1s + random jitter
-                        base_delay = 0.25 * (2 ** attempt)
-                        jitter = random.uniform(-0.1, 0.1)
-                        delay = max(0.1, base_delay + jitter)
-                        await asyncio.sleep(delay)
-                        continue
-                    else:
-                        raise DataSourceError(f"Server error after {self.settings.max_retries} retries (status {status})")
+            # Anything unexpected
+            raise DataSourceError(f"Unexpected HTTP status: {status}")
 
-                # Unexpected status code
-                raise DataSourceError(f"Unexpected HTTP status: {status}")
-
-            except httpx.RequestError as e:
-                last_exception = e
-                if attempt < self.settings.max_retries:
-                    delay = 0.25 * (2 ** attempt) + random.uniform(-0.1, 0.1)
-                    await asyncio.sleep(max(0.1, delay))
-                    continue
-        
-        # All retries exhausted
-        raise DataSourceError(f"Network error after {self.settings.max_retries} retries: {last_exception}")
+        # attempts mirrors prior behavior: range(max_retries + 1)
+        return await retry_and_call(
+            _op,
+            attempts=self.settings.max_retries + 1,
+            base=0.25,
+            mult=2.0,
+            jitter=0.1,
+        )
 
 
 class FinnhubNewsProvider(NewsDataSource):

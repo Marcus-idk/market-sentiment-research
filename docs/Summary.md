@@ -142,6 +142,12 @@ Notes:
   - UTC timestamp normalization throughout
   - Symbol-based data fetching for configured stock lists
 
+- Retry helper:
+  - Use the shared helper in `utils/retry.py` (`retry_and_call(...)`) to wrap transient operations.
+    - `RetryableError(retry_after: Optional[float])` signals retryable failures and can honor HTTP `Retry-After` seconds when provided.
+    - Backoff: `base * (mult ** attempt) ± jitter` (min 0.1s).
+    - Uses `await asyncio.sleep(delay)`, yielding only the current task (event loop keeps other work running).
+
 ## Next Steps
 - Add scheduler in `data/scheduler.py` to orchestrate polling and storage
 - Implement RSS provider for additional news sources (v0.2.3)
