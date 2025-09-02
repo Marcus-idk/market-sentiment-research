@@ -11,7 +11,6 @@ class FinnhubSettings:
     
     api_key: str
     base_url: str = "https://finnhub.io/api/v1"
-    rate_limit_per_min: int = 60  # Free tier limit
     timeout_seconds: int = 30
     max_retries: int = 3
     

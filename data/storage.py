@@ -7,7 +7,7 @@ import sqlite3
 import os
 from datetime import datetime, timezone
 from decimal import Decimal
-from typing import List, Dict, Union, Optional
+from typing import List, Dict, Optional
 from urllib.parse import urlparse, urlunparse, parse_qs, urlencode
 
 from .models import NewsItem, PriceData, AnalysisResult, Holdings

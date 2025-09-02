@@ -1,5 +1,5 @@
 from abc import ABC, abstractmethod
-from typing import List, Optional, Dict, Any
+from typing import List, Optional
 from datetime import datetime
 
 from .models import NewsItem, PriceData
@@ -56,11 +56,6 @@ class DataSource(ABC):
 
 class DataSourceError(Exception):
     """Base exception for data source related errors"""
-    pass
-
-
-class RateLimitError(DataSourceError):
-    """Raised when API rate limit is exceeded"""
     pass
 
 

@@ -4,7 +4,7 @@ Phase 4: Base Class Validation Tests
 Tests for abstract base classes and their contracts:
 - DataSource abstract base class 
 - NewsDataSource and PriceDataSource subclasses
-- Exception hierarchy (DataSourceError, RateLimitError)
+- Exception hierarchy (DataSourceError)
 - Abstract method enforcement
 """
 
@@ -16,8 +16,7 @@ from data.base import (
     DataSource, 
     NewsDataSource, 
     PriceDataSource,
-    DataSourceError,
-    RateLimitError
+    DataSourceError
 )
 from data.models import NewsItem, PriceData
 
@@ -123,24 +122,8 @@ class TestAbstractMethodEnforcement:
 class TestExceptionHierarchy:
     def test_exception_inheritance(self):
         assert issubclass(DataSourceError, Exception)
-        assert issubclass(RateLimitError, DataSourceError)
-        assert issubclass(RateLimitError, Exception)
         
         error = DataSourceError("Test error")
         assert isinstance(error, DataSourceError)
         assert isinstance(error, Exception)
-        
-        rate_error = RateLimitError("Rate limit exceeded")
-        assert isinstance(rate_error, RateLimitError)
-        assert isinstance(rate_error, DataSourceError)
-        assert isinstance(rate_error, Exception)
-    
-    def test_ratelimit_is_datasource_error(self):
-        try:
-            raise RateLimitError("API limit reached")
-        except DataSourceError as e:
-            assert isinstance(e, RateLimitError)
-            assert str(e) == "API limit reached"
-        except Exception:
-            pytest.fail("RateLimitError should be caught as DataSourceError")
 
