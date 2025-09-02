@@ -4,6 +4,7 @@ Configuration settings for Finnhub API provider
 from dataclasses import dataclass
 import os
 from typing import Optional, Mapping
+from ..retry import DataRetryConfig, DEFAULT_DATA_RETRY
 
 @dataclass(frozen=True)
 class FinnhubSettings:
@@ -11,8 +12,7 @@ class FinnhubSettings:
     
     api_key: str
     base_url: str = "https://finnhub.io/api/v1"
-    timeout_seconds: int = 30
-    max_retries: int = 3
+    retry_config: DataRetryConfig = DEFAULT_DATA_RETRY
     
     @staticmethod
     def from_env(env: Optional[Mapping[str, str]] = None) -> 'FinnhubSettings':

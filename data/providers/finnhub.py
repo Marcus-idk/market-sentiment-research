@@ -55,8 +55,11 @@ class FinnhubClient:
         return await get_json_with_retry(
             url,
             params=params,
-            timeout=self.settings.timeout_seconds,
-            max_retries=self.settings.max_retries,
+            timeout=self.settings.retry_config.timeout_seconds,
+            max_retries=self.settings.retry_config.max_retries,
+            base=self.settings.retry_config.base,
+            mult=self.settings.retry_config.mult,
+            jitter=self.settings.retry_config.jitter,
         )
 
 

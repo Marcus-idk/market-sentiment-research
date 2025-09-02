@@ -1,39 +1,10 @@
 import asyncio
-from datetime import datetime, timezone
-from email.utils import parsedate_to_datetime
 from typing import Any, Dict, Optional
 
 import httpx
 
 from data.base import DataSourceError
-from utils.retry import RetryableError, retry_and_call
-
-
-def parse_retry_after(value: Optional[str]) -> Optional[float]:
-    """Parse Retry-After header value (numeric seconds or HTTP-date).
-
-    Returns seconds to wait (floored at 0.0), or None if parsing fails.
-    """
-    if not value:
-        return None
-
-    try:
-        # Try parsing as numeric seconds (most common: "120")
-        return max(0.0, float(value))
-    except ValueError:
-        # Not numeric, continue to try HTTP-date format
-        pass
-
-    try:
-        # Try parsing as HTTP-date ("Thu, 01 Dec 2024 15:30:00 GMT")
-        retry_time = parsedate_to_datetime(value)
-        now = datetime.now(timezone.utc)
-        seconds = (retry_time - now).total_seconds()
-        # Floor at 0.0 to handle past dates (don't wait negative time!)
-        return max(0.0, seconds)
-    except (ValueError, TypeError, AttributeError):
-        # Parsing failed completely, fall back to exponential backoff
-        return None
+from utils.retry import RetryableError, retry_and_call, parse_retry_after
 
 
 async def get_json_with_retry(
