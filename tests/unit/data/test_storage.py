@@ -18,6 +18,7 @@ from data.storage import (
     get_last_seen, set_last_seen, get_last_news_time, set_last_news_time,
     get_news_before, get_prices_before, commit_llm_batch, finalize_database
 )
+import os
 from data.models import (
     NewsItem, PriceData, AnalysisResult, Holdings,
     Session, Stance, AnalysisType
@@ -659,6 +660,226 @@ class TestQueryOperations:
         symbols_and_types = [(r.symbol, r.analysis_type.value) for r in all_results]
         expected = [('AAPL', 'news_analysis'), ('AAPL', 'sentiment_analysis'), ('TSLA', 'news_analysis')]
         assert symbols_and_types == expected, f"Expected {expected}, got {symbols_and_types}"
+    
+    def test_get_news_before_cutoff_filtering(self, temp_db):
+        """Test news retrieval with created_at cutoff filtering for LLM batch processing"""
+        import time
+        
+        # Create news items with different created_at times
+        # We need to insert them with delays to ensure different created_at_iso values
+        base_time = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        
+        # First item - oldest
+        item1 = NewsItem(
+            symbol="AAPL",
+            url="https://example.com/old",
+            headline="Old News",
+            source="Reuters",
+            published=base_time
+        )
+        store_news_items(temp_db, [item1])
+        time.sleep(1)  # 1 second delay to ensure different created_at
+        
+        # Second item - middle
+        item2 = NewsItem(
+            symbol="TSLA",
+            url="https://example.com/middle",
+            headline="Middle News",
+            source="Bloomberg",
+            published=base_time
+        )
+        store_news_items(temp_db, [item2])
+        
+        # Record cutoff time right after second item
+        cutoff = datetime.now(timezone.utc)
+        time.sleep(1)  # 1 second delay before third item
+        
+        # Third item - newest
+        item3 = NewsItem(
+            symbol="AAPL",
+            url="https://example.com/new",
+            headline="New News",
+            source="Yahoo",
+            published=base_time
+        )
+        store_news_items(temp_db, [item3])
+        
+        # Query news before cutoff (should get first 2 items)
+        results = get_news_before(temp_db, cutoff)
+        
+        assert len(results) == 2, f"Expected 2 results, got {len(results)}"
+        
+        # Verify ordering by created_at ASC, then symbol ASC
+        assert results[0].headline == "Old News"
+        assert results[1].headline == "Middle News"
+        
+        # Verify all expected fields are present
+        for result in results:
+            assert hasattr(result, 'symbol')
+            assert hasattr(result, 'url')
+            assert hasattr(result, 'headline')
+            assert hasattr(result, 'content')
+            assert hasattr(result, 'published')
+            assert hasattr(result, 'source')
+    
+    def test_get_news_before_boundary_conditions(self, temp_db):
+        """Test get_news_before with boundary conditions using spaced items"""
+        import time
+        
+        base_time = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        
+        # Store first news item
+        item1 = NewsItem(
+            symbol="AAPL",
+            url="https://example.com/item1",
+            headline="First News",
+            source="Reuters",
+            published=base_time
+        )
+        store_news_items(temp_db, [item1])
+        time.sleep(1)  # 1 second delay
+        
+        # Record time between items
+        between_cutoff = datetime.now(timezone.utc)
+        time.sleep(1)  # 1 second delay
+        
+        # Store second news item
+        item2 = NewsItem(
+            symbol="TSLA",
+            url="https://example.com/item2",
+            headline="Second News",
+            source="Bloomberg",
+            published=base_time
+        )
+        store_news_items(temp_db, [item2])
+        
+        # Test 1: Cutoff before all items (should get nothing)
+        past_cutoff = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        results = get_news_before(temp_db, past_cutoff)
+        assert len(results) == 0, f"Expected 0 results for past cutoff, got {len(results)}"
+        
+        # Test 2: Cutoff between items (should get first item only)
+        results = get_news_before(temp_db, between_cutoff)
+        assert len(results) == 1, f"Expected 1 result for between cutoff, got {len(results)}"
+        assert results[0].headline == "First News"
+        
+        # Test 3: Cutoff well after all items (should get both)
+        future_cutoff = datetime(2030, 1, 1, tzinfo=timezone.utc)
+        results = get_news_before(temp_db, future_cutoff)
+        assert len(results) == 2, f"Expected 2 results for future cutoff, got {len(results)}"
+        
+        # Test 4: Exact timestamp match with current time (should get both items)
+        exact_cutoff = datetime.now(timezone.utc)
+        results = get_news_before(temp_db, exact_cutoff)
+        assert len(results) == 2, f"Expected 2 results for exact match, got {len(results)}"
+    
+    def test_get_prices_before_cutoff_filtering(self, temp_db):
+        """Test price data retrieval with created_at cutoff filtering for LLM batch processing"""
+        import time
+        
+        # Create price data with different created_at times
+        base_time = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        
+        # First price - oldest
+        price1 = PriceData(
+            symbol="AAPL",
+            timestamp=base_time,
+            price=Decimal('150.00'),
+            session=Session.REG
+        )
+        store_price_data(temp_db, [price1])
+        time.sleep(1)  # 1 second delay
+        
+        # Second price - middle
+        price2 = PriceData(
+            symbol="TSLA",
+            timestamp=base_time + timedelta(hours=1),
+            price=Decimal('200.00'),
+            session=Session.PRE
+        )
+        store_price_data(temp_db, [price2])
+        
+        # Record cutoff time right after second item
+        cutoff = datetime.now(timezone.utc)
+        time.sleep(1)  # 1 second delay before third item
+        
+        # Third price - newest
+        price3 = PriceData(
+            symbol="AAPL",
+            timestamp=base_time + timedelta(hours=2),
+            price=Decimal('151.00'),
+            session=Session.POST
+        )
+        store_price_data(temp_db, [price3])
+        
+        # Query prices before cutoff (should get first 2 items)
+        results = get_prices_before(temp_db, cutoff)
+        
+        assert len(results) == 2, f"Expected 2 results, got {len(results)}"
+        
+        # Verify ordering by created_at ASC, then symbol ASC
+        assert results[0].price == Decimal('150.00')
+        assert results[1].price == Decimal('200.00')
+        
+        # Verify all expected fields are present
+        for result in results:
+            assert hasattr(result, 'symbol')
+            assert hasattr(result, 'timestamp')
+            assert hasattr(result, 'price')
+            assert hasattr(result, 'volume')
+            assert hasattr(result, 'session')
+    
+    def test_get_prices_before_boundary_conditions(self, temp_db):
+        """Test get_prices_before with boundary conditions using spaced items"""
+        import time
+        
+        base_time = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        
+        # Store first price data point
+        price1 = PriceData(
+            symbol="AAPL",
+            timestamp=base_time,
+            price=Decimal('150.00'),
+            volume=1000000,
+            session=Session.REG
+        )
+        store_price_data(temp_db, [price1])
+        time.sleep(1)  # 1 second delay
+        
+        # Record time between items
+        between_cutoff = datetime.now(timezone.utc)
+        time.sleep(1)  # 1 second delay
+        
+        # Store second price data point
+        price2 = PriceData(
+            symbol="TSLA",
+            timestamp=base_time + timedelta(hours=1),
+            price=Decimal('200.00'),
+            volume=2000000,
+            session=Session.PRE
+        )
+        store_price_data(temp_db, [price2])
+        
+        # Test 1: Cutoff before all items (should get nothing)
+        past_cutoff = datetime(2020, 1, 1, tzinfo=timezone.utc)
+        results = get_prices_before(temp_db, past_cutoff)
+        assert len(results) == 0, f"Expected 0 results for past cutoff, got {len(results)}"
+        
+        # Test 2: Cutoff between items (should get first item only)
+        results = get_prices_before(temp_db, between_cutoff)
+        assert len(results) == 1, f"Expected 1 result for between cutoff, got {len(results)}"
+        assert results[0].price == Decimal('150.00')
+        assert results[0].symbol == "AAPL"
+        
+        # Test 3: Cutoff well after all items (should get both)
+        future_cutoff = datetime(2030, 1, 1, tzinfo=timezone.utc)
+        results = get_prices_before(temp_db, future_cutoff)
+        assert len(results) == 2, f"Expected 2 results for future cutoff, got {len(results)}"
+        
+        # Test 4: Exact timestamp match with current time (should get both items)
+        exact_cutoff = datetime.now(timezone.utc)
+        results = get_prices_before(temp_db, exact_cutoff)
+        assert len(results) == 2, f"Expected 2 results for exact match, got {len(results)}"
 
 
 class TestErrorHandling:
@@ -687,8 +908,11 @@ class TestErrorHandling:
     def test_query_operations_with_empty_database(self, temp_db):
         """Test query operations return empty results with empty database"""
         # All query operations should return empty lists
-        assert get_news_since(temp_db, datetime.now(timezone.utc)) == []
-        assert get_price_data_since(temp_db, datetime.now(timezone.utc)) == []
+        now = datetime.now(timezone.utc)
+        assert get_news_since(temp_db, now) == []
+        assert get_price_data_since(temp_db, now) == []
+        assert get_news_before(temp_db, now) == []
+        assert get_prices_before(temp_db, now) == []
         assert get_all_holdings(temp_db) == []
         assert get_analysis_results(temp_db) == []
         assert get_analysis_results(temp_db, symbol="NONEXISTENT") == []
@@ -811,3 +1035,194 @@ class TestLastNewsTime:
         # Don't set anything
         result = get_last_news_time(temp_db)
         assert result is None
+
+
+class TestBatchOperations:
+    """Test batch operations like commit_llm_batch and finalize_database"""
+    
+    def test_commit_llm_batch_atomic_transaction(self, temp_db):
+        """Test commit_llm_batch performs atomic transaction with correct deletions"""
+        import time
+        
+        base_time = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        
+        # Insert news items with different created_at times
+        news1 = NewsItem(
+            symbol="AAPL",
+            url="https://example.com/news1",
+            headline="News 1",
+            source="Reuters",
+            published=base_time
+        )
+        store_news_items(temp_db, [news1])
+        time.sleep(1)
+        
+        news2 = NewsItem(
+            symbol="TSLA",
+            url="https://example.com/news2",
+            headline="News 2",
+            source="Bloomberg",
+            published=base_time
+        )
+        store_news_items(temp_db, [news2])
+        
+        # Record cutoff between items 2 and 3
+        cutoff = datetime.now(timezone.utc)
+        time.sleep(1)
+        
+        news3 = NewsItem(
+            symbol="GOOGL",
+            url="https://example.com/news3",
+            headline="News 3",
+            source="Yahoo",
+            published=base_time
+        )
+        store_news_items(temp_db, [news3])
+        
+        # Also insert price data with similar timing
+        price1 = PriceData(
+            symbol="AAPL",
+            timestamp=base_time,
+            price=Decimal('150.00'),
+            session=Session.REG
+        )
+        price2 = PriceData(
+            symbol="TSLA",
+            timestamp=base_time,
+            price=Decimal('200.00'),
+            session=Session.PRE
+        )
+        price3 = PriceData(
+            symbol="GOOGL",
+            timestamp=base_time,
+            price=Decimal('100.00'),
+            session=Session.POST
+        )
+        
+        # Store price data (using existing created_at from news for simplicity)
+        with sqlite3.connect(temp_db) as conn:
+            cursor = conn.cursor()
+            # Insert prices with specific created_at times matching news items
+            cursor.execute("""
+                INSERT INTO price_data (symbol, timestamp_iso, price, session, created_at_iso)
+                SELECT ?, ?, ?, ?, created_at_iso
+                FROM news_items WHERE symbol = ?
+            """, ("AAPL", _datetime_to_iso(base_time), str(price1.price), "REG", "AAPL"))
+            
+            cursor.execute("""
+                INSERT INTO price_data (symbol, timestamp_iso, price, session, created_at_iso)
+                SELECT ?, ?, ?, ?, created_at_iso
+                FROM news_items WHERE symbol = ?
+            """, ("TSLA", _datetime_to_iso(base_time), str(price2.price), "PRE", "TSLA"))
+            
+            cursor.execute("""
+                INSERT INTO price_data (symbol, timestamp_iso, price, session, created_at_iso)
+                SELECT ?, ?, ?, ?, created_at_iso
+                FROM news_items WHERE symbol = ?
+            """, ("GOOGL", _datetime_to_iso(base_time), str(price3.price), "POST", "GOOGL"))
+            conn.commit()
+        
+        # Execute commit_llm_batch
+        result = commit_llm_batch(temp_db, cutoff)
+        
+        # Verify return value
+        assert result["news_deleted"] == 2, f"Expected 2 news deleted, got {result['news_deleted']}"
+        assert result["prices_deleted"] == 2, f"Expected 2 prices deleted, got {result['prices_deleted']}"
+        
+        # Verify remaining data
+        remaining_news = get_news_since(temp_db, datetime(2020, 1, 1, tzinfo=timezone.utc))
+        assert len(remaining_news) == 1, f"Expected 1 news item remaining, got {len(remaining_news)}"
+        assert remaining_news[0].headline == "News 3"
+        
+        remaining_prices = get_price_data_since(temp_db, datetime(2020, 1, 1, tzinfo=timezone.utc))
+        assert len(remaining_prices) == 1, f"Expected 1 price remaining, got {len(remaining_prices)}"
+        assert remaining_prices[0].symbol == "GOOGL"
+        
+        # Verify last_seen watermark was set
+        assert get_last_seen(temp_db, 'llm_last_run_iso') == _datetime_to_iso(cutoff)
+    
+    def test_commit_llm_batch_empty_database(self, temp_db):
+        """Test commit_llm_batch on empty database"""
+        cutoff = datetime.now(timezone.utc)
+        
+        # Execute on empty database
+        result = commit_llm_batch(temp_db, cutoff)
+        
+        # Should delete nothing
+        assert result["news_deleted"] == 0
+        assert result["prices_deleted"] == 0
+        
+        # Should still set the watermark
+        assert get_last_seen(temp_db, 'llm_last_run_iso') == _datetime_to_iso(cutoff)
+    
+    def test_commit_llm_batch_boundary_conditions(self, temp_db):
+        """Test commit_llm_batch with exact timestamp boundary"""
+        import time
+        
+        base_time = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        
+        # Insert two items
+        news1 = NewsItem(
+            symbol="AAPL",
+            url="https://example.com/news1",
+            headline="News 1",
+            source="Reuters",
+            published=base_time
+        )
+        store_news_items(temp_db, [news1])
+        time.sleep(1)
+        
+        # Get exact timestamp of second item
+        news2 = NewsItem(
+            symbol="TSLA",
+            url="https://example.com/news2",
+            headline="News 2",
+            source="Bloomberg",
+            published=base_time
+        )
+        store_news_items(temp_db, [news2])
+        
+        # Get the exact created_at of the second item
+        with sqlite3.connect(temp_db) as conn:
+            cursor = conn.cursor()
+            cursor.execute("SELECT created_at_iso FROM news_items WHERE symbol = 'TSLA'")
+            exact_timestamp_iso = cursor.fetchone()[0]
+        
+        exact_cutoff = datetime.fromisoformat(exact_timestamp_iso.replace('Z', '+00:00'))
+        
+        # Commit with exact timestamp (should delete both due to <=)
+        result = commit_llm_batch(temp_db, exact_cutoff)
+        
+        assert result["news_deleted"] == 2, f"Expected 2 deleted with <= boundary, got {result['news_deleted']}"
+        
+        # Verify all deleted
+        remaining = get_news_since(temp_db, datetime(2020, 1, 1, tzinfo=timezone.utc))
+        assert len(remaining) == 0, f"Expected 0 items remaining, got {len(remaining)}"
+    
+    def test_commit_llm_batch_idempotency(self, temp_db):
+        """Test commit_llm_batch can be called multiple times with same cutoff"""
+        base_time = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        
+        # Insert test data
+        news = NewsItem(
+            symbol="AAPL",
+            url="https://example.com/news",
+            headline="Test News",
+            source="Reuters",
+            published=base_time
+        )
+        store_news_items(temp_db, [news])
+        
+        cutoff = datetime.now(timezone.utc) + timedelta(seconds=1)
+        
+        # First call should delete the item
+        result1 = commit_llm_batch(temp_db, cutoff)
+        assert result1["news_deleted"] == 1
+        
+        # Second call with same cutoff should delete nothing
+        result2 = commit_llm_batch(temp_db, cutoff)
+        assert result2["news_deleted"] == 0
+        assert result2["prices_deleted"] == 0
+        
+        # Watermark should still be updated
+        assert get_last_seen(temp_db, 'llm_last_run_iso') == _datetime_to_iso(cutoff)
