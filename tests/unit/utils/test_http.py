@@ -15,23 +15,25 @@ from utils.http import get_json_with_retry
 from utils.retry import RetryableError
 
 
+
 class TestGetJsonWithRetry:
     """Test get_json_with_retry function"""
     
     @pytest.mark.asyncio
-    async def test_200_ok_valid_json(self, monkeypatch):
+    async def test_200_ok_valid_json(self, mock_http_client):
         """Test 200 OK with valid JSON returns parsed object"""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"key": "value", "number": 42}
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             return mock_response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         result = await get_json_with_retry(
             "https://example.com/api",
@@ -43,19 +45,20 @@ class TestGetJsonWithRetry:
         assert call_count == 1  # No retries for success
     
     @pytest.mark.asyncio
-    async def test_200_ok_invalid_json(self, monkeypatch):
+    async def test_200_ok_invalid_json(self, mock_http_client):
         """Test 200 OK with invalid JSON raises DataSourceError without retry"""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.side_effect = json.JSONDecodeError("Invalid", "", 0)
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             return mock_response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with pytest.raises(DataSourceError) as exc_info:
             await get_json_with_retry(
@@ -68,18 +71,19 @@ class TestGetJsonWithRetry:
         assert call_count == 1  # No retries for data errors
     
     @pytest.mark.asyncio
-    async def test_204_no_content(self, monkeypatch):
+    async def test_204_no_content(self, mock_http_client):
         """Test 204 No Content returns None"""
         mock_response = Mock()
         mock_response.status_code = 204
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             return mock_response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         result = await get_json_with_retry(
             "https://example.com/api",
@@ -91,19 +95,20 @@ class TestGetJsonWithRetry:
         assert call_count == 1  # No retries for success
     
     @pytest.mark.asyncio
-    async def test_401_403_auth_errors(self, monkeypatch):
+    async def test_401_403_auth_errors(self, mock_http_client):
         """Test 401/403 auth errors raise DataSourceError without retry"""
         for status_code in [401, 403]:
             mock_response = Mock()
             mock_response.status_code = status_code
             
             call_count = 0
-            def mock_get(*args, **kwargs):
+            async def mock_get(*args, **kwargs):
                 nonlocal call_count
                 call_count += 1
                 return mock_response
             
-            monkeypatch.setattr(httpx, "get", mock_get)
+            # Use the fixture - much cleaner!
+            mock_http_client(mock_get)
             
             with pytest.raises(DataSourceError) as exc_info:
                 await get_json_with_retry(
@@ -116,18 +121,19 @@ class TestGetJsonWithRetry:
             assert call_count == 1  # No retries for auth errors
     
     @pytest.mark.asyncio
-    async def test_other_4xx_errors(self, monkeypatch):
+    async def test_other_4xx_errors(self, mock_http_client):
         """Test other 4xx errors (e.g., 404) raise DataSourceError without retry"""
         mock_response = Mock()
         mock_response.status_code = 404
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             return mock_response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with pytest.raises(DataSourceError) as exc_info:
             await get_json_with_retry(
@@ -140,7 +146,7 @@ class TestGetJsonWithRetry:
         assert call_count == 1  # No retries for client errors
     
     @pytest.mark.asyncio
-    async def test_429_numeric_retry_after(self, monkeypatch):
+    async def test_429_numeric_retry_after(self, mock_http_client):
         """Test 429 with numeric Retry-After header"""
         responses = [
             Mock(status_code=429, headers={"Retry-After": "0.01"}),  # Small delay for testing
@@ -149,13 +155,14 @@ class TestGetJsonWithRetry:
         ]
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             response = responses[call_count]
             call_count += 1
             return response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
             
@@ -175,7 +182,7 @@ class TestGetJsonWithRetry:
             assert sleep_calls[1][0][0] == pytest.approx(0.01)
     
     @pytest.mark.asyncio
-    async def test_429_http_date_retry_after(self, monkeypatch):
+    async def test_429_http_date_retry_after(self, mock_http_client):
         """Test 429 with HTTP-date Retry-After header"""
         # Use 1.0 second future to distinguish from exponential backoff minimum (0.1s)
         future_time = datetime.now(timezone.utc) + timedelta(seconds=1.0)
@@ -187,13 +194,14 @@ class TestGetJsonWithRetry:
         ]
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             response = responses[call_count]
             call_count += 1
             return response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
             
@@ -219,7 +227,7 @@ class TestGetJsonWithRetry:
             assert pytest.approx(expected, abs=0.2) == delay
     
     @pytest.mark.asyncio
-    async def test_5xx_server_errors(self, monkeypatch):
+    async def test_5xx_server_errors(self, mock_http_client):
         """Test 5xx server errors trigger retries"""
         responses = [
             Mock(status_code=503, headers={}),
@@ -228,13 +236,14 @@ class TestGetJsonWithRetry:
         ]
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             response = responses[call_count]
             call_count += 1
             return response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
             
@@ -259,17 +268,18 @@ class TestGetJsonWithRetry:
             assert first_delay < second_delay  # Increasing delays
     
     @pytest.mark.asyncio
-    async def test_5xx_max_retries_exhausted(self, monkeypatch):
+    async def test_5xx_max_retries_exhausted(self, mock_http_client):
         """Test that last RetryableError is raised after max attempts"""
         mock_response = Mock(status_code=503, headers={})
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             call_count += 1
             return mock_response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
             
@@ -284,7 +294,7 @@ class TestGetJsonWithRetry:
             assert call_count == 3  # Initial + 2 retries
     
     @pytest.mark.asyncio
-    async def test_timeout_exception(self, monkeypatch):
+    async def test_timeout_exception(self, mock_http_client):
         """Test httpx.TimeoutException triggers retry"""
         exceptions = [
             httpx.TimeoutException("timeout"),
@@ -293,7 +303,7 @@ class TestGetJsonWithRetry:
         ]
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             exc = exceptions[call_count]
             call_count += 1
@@ -301,7 +311,8 @@ class TestGetJsonWithRetry:
                 raise exc
             return Mock(status_code=200, json=Mock(return_value={"success": True}))
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
             
@@ -316,7 +327,7 @@ class TestGetJsonWithRetry:
             assert mock_sleep.call_count == 2  # Two sleep calls between attempts
     
     @pytest.mark.asyncio
-    async def test_transport_error(self, monkeypatch):
+    async def test_transport_error(self, mock_http_client):
         """Test httpx.TransportError triggers retry"""
         exceptions = [
             httpx.TransportError("connection failed"),
@@ -324,7 +335,7 @@ class TestGetJsonWithRetry:
         ]
         
         call_count = 0
-        def mock_get(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
             exc = exceptions[call_count]
             call_count += 1
@@ -332,7 +343,8 @@ class TestGetJsonWithRetry:
                 raise exc
             return Mock(status_code=200, json=Mock(return_value={"success": True}))
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
             
@@ -347,19 +359,20 @@ class TestGetJsonWithRetry:
             assert mock_sleep.call_count == 1
     
     @pytest.mark.asyncio
-    async def test_query_params_passed_through(self, monkeypatch):
+    async def test_query_params_passed_through(self, mock_http_client):
         """Test that query params are passed through unchanged"""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"result": "ok"}
         
         captured_params = None
-        def mock_get(url, params=None, **kwargs):
+        async def mock_get(url, params=None, **kwargs):
             nonlocal captured_params
             captured_params = params
             return mock_response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         test_params = {"key": "value", "number": 42, "list": ["a", "b"]}
         result = await get_json_with_retry(
@@ -373,18 +386,19 @@ class TestGetJsonWithRetry:
         assert captured_params == test_params  # Params passed unchanged
     
     @pytest.mark.asyncio
-    async def test_timeout_arg_is_forwarded(self, monkeypatch):
+    async def test_timeout_arg_is_forwarded(self, mock_http_client):
         """Test that timeout parameter is forwarded to httpx.get"""
         mock_response = Mock()
         mock_response.status_code = 200
         mock_response.json.return_value = {"ok": True}
         
         captured = {}
-        def mock_get(url, params=None, timeout=None, **kwargs):
+        async def mock_get(url, params=None, timeout=None, **kwargs):
             captured["timeout"] = timeout
             return mock_response
         
-        monkeypatch.setattr(httpx, "get", mock_get)
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         await get_json_with_retry(
             "https://example.com/api",
@@ -395,13 +409,18 @@ class TestGetJsonWithRetry:
         assert captured["timeout"] == 7.5  # Verify our timeout was used
     
     @pytest.mark.asyncio
-    async def test_unexpected_status_raises(self, monkeypatch):
+    async def test_unexpected_status_raises(self, mock_http_client):
         """Test that unexpected status codes raise DataSourceError"""
         mock_response = Mock()
         mock_response.status_code = 302  # Redirect - not explicitly handled
         mock_response.headers = {}
         
-        monkeypatch.setattr(httpx, "get", lambda *a, **k: mock_response)
+        # Simple mock function that returns our response
+        async def mock_get(*args, **kwargs):
+            return mock_response
+        
+        # Use the fixture - much cleaner!
+        mock_http_client(mock_get)
         
         with pytest.raises(DataSourceError) as exc_info:
             await get_json_with_retry(

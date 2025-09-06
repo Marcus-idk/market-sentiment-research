@@ -1,4 +1,3 @@
-import asyncio
 from typing import Any, Dict, Optional
 
 import httpx
@@ -17,19 +16,18 @@ async def get_json_with_retry(
     mult: float = 2.0,
     jitter: float = 0.1,
 ) -> Any:
-    """Minimal HTTP GET with retries and JSON parsing.
+    """Async HTTP GET with retries and JSON parsing.
 
     Only handles: GET, query params, 200/204, 4xx/5xx, Retry-After, and network timeouts.
-    Focused on actual usage patterns - no unused complexity!
+    Uses native async HTTP client for non-blocking requests.
     """
 
     async def _op() -> Any:
         """Single HTTP attempt - will be called by retry_and_call up to max_retries+1 times."""
         try:
-            # Use asyncio.to_thread to avoid blocking the event loop
-            response = await asyncio.to_thread(
-                lambda: httpx.get(url, params=params, timeout=timeout)
-            )
+            # Use native async HTTP client for non-blocking requests
+            async with httpx.AsyncClient() as client:
+                response = await client.get(url, params=params, timeout=timeout)
 
             # SUCCESS CASES
             if response.status_code == 200:
