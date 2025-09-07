@@ -1,4 +1,18 @@
-# TradingBot — Concise Overview
+# Summary.md - Codebase Index for LLMs
+
+## Guide to Updating Summary.md
+
+When updating this file, follow this checklist:
+1. **Directory changes**: If new directories are added, document their purpose
+2. **File changes**: When files are added/removed, update the file lists under each module
+3. **Function/Class changes**: When functions or classes are added/modified/removed, update their entries
+4. **Enum changes**: Always document enums with their values as they're database-critical
+5. **Keep descriptions brief**: One-line purpose descriptions, focus on WHAT not HOW
+6. **Alphabetical order**: Keep functions/classes in alphabetical order within each file section
+7. **Include all public APIs**: Document all functions/classes that other modules import
+8. **Test updates**: When test structure changes, update the tests/ section
+
+---
 
 ## Core Idea
 Framework for US equities data collection and LLM-ready storage. Current scope: strict UTC models, SQLite with constraints/dedup, and LLM provider integrations (OpenAI, Gemini). Automated polling/scheduling and trading decisions are not implemented yet; session support exists but no ET conversion or trading engine is present.
@@ -7,153 +21,221 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - Persistence: UTC everywhere (ISO `YYYY-MM-DDTHH:MM:SSZ`).
 - Sessions: `Session = {REG, PRE, POST}` is available in models. ET conversion helpers and session-detection logic are not implemented yet; providers currently normalize datetimes to UTC and, where needed, default `session` (e.g., Finnhub quotes use `Session.REG`).
 
+## Environment Variables
+- `FINNHUB_API_KEY` - Required for market data fetching
+- `OPENAI_API_KEY` - Required for OpenAI LLM provider
+- `GEMINI_API_KEY` - Required for Gemini LLM provider
+- `DATABASE_PATH` - Optional, defaults to data/trading_bot.db
+
+## Test Markers
+- `@pytest.mark.integration` - Integration tests requiring database/API setup
+- `@pytest.mark.network` - Tests requiring network connectivity
+
 ## Project Structure
-- `config/` — typed settings per provider (data + LLM) and env loaders.
-- `data/` — data models, base abstractions, SQLite schema and storage ops, docs.
-- `llm/` — LLM provider base + OpenAI/Gemini implementations and docs.
-- `utils/` — shared helpers (`retry_and_call`, minimal HTTP `get_json_with_retry`).
-- `tests/` — model validation, storage CRUD, schema constraints, base-class contracts, LLM connectivity (integration/network-marked; gated by API keys and network availability).
 
-## Data Module
+### `config/` — Typed settings and retry configuration
+**Purpose**: Provider settings, environment loaders, and retry policies
 
-### Enums
-- `Session`: `REG | PRE | POST` — trading sessions.
-- `Stance`: `BULL | BEAR | NEUTRAL` — analysis stance.
-- `AnalysisType`: `news_analysis | sentiment_analysis | sec_filings | head_trader`.
+**Files**:
+- `config/__init__.py` - Package marker
+- `config/retry.py` - Retry configuration dataclasses and defaults
+  - `LLMRetryConfig` - Configuration for LLM providers (timeout=360s, max_retries=3)
+  - `DataRetryConfig` - Configuration for data providers (timeout=30s, max_retries=3)
+  - `DEFAULT_LLM_RETRY` - Default LLMRetryConfig instance
+  - `DEFAULT_DATA_RETRY` - Default DataRetryConfig instance
 
-### Models (dataclasses)
-- `NewsItem(symbol: str, url: str, headline: str, published: datetime, source: str, content: Optional[str])`
-  - Purpose: Financial news item.
-  - Behavior: Trims `symbol`, `url`, `headline`, `source` (preserves `content` as-is); validates `url` scheme http/https; normalizes `published` → UTC.
+**Subdirectories**:
+- `config/llm/` - LLM provider settings
+  - `config/llm/__init__.py` - Package marker
+  - `config/llm/gemini.py`
+    - `GeminiSettings` - Dataclass for Gemini configuration
+    - `GeminiSettings.from_env()` - Load settings from environment
+  - `config/llm/openai.py`
+    - `OpenAISettings` - Dataclass for OpenAI configuration
+    - `OpenAISettings.from_env()` - Load settings from environment
 
-- `PriceData(symbol: str, timestamp: datetime, price: Decimal, volume: Optional[int] = None, session: Session = Session.REG)`
-  - Purpose: Price/market datapoint.
-  - Behavior: Trims `symbol`; `timestamp` → UTC; `price > 0`; `volume >= 0` if set; `session` must be `Session`.
+- `config/providers/` - Data provider settings
+  - `config/providers/finnhub.py`
+    - `FinnhubSettings` - Dataclass for Finnhub configuration
+    - `FinnhubSettings.from_env()` - Load settings from environment
 
-- `AnalysisResult(symbol: str, analysis_type: AnalysisType, model_name: str, stance: Stance, confidence_score: float, last_updated: datetime, result_json: str, created_at: Optional[datetime] = None)`
-  - Purpose: Persistent LLM analysis per symbol/type.
-  - Behavior: Trims; JSON must be valid object; `0.0 ≤ confidence_score ≤ 1.0`; `last_updated/created_at` → UTC.
+### `data/` — Data models, storage, and providers
+**Purpose**: Core data structures, SQLite operations, and data source implementations
 
-- `Holdings(symbol: str, quantity: Decimal, break_even_price: Decimal, total_cost: Decimal, notes: Optional[str] = None, created_at: Optional[datetime] = None, updated_at: Optional[datetime] = None)`
-  - Purpose: Portfolio position snapshot.
-  - Behavior: Trims; `quantity, break_even_price, total_cost > 0`; timestamps → UTC.
+**Files**:
+- `data/__init__.py` - Package marker
+- `data/API_Reference.md` - Documentation for storage API functions
+- `data/schema.sql` - SQLite schema definition with constraints
 
-### Base Abstractions
-- `class DataSource(ABC)`
-  - `__init__(source_name: str)` — validates identifier string.
-  - `async validate_connection() -> bool` — must not raise; return False on issues.
-  - Note: No in-memory fetch timestamp; use DB watermarks in `last_seen`.
+- `data/base.py` - Abstract base classes for data sources
+  - `DataSource` - Base class for all data sources
+  - `DataSourceError` - Exception for data source failures
+  - `NewsDataSource` - Abstract class for news providers
+  - `PriceDataSource` - Abstract class for price providers
 
-- `class NewsDataSource(DataSource)`
-  - `async fetch_incremental(since: Optional[datetime]) -> List[NewsItem]`.
+- `data/models.py` - Core dataclasses and enums
+  **Enums**:
+  - `Session` - Trading sessions: REG="REG", PRE="PRE", POST="POST"
+  - `Stance` - Analysis stances: BULLISH="BULLISH", BEARISH="BEARISH", NEUTRAL="NEUTRAL"
+  - `AnalysisType` - Analysis types: TECHNICAL="TECHNICAL", FUNDAMENTAL="FUNDAMENTAL", SENTIMENT="SENTIMENT"
+  
+  **Dataclasses**:
+  - `NewsItem` - News article with url, headline, summary, symbols, source, published_at
+  - `PriceData` - Price snapshot with symbol, price, volume, timestamp, session
+  - `AnalysisResult` - LLM analysis with symbol, analysis_type, stance, confidence, reasoning, metadata, analyzed_at
+  - `Holdings` - Portfolio holdings with symbol, shares, avg_price, total_value, last_updated, metadata
+  
+  **Functions**:
+  - `_valid_http_url()` - Validate HTTP/HTTPS URLs
 
-- `class PriceDataSource(DataSource)`
-  - `async fetch_incremental(since: Optional[datetime]) -> List[PriceData]`.
+- `data/storage.py` - SQLite storage operations
+  **Database Management**:
+  - `init_database()` - Create tables and enable WAL mode
+  - `finalize_database()` - Checkpoint WAL and optimize database
+  
+  **Storage Operations**:
+  - `store_news_items()` - Insert news with deduplication by URL
+  - `store_price_data()` - Insert price data
+  - `upsert_analysis_result()` - Insert/update analysis results
+  - `upsert_holdings()` - Insert/update holdings
+  
+  **Query Operations**:
+  - `get_news_since()` - Fetch news after timestamp
+  - `get_price_data_since()` - Fetch prices after timestamp
+  - `get_all_holdings()` - Fetch all current holdings
+  - `get_analysis_results()` - Fetch analysis results (optional symbol filter)
+  - `get_news_before()` - Fetch news before cutoff (for LLM batching)
+  - `get_prices_before()` - Fetch prices before cutoff (for LLM batching)
+  
+  **Watermark Management**:
+  - `get_last_seen()` - Get last processed timestamp for a key
+  - `set_last_seen()` - Update last processed timestamp
+  - `get_last_news_time()` - Get last news timestamp
+  - `set_last_news_time()` - Update last news timestamp
+  
+  **LLM Batch Operations**:
+  - `commit_llm_batch()` - Mark data as processed and return counts
+  
+  **Internal Helpers**:
+  - `_normalize_url()` - Standardize URLs for deduplication
+  - `_datetime_to_iso()` - Convert datetime to ISO string
+  - `_decimal_to_text()` - Convert Decimal to string
+  - `_check_json1_support()` - Verify SQLite JSON1 extension
+  - `_row_to_news_item()` - Convert DB row to NewsItem
+  - `_row_to_price_data()` - Convert DB row to PriceData
+  - `_row_to_analysis_result()` - Convert DB row to AnalysisResult
+  - `_row_to_holdings()` - Convert DB row to Holdings
 
-- Exceptions: `DataSourceError` (data providers). Retryable failures are surfaced as `RetryableError` by the shared HTTP helper (`utils/retry.py`).
+**Subdirectories**:
+- `data/providers/` - Data source implementations
+  - `data/providers/finnhub.py`
+    - `FinnhubClient` - HTTP client for Finnhub API with retry logic
+      - `__init__()` - Initialize with settings
+      - `get()` - Make authenticated API request with retry
+    - `FinnhubNewsProvider` - News fetching implementation
+      - `__init__()` - Initialize with settings and symbols
+      - `validate_connection()` - Test API connectivity
+      - `fetch_incremental()` - Fetch news since timestamp
+      - `_parse_article()` - Convert API response to NewsItem
+    - `FinnhubPriceProvider` - Price quote fetching implementation
+      - `__init__()` - Initialize with settings and symbols
+      - `validate_connection()` - Test API connectivity
+      - `fetch_incremental()` - Fetch current prices
+      - `_parse_quote()` - Convert API response to PriceData
 
-### Storage (`data/storage.py`)
-- Helpers
-  - `_normalize_url(url: str) -> str` — strips tracking query params for deduplication.
-  - `_datetime_to_iso(dt: datetime) -> str` — UTC ISO with `Z`, no micros.
-  - `_decimal_to_text(d: Decimal) -> str` — exact precision as TEXT.
-  - `last_seen` state: lightweight key/value table for watermarks (`news_since_iso`, `llm_last_run_iso`).
+### `llm/` — LLM provider abstractions
+**Purpose**: Base classes and provider implementations for LLM interactions
 
-- Database
-  - `init_database(db_path: str) -> None` — executes `schema.sql` (WAL, constraints) and requires SQLite JSON1 (fails fast if missing).
-  - `finalize_database(db_path: str) -> None` — checkpoints WAL and switches to DELETE journal mode; run before committing/copying the DB in CI so the `.db` contains all writes (no sidecars needed).
+**Files**:
+- `llm/__init__.py` - Package marker
+- `llm/llm-providers-guide.md` - Provider usage documentation and examples
 
-- Writes
-  - `store_news_items(db_path: str, items: List[NewsItem]) -> None` — INSERT OR IGNORE by `(symbol, normalized_url)`.
-  - `store_price_data(db_path: str, items: List[PriceData]) -> None` — INSERT OR IGNORE by `(symbol, timestamp_iso)`.
-  - `upsert_analysis_result(db_path: str, result: AnalysisResult) -> None` — upsert by `(symbol, analysis_type)`; preserves initial `created_at`.
-  - `upsert_holdings(db_path: str, holdings: Holdings) -> None` — upsert by `symbol`; preserves `created_at`, updates `updated_at`.
-  - `commit_llm_batch(db_path: str, cutoff: datetime) -> Dict[str, int]` — atomic prune: set `llm_last_run_iso=cutoff` and delete `news_items/price_data` where `created_at_iso ≤ cutoff`.
+- `llm/base.py` - Abstract base classes
+  - `LLMProvider` - Base class for all LLM providers
+    - `__init__()` - Store provider configuration
+    - `generate()` - Abstract method for text generation
+    - `validate_connection()` - Abstract method for connectivity test
+  - `LLMError` - Exception for LLM failures
 
-- Reads
-  - `get_news_since(db_path: str, timestamp: datetime) -> List[NewsItem]` — ordered by `published_iso`.
-  - `get_price_data_since(db_path: str, timestamp: datetime) -> List[PriceData]` — ordered by `timestamp_iso`.
-  - `get_all_holdings(db_path: str) -> List[Holdings]` — ordered by `symbol`.
-  - `get_analysis_results(db_path: str, symbol: str | None = None) -> List[AnalysisResult]` — optional filter; ordered by `symbol, analysis_type`.
+**Subdirectories**:
+- `llm/providers/` - LLM provider implementations
+  - `llm/providers/openai.py`
+    - `OpenAIProvider` - OpenAI implementation using Responses API
+      - `__init__()` - Configure with model, temperature, tools, tool_choice, reasoning
+      - `generate()` - Send prompt and get response
+      - `validate_connection()` - Test API connectivity
+      - `_classify_openai_exception()` - Map SDK errors to retry logic
+  
+  - `llm/providers/gemini.py`
+    - `GeminiProvider` - Google Gemini implementation
+      - `__init__()` - Configure with model, temperature, tools, thinking_config
+      - `generate()` - Send prompt and get response
+      - `validate_connection()` - Test API connectivity
+      - `_classify_gemini_exception()` - Map SDK errors to retry logic
 
-### Schema (`data/schema.sql`)
-- Tables (WITHOUT ROWID):
-  - `news_items(symbol, url, headline, content, published_iso, source, created_at_iso)` — PK `(symbol, url)`.
-  - `price_data(symbol, timestamp_iso, price TEXT, volume INTEGER, session TEXT, created_at_iso)` — PK `(symbol, timestamp_iso)`.
-  - `analysis_results(symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json, created_at_iso)` — PK `(symbol, analysis_type)`.
-  - `holdings(symbol, quantity TEXT, break_even_price TEXT, total_cost TEXT, notes, created_at_iso, updated_at_iso)` — PK `symbol`.
-  - `last_seen(key, value)` — persistent watermarks for ingestion/pruning.
-- Constraints: NOT NULLs; `price/quantity/break_even_price/total_cost > 0`; `volume >= 0 or NULL`; enums limited; JSON object validation; WAL mode enabled.
+### `utils/` — Shared utilities
+**Purpose**: Cross-cutting concerns like retry logic and HTTP helpers
 
-## LLM Module
+**Files**:
+- `utils/__init__.py` - Package marker
 
-### Base
-- `class LLMProvider(ABC)`
-  - `__init__(**kwargs)` — stores provider-specific config (e.g., extra SDK params). API keys live in provider-specific `settings` objects.
-  - `async generate(prompt: str) -> str` — abstract.
-  - `async validate_connection() -> bool` — abstract.
+- `utils/retry.py` - Retry logic with exponential backoff
+  - `RetryableError` - Exception with retry_after hint
+  - `parse_retry_after()` - Parse Retry-After header values
+  - `retry_and_call()` - Generic async retry wrapper with backoff
 
-### OpenAI
-- `class OpenAIProvider(LLMProvider)`
-  - Init params: `settings: OpenAISettings`, `model_name: str`, `temperature: Optional[float] = None`, `reasoning: Optional[Dict] = None`, `tools: Optional[List[Dict]] = None`, `tool_choice: Optional[str | Dict] = None`, `**kwargs` (e.g., `max_output_tokens`, `top_p`).
-  - Methods: `async generate(prompt: str) -> str` (Responses API; returns text), `async validate_connection() -> bool`.
+- `utils/http.py` - HTTP utilities
+  - `get_json_with_retry()` - Fetch JSON with automatic retry on failures
 
-### Gemini
-- `class GeminiProvider(LLMProvider)`
-  - Init params: `settings: GeminiSettings`, `model_name: str`, `temperature: Optional[float] = None`, `tools: Optional[List[Dict]] = None`, `tool_choice: Optional[str] = None`, `thinking_config: Optional[Dict] = None`, `**kwargs` (e.g., `response_mime_type`).
-  - API keys: Use `config.llm.OpenAISettings.from_env()` / `config.llm.GeminiSettings.from_env()` to load keys from env, then pass the settings object to providers.
-  - Gemini tool-choice: only set `tool_choice` when your `tools` include `function_declarations`. If using only `code_execution`, omit `tool_choice`.
-  - Methods: `async generate(prompt: str) -> str` (text + tool outputs), `async validate_connection() -> bool`.
+### `tests/` — Test suite
+**Purpose**: Unit and integration tests with fixtures
 
-## Tests (high level)
-- Layout: unit tests under `tests/unit/`, integration tests under `tests/integration/` (e.g., LLM providers in `tests/integration/llm/`, data integration tests in `tests/integration/data/`). Shared fixtures live in `tests/conftest.py` and `tests/fixtures/`.
-- Markers: `integration` and `network` markers are registered in `pytest.ini`.
-  - Run unit only: `pytest -m "not integration and not network"`
-  - Run integration/network: `pytest -m "integration or network"`
-- Models: field validation, enums, UTC normalization.
-- Storage: CRUD, type conversions, deduplication, WAL behavior.
-- Schema: NOT NULL/CHECK/PK constraints, JSON object, defaults, WITHOUT ROWID.
-- Base classes: DataSource contracts and exceptions.
-- LLM: provider connectivity/tool behavior (requires API keys; see tests/integration/llm/).
-- Data Integration: organized into focused test files:
-  - `test_roundtrip_e2e.py` — complete data flow and cross-model consistency; includes upsert invariants and duplicate prevention
-  - `test_dedup_news.py` — URL normalization and cross-provider deduplication
-  - `test_timezone_pipeline.py` — UTC timezone handling throughout pipeline (generic timezone conversion; not a DST semantics test)
-  - `test_decimal_precision.py` — financial precision preservation with extreme values
-  - `test_schema_constraints.py` — database constraint validation and rollback
-  - `test_wal_sqlite.py` — WAL mode functionality and concurrent operations
+**Structure**:
+- `tests/conftest.py` - Shared pytest fixtures
+  - `temp_db_path` - Temporary database path with cleanup
+  - `temp_db` - Initialized temporary database
+  - `mock_http_client` - Mock httpx client for testing
+  - `cleanup_sqlite_artifacts()` - Windows-safe SQLite cleanup
 
-Notes:
-- Async tests require `pytest-asyncio` (ensure it is installed).
-- SQLite JSON1 is required by `init_database`; ensure your Python/SQLite has JSON1 (e.g., `pysqlite3-binary` on Windows).
+- `tests/unit/` - Unit tests (mirror source structure)
+  - `tests/unit/config/` - Config module tests
+    - `test_config_retry.py` - Retry configuration tests
+    - `llm/test_gemini.py` - Gemini settings tests
+    - `llm/test_openai.py` - OpenAI settings tests
+    - `providers/test_finnhub_settings.py` - Finnhub settings tests
+  
+  - `tests/unit/data/` - Data module tests
+    - `test_base_contracts.py` - Abstract base class tests
+    - `test_models.py` - Dataclass validation tests
+    - `test_schema_*.py` - Database constraint tests (6 files)
+    - `test_storage_*.py` - Storage function tests (12 files, split by feature)
+    - `providers/test_finnhub.py` - Finnhub provider unit tests
+    - `providers/test_finnhub_critical.py` - Critical error handling tests
+  
+  - `tests/unit/utils/` - Utils module tests
+    - `test_http.py` - HTTP utility tests
+    - `test_utils_retry.py` - Retry logic tests
 
-## Providers (v0.2.1)
+- `tests/integration/` - Integration tests (organized by workflow)
+  - `tests/integration/data/` - Data integration tests
+    - `test_roundtrip_e2e.py` - Full data pipeline test
+    - `test_dedup_news.py` - News deduplication test
+    - `test_timezone_pipeline.py` - UTC conversion test
+    - `test_decimal_precision.py` - Decimal handling test
+    - `test_schema_constraints.py` - Database constraints test
+    - `test_wal_sqlite.py` - WAL mode test
+    - `providers/test_finnhub_live.py` - Live API test (network-marked)
+  
+  - `tests/integration/llm/` - LLM integration tests
+    - `test_providers.py` - Live LLM provider tests (network-marked)
+      - Tests SHA-256 tool use for both OpenAI and Gemini
 
-### Finnhub Integration ✅
-- `data/providers/finnhub.py` — Complete Finnhub API integration
-- Classes:
-  - `FinnhubClient` — HTTP wrapper with retry logic for 429/5xx errors, authentication, and timeouts
-  - `FinnhubNewsProvider(NewsDataSource)` — Fetches company news from `/company-news` endpoint
-  - `FinnhubPriceProvider(PriceDataSource)` — Fetches real-time quotes from `/quote` endpoint
-- Features:
-  - Incremental news fetching with UTC date ranges and client-side filtering
-  - Real-time price quotes with Decimal precision for financial data
-  - Proper error handling (auth failures don't retry, server errors retry with jittered backoff)
-  - URL validation and article filtering (skips invalid headlines, URLs, timestamps)
-  - UTC timestamp normalization throughout
-  - Symbol-based data fetching for configured stock lists
+## Database Schema
+Tables (WITHOUT ROWID):
+- `news_items(symbol, url, headline, summary, source, published_at, created_at)` - PK: (symbol, url)
+- `price_data(symbol, price, volume, timestamp, session, created_at)` - PK: (symbol, timestamp)
+- `analysis_results(symbol, analysis_type, stance, confidence, reasoning, metadata, analyzed_at, created_at)` - PK: (symbol, analysis_type)
+- `holdings(symbol, shares, avg_price, total_value, last_updated, metadata, created_at)` - PK: symbol
+- `last_seen(key, value)` - Watermarks for incremental processing
 
-- Config:
-  - `config/providers/finnhub.py` — `FinnhubSettings.from_env()` loads `FINNHUB_API_KEY`; retry/timeouts set via centralized `config/retry.py` (`DEFAULT_DATA_RETRY`).
-
-- Retry helper:
-  - Use the shared helper in `utils/retry.py` (`retry_and_call(...)`) to wrap transient operations.
-    - `RetryableError(retry_after: Optional[float])` signals retryable failures and can honor HTTP `Retry-After` seconds when provided.
-    - Backoff: `base * (mult ** attempt) ± jitter` (min 0.1s).
-    - Uses `await asyncio.sleep(delay)`, yielding only the current task (event loop keeps other work running).
-  - HTTP helper: `utils/http.py:get_json_with_retry(url, *, params, timeout, max_retries)` performs GET-only requests with the same retry policy; returns JSON (200) or `None` (204). Auth and non-429 4xx raise `DataSourceError`; 429/5xx and network timeouts raise `RetryableError` (honors `Retry-After`).
-
-## Next Steps
-- Add scheduler in `data/scheduler.py` to orchestrate polling and storage
-- Implement RSS provider for additional news sources (v0.2.3)
-- Add timezone helpers for UTC↔US/Eastern when implementing trading/session logic
+Constraints: NOT NULL on required fields, CHECK constraints for positive values, enum validations, JSON object validation for metadata fields

@@ -161,29 +161,26 @@ def test_enum_values_unchanged():
 - Be descriptive: `test_store_news_with_duplicate_url_skips`
 - NOT vague: `test_store_1` or `test_news`
 
-## What NOT To Do (Our Past Mistakes)
+## What NOT To Do
 
 ### ❌ DON'T: Create one giant test file
-```
-tests/unit/data/test_storage.py  (1200+ lines, 12 classes)
-```
+If your test file exceeds 600 lines, split it by feature or responsibility.
 
 ### ❌ DON'T: Forget to test enums
-```
-Session, Stance, AnalysisType - all had no tests!
-```
+Enum values are stored in the database - changing them breaks existing data.
 
 ### ❌ DON'T: Mix patterns randomly
-```
-Some files: 1:1 mapping
-Other files: Random grouping
-No one knows why!
-```
+Stick to the rules above - classes get 1:1 mapping, functions get feature grouping.
 
 ### ❌ DON'T: Use vague test names
-```
-def test_1():  # What does this test?
-def test_stuff():  # What stuff?
+```python
+# Bad:
+def test_1():
+def test_stuff():
+
+# Good:
+def test_store_news_with_duplicate_url_skips():
+def test_price_validation_rejects_negative_values():
 ```
 
 ## Integration Tests
@@ -208,22 +205,30 @@ tests/integration/
 
 - [ ] Is it in the right location? (Check decision tree)
 - [ ] Does it follow the pattern for that module type?
-- [ ] Is the test file < 400 lines? (split if not)
+- [ ] Is the test file < 600 lines? (split if not)
 - [ ] Are test names descriptive?
 - [ ] Do enums have value lock tests?
 - [ ] Are integration tests marked correctly?
 
-## Examples From Our Codebase
+## Example Patterns
 
-### ✅ GOOD Examples
-- `test_finnhub.py` - Clean 1:1 mapping
-- `test_base_classes.py` - Correct contract testing for ABCs
-- Integration tests - Organized by workflow
+### ✅ GOOD: 1:1 Class Mapping
+```python
+# Source: data/providers/finnhub.py has FinnhubClient class
+# Test: tests/unit/data/providers/test_finnhub.py has TestFinnhubClient class
+```
 
-### ❌ BAD Examples (Being Fixed)
-- `test_storage.py` - Way too big, needs splitting
-- `test_models.py` - Missing enum tests
-- `config/retry.py` - No tests at all
+### ✅ GOOD: Feature-Based Function Tests
+```python
+# Source: data/storage.py has many functions
+# Tests: Split into test_storage_news.py, test_storage_prices.py, etc.
+```
+
+### ✅ GOOD: Integration Test Organization
+```python
+# Tests organized by workflow, not source structure:
+# test_dedup_news.py, test_roundtrip_e2e.py, test_timezone_pipeline.py
+```
 
 ## When in Doubt
 
