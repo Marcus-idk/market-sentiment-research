@@ -26,9 +26,9 @@ This document outlines the 5 data sources planned for US equities (stocks). Cryp
 ### Implementation:
 - REST API with JSON responses
 - Incremental fetch via timestamp filtering
-- Primary source for v0.2.1
+- Primary source for v0.3.1
 
-### Endpoints Used in v0.2.1 (Concise)
+### Endpoints Used in v0.3.1 (Concise)
 - Company News (per symbol):
   - Method/Path: `GET /company-news`
   - Params: `symbol` (ticker), `from` (YYYY-MM-DD), `to` (YYYY-MM-DD), `token` (API key)
@@ -155,9 +155,9 @@ SEC EDGAR: 1 call/5min = 12 calls/hour (well within limits)
 ```
 
 ### Cost Structure
-- **v0.2.1**: $0/month (Finnhub free only)
-- **v0.2.3**: $0/month (All free tiers)
-- **v0.2.4**: $0-50/month (Optional paid tiers for reliability)
+- **v0.3.1**: $0/month (Finnhub free only)
+- **v0.3.2**: $0/month (RSS + Finnhub free)
+- **v0.3.3**: $0-50/month (All sources, optional paid tiers)
 
 ### Data Flow
 ```
@@ -168,17 +168,17 @@ API → Raw Data → models.py (NewsItem/PriceData) → storage.py (SQLite) → 
 
 ## Implementation Phases
 
-### v0.2.1: Finnhub Only
+### v0.3.1: Finnhub Only
 - Single API integration
 - Local polling and storage
 - Foundation testing
 
-### v0.2.3: + RSS Feeds  
+### v0.3.2: + RSS Feeds  
 - Two data sources
 - Cross-source deduplication
 - Basic filtering system
 
-### v0.2.4: All 5 APIs
+### v0.3.3: All 5 APIs
 - Complete data collection (US equities)
 - Enhanced error handling
 - Production-ready system

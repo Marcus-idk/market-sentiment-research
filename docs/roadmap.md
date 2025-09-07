@@ -1,4 +1,4 @@
-# Trading Bot Development Plan (Concise)
+# Trading Bot Development Roadmap
 
 ## Project Goal
 Automated trading bot that uses LLMs for fundamental analysis. Polls data every 5 minutes, flags urgent events, and issues HOLD/SELL recommendations via scheduled LLM analysis.
@@ -17,237 +17,181 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 ---
 
 ## Versioning Scheme
-- Pre-1.0 semantic style: `0.1.x` = LLM foundation, `0.2.x` = core data infra and ingestion, `0.3.x` = trading intelligence layer.
-- Use patch-level increments like `0.2.1`, `0.2.2`, etc. Avoid ambiguous labels like `0.21`.
-- Constraint: Do not change feature scope of `v0.1` and `v0.2` (already completed).
+- Pre-1.0: Incremental features (0.1.x, 0.2.x, 0.3.x)
+- Each minor version = major capability milestone
+- Patch versions for fixes and minor improvements
 
 ---
 
 ## v0.1 — LLM Foundation ✅
-- LLM provider module (abstract base + clean provider pattern)
-- Providers: GPT-5 (final decisions), Gemini 2.5 Flash (specialists)
-- Async implementation + SHA-256 validation tests
-- Status: Production-ready
+**Goal**: Establish AI communication layer
+
+**Achieves**: 
+- LLM provider integrations (OpenAI GPT-5, Gemini 2.5 Flash)
+- Clean provider pattern with async implementation
+- SHA-256 validation tests
+
+**Status**: Production-ready
 
 ---
 
 ## v0.2 — Core Infrastructure ✅
-- Data models: NewsItem, PriceData, AnalysisResult, Holdings (strict validation)
-- Storage: SQLite schema (4 tables, WAL, constraints) + CRUD, URL normalization, DB-level dedup (INSERT OR IGNORE, natural PKs)
-- Environment: Requires SQLite JSON1 extension (init_database fails fast if missing) to enforce JSON object constraints at the DB level.
-- Interfaces: Typed DataSource base classes (DataSource, NewsDataSource, PriceDataSource)
-- Enums: Session, Stance, AnalysisType; Decimal precision for finance
-- Tests: Model validation; CRUD + type conversions; direct SQL constraint checks
-- Extras: Holdings break-even; AnalysisResult JSON validation; expert DB optimizations; URL normalization
-- Files (v0.2):
-```
-data/
-├── __init__.py          # Clean exports
-├── base.py              # Abstract DataSource + validation
-├── models.py            # Dataclasses + enums
-├── schema.sql           # SQLite schema (WAL, constraints)
-├── storage.py           # CRUD + URL normalization
-├── API_Reference.md     # Planned data source APIs
-└── providers/           # Placeholder for future APIs
-```
-- Cost: $0
+**Goal**: Build data storage foundation
+
+**Achieves**:
+- Strict data models (NewsItem, PriceData, AnalysisResult, Holdings)
+- SQLite with WAL mode, JSON1 constraints, deduplication
+- URL normalization for cross-provider dedup
+- Decimal precision for financial values
+
+**Environment**: Requires SQLite JSON1 extension (fails fast if missing)
+
+**Status**: Complete with full test coverage
 
 ---
 
-## v0.2.1 — Single API Integration 📡
-- Goal: Add Finnhub; local polling only
-- Components: Finnhub provider (news + price), minimal HTTP helper (`utils/http.get_json_with_retry`), basic scheduler, config package (API key)
-- Success: Connects, fetches, stores locally; dedup works; manual polling
-- Data retention + watermarks:
-  - Add state table `last_seen(key TEXT PRIMARY KEY, value TEXT NOT NULL)`.
-  - Keys now: `news_since_iso` (last ingested news publish time, UTC), `llm_last_run_iso` (last analysis cutoff, UTC).
-  - 5‑min loop (continues while LLM runs): read `news_since_iso` → fetch news incrementally → store → upsert `news_since_iso` to max published.
-  - 30‑min loop (cutoff snapshot): when starting an analysis at time `T`, compute `cutoff = T − 2m` and read rows with `created_at_iso ≤ cutoff` only. Ingestion does NOT pause.
-  - Delete-after-success: only after LLM completes successfully, set `llm_last_run_iso = cutoff` and delete raw rows where `created_at_iso ≤ cutoff`. Rows newer than `cutoff` remain for the next batch.
-  - Safety buffer: default 2 minutes to tolerate late/clock-skewed items while maintaining market timeliness; tune if needed.
-  - Do not use `analysis_results` timestamps as ingestion watermarks (analysis may be delayed/partial).
+## v0.3 — Data Collection Layer 📡
+**Goal**: Build complete data ingestion pipeline
 
-  Plain-English summary:
-  - `last_seen` remembers two simple time markers so the system knows where it left off.
-  - `news_since_iso`: providers only fetch articles published at or after this time to avoid refetching everything.
-  - `llm_last_run_iso`: after a successful LLM batch, we prune only rows the LLM definitely processed (those inserted with `created_at_iso` at or before this cutoff).
-  - Two clocks on purpose: providers filter by source publish time (`published_iso`), while pruning uses database insert time (`created_at_iso`) so late arrivals are never deleted before being analyzed.
-  - Scope (v0.2.1): one global `news_since_iso` for all providers/symbols is acceptable with a 2–3 minute overlap window; later we can switch to per‑provider keys if needed.
+### v0.3.1 — First Market Connection
+**Components**:
+- Finnhub provider (news + prices)
+- HTTP helper with retry (`utils/http.get_json_with_retry`)
+- Basic scheduler for 5-minute polling
+- Config package for API keys
 
-  Example timeline:
-  - 10:00Z: `news_since_iso = 09:55Z`. Providers fetch published ≥ 09:55Z; DB stores rows and advances `news_since_iso` to the max published (say 10:00Z).
-  - 10:30Z: LLM starts; computes `cutoff = 10:28Z`. It processes rows with `created_at_iso ≤ 10:28Z` only.
-  - 10:29Z: A late article published at 10:26Z arrives now; its `created_at_iso = 10:29Z`, so it is NOT in this batch.
-  - 10:32Z: LLM succeeds → set `llm_last_run_iso = 10:28Z`; delete raw rows where `created_at_iso ≤ 10:28Z`. The 10:29Z row remains for the next batch.
-- Files (adds to v0.2):
-```
-config/
-└── providers/
-    └── finnhub.py        # FinnhubSettings
+**Watermark System**:
+- State table: `last_seen(key PRIMARY KEY, value)`
+- `news_since_iso`: Track last fetched news publish time (incremental fetching)
+- `llm_last_run_iso`: Track LLM cutoff for cleanup (prep for v0.5)
+- Two-clock design: Fetch by publish time, cleanup by insert time (handles late arrivals)
+- 2-minute safety buffer for clock skew
 
-data/
-├── scheduler.py          # 5‑min + 30‑min loops; watermark updates
-└── providers/
-    └── finnhub.py        # News + Price providers
-```
-- Schema changes:
-  - `data/schema.sql`: add `CREATE TABLE IF NOT EXISTS last_seen (key TEXT PRIMARY KEY, value TEXT NOT NULL);`
-  - Keep WAL and JSON1 requirement (init fails fast if JSON1 missing).
-- Cost: $0 (Finnhub free tier)
+**Data Flow**:
+- 5-min loop: Read watermark → Fetch incremental → Store → Update watermark
+- Cleanup prep: Define cutoff = T - 2min, process rows where `created_at_iso ≤ cutoff`
+- One global `news_since_iso` acceptable for v0.3.1 (per-provider later)
 
----
+**Success**: Manual script fetches data every 5 minutes with deduplication
 
-## v0.2.2 — GitHub Actions Automation ☁️
-- Goal: Cloud execution; 5-min cron
-- Components: GH Actions workflow; commit SQLite to repo; secrets for keys
-- Success: Runs every 5 min; cloud fetch; DB persists; 24/7; no local runs
-- Files:
-```
-data/ (as v0.2.1)
-config/ (GH secrets integration via env)
+**Cost**: $0 (Finnhub free tier)
 
-.github/workflows/trading-bot.yml  # 5-min polling + commit DB
-```
-- CI note: Call `finalize_database(db_path)` before committing the DB so recent writes in WAL are checkpointed into the main `.db` and sidecar files aren’t needed.
-- Cost: $0 (GH free tier)
+### v0.3.2 — Multi-Source Collection
+**Achieves**:
+- RSS provider for additional news
+- Urgent keyword detection (bankruptcy, SEC investigation, etc.)
+- Cross-source deduplication working
+- Enhanced scheduler for multi-source orchestration
+
+**Flow**: Every 5 min → fetch incremental → dedup → store → filter urgent
+
+### v0.3.3 — Complete Data Pipeline
+**Achieves**:
+- Polygon.io (backup market data, 5 calls/min free)
+- Reddit sentiment (PRAW, ~100 queries/min)
+- SEC EDGAR (filings/insider trades, 10 req/sec)
+- Circuit breakers and retry logic
+- Data quality validation
+
+**Provider Pattern**: Dual providers (news+price) or single-purpose
+
+**Cost**: Free $0 / Recommended ~$50 (Finnhub paid) / Premium ~$150
 
 ---
 
-## v0.2.3 — Complete Basic System 🎯
-- Goal: Second source + filtering
-- Components: RSS provider; keyword filtering (urgent); enhanced scheduler; UTC standardization
-- Success: Finnhub + RSS; urgent detection; cross-source dedup; end-to-end ready; unblock LLM (v0.3)
-- Files (adds to v0.2.2):
-```
-data/
-├── filters.py           # is_urgent(), URGENT_KEYWORDS
-├── scheduler.py         # Multi-source
-└── providers/rss.py     # feedparser, pub-date compare
-```
-- Flow:
-```
-Every 5 min: scheduler → providers.fetch_incremental(last_seen)
-→ convert to models → dedup → storage → filters.is_urgent()
-→ urgent: trigger LLM | normal: batch for 30 min
+## v0.4 — Cloud Automation ☁️
+**Goal**: Move complete system to 24/7 cloud operation
 
-Every 30 min: LLMs process batch → update analysis_results
-→ success: delete raw | failure: keep raw for retry
-```
-- Provider responsibilities: API comms; convert to models; UTC timestamps; incremental fetch
-- Pattern:
-```python
-# Dual (news + price)
-class FinnhubNewsProvider(NewsDataSource):
-    async def fetch_incremental(self) -> List[NewsItem]: ...
-class FinnhubPriceProvider(PriceDataSource):
-    async def fetch_incremental(self) -> List[PriceData]: ...
+**Achieves**:
+- GitHub Actions workflow (5-min cron)
+- Database commits to repository
+- Secrets management for API keys
+- Call `finalize_database()` before commits (WAL checkpoint)
 
-# Single-purpose (news only)
-class RSSNewsProvider(NewsDataSource):
-    async def fetch_incremental(self) -> List[NewsItem]: ...
-class RedditSentimentProvider(NewsDataSource):
-    async def fetch_incremental(self) -> List[NewsItem]: ...
-```
-- Benefits: Type safety; single responsibility; shared config; independent schedules
-- Cost: $0 (free tiers)
+**Success**: Runs autonomously on GitHub infrastructure
+
+**Cost**: $0 (GitHub free tier)
 
 ---
 
-## v0.2.4 — Complete Data Collection 📊 (Expansion MVP)
-- Goal: Add remaining sources + robustness
-- Sources:
-  - Polygon.io (backup market data): batch queries; 5 calls/min free
-  - Reddit (PRAW): retail sentiment; ~100 queries/min non-commercial
-  - SEC EDGAR: filings/insider trades; 10 req/sec; REST + XML/JSON
-  - Note: SEC is stocks only (no crypto)
-- Enhancements: Advanced filtering engine; retries/circuit breakers; perf/health metrics; data quality (cross-source validation, freshness, anomalies)
-- Success: All 5 sources working; robust recovery; monitoring; validated data; LLM-ready
-- Files (v0.2.4):
-```
-data/
-├── __init__.py          # DataSource, providers, scheduler
-├── base.py              # ABC: fetch_incremental(), validate_connection()
-├── models.py            # News, Price, Sentiment, Filing
-├── config/              # Provider settings; GH secrets via env
-├── storage.py           # store_items(), get_items_since()
-├── deduplication.py     # is_processed(), mark_processed()
-├── filters.py           # Keyword/ML-ready rules
-├── scheduler.py         # poll_all_sources(), error handling
-├── health_monitor.py    # health + performance
-└── providers/
-    ├── finnhub.py      # news + price
-    ├── polygon.py      # news + price
-    ├── rss.py          # news only
-    ├── reddit.py       # sentiment as news
-    └── sec_edgar.py    # regulatory news
+## v0.5 — Trading Intelligence Layer 🧠
+**Goal**: Add LLM-powered analysis and decisions
 
-.github/workflows/trading-bot.yml
-```
-- Cost: Free $0; Recommended ~$50 (Finnhub paid); Premium ~$150 (Finnhub + Polygon)
-
----
-
-## v0.3.x — Trading Intelligence Layer (Future)
-- Pipeline:
+**Pipeline**:
 ```
 30-min raw batches → Specialist LLMs → Persistent analysis → Head Trader LLM → HOLD/SELL
 ```
-- Roles: News Analyst; Sentiment Analyst; SEC Filings Analyst; Head Trader (synthesizes + holdings)
-- Strategy: Sort-and-rank (not numeric scoring); update per-symbol persistent analysis
-- Triggers: Urgent keywords (immediate); scheduled (30 min); cleanup on success; preserve raw on failure; head trader reads persistent analysis
-- Trading logic: Portfolio tracking; signal generation; HOLD/SELL engine
-- Orchestration: GH Actions; 5-min polling; 30-min LLM; SQLite in-repo; fully cloud; outputs: holdings analysis + recs
-- Implementation: Clean architecture; env-based config; SQLite indexes by query patterns; structured logging; integration tests
+
+**Roles**:
+- News Analyst
+- Sentiment Analyst  
+- SEC Filings Analyst
+- Head Trader (synthesizes + portfolio context)
+
+**Strategy**: 
+- Sort-and-rank approach (not numeric scoring)
+- Urgent keywords trigger immediate analysis
+- Cleanup on success, preserve on failure
+
+**Success**: Generates actionable trading recommendations
 
 ---
 
-## v1.0 — Complete Trading Bot 🎯 (Final Target)
-- Feature set: LLM providers (v0.1); data sources (v0.2+); agents/orchestration/scheduling (v0.3+); production infra (this phase)
-- Infra: Rate limiting; lightweight local ML filtering; data validation; circuit breakers; monitoring/health; DB optimization; redundant failover
-- **Logging framework**: Module-level loggers in all providers (`llm/providers/*.py`, `data/providers/*.py`, `utils/http.py`) for production visibility
-- Metrics: Beat buy-and-hold; 99%+ collection uptime; $10–$50/month; recommend-only (no auto-execution)
-- Stack: Python; GitHub Actions; clean architecture; async I/O
+## v1.0 — Production Trading Bot 🎯
+**Goal**: Complete, reliable trading system
+
+**Achieves**:
+- Production monitoring and health checks
+- **Logging framework**: Module-level loggers in all providers
+- Circuit breakers and redundant failover
+- Performance metrics beating buy-and-hold
+- 99%+ collection uptime
+
+**Cost**: $10-50/month operational
+
+**Success**: Reliable, profitable recommendation engine
 
 ---
 
-## Future (Post‑v1.0)
+## Data Flow Architecture
 
-### Multi‑Agent Answer Refinement (No Debate)
-- Summary: 4 agents answer independently → each refines after seeing the other 3 → a separate judge picks the best (or synthesizes).
-- Step 1 (Independent): Ask 4 agents the same prompt; no cross‑visibility.
-- Step 2 (Cross‑refine): For each agent, provide the other 3 answers and instruct: “Improve yours using correct points you see; keep your reasoning if you disagree.”
-- Step 3 (Judge): Give the 4 refined answers to a separate judge model (ideally different family). Judge scores with a rubric and selects the best.
+### Watermark System
+**Keys in `last_seen` table**:
+- `news_since_iso`: Last news publish time fetched (providers use for incremental)
+- `llm_last_run_iso`: Last LLM cutoff processed (for cleanup after success)
 
-Judge rubric (score each 0–5):
-- Correctness: aligns with provided/verified facts.
-- Evidence use: references data, IDs, or citations when available.
-- Logical validity: clear, non‑contradictory reasoning tied to the conclusion.
-- Completeness: covers key angles relevant to the question.
-- Calibration: sensible confidence; flags uncertainty.
+### Processing Timeline
+**Example flow**:
+- 10:00Z: Fetch news published ≥ 09:55Z (using `news_since_iso`)
+- 10:30Z: LLM starts, calculates cutoff = 10:28Z (T - 2min buffer)
+- 10:32Z: LLM succeeds → set `llm_last_run_iso = 10:28Z`, delete rows ≤ cutoff
+- Late arrivals after cutoff remain for next batch
 
-Parameter exploration (for future brainstorming):
-- Model diversity: mix providers/families (judge different from agents).
-- Decoding: temperature, top‑p, top‑k, max tokens, beam/nucleus variants.
-- Roles: news, filings, sentiment, skeptic; prompt variants per role.
-- Tool usage: retrieval on/off, constrained tools, schema validators.
-- Sampling: k>1 per agent with self‑consistency selection.
-- Cost/latency: early exit on strong consensus; cache; smaller specialists + stronger judge.
-
-Integration notes:
-- Maps to v0.3 specialists feeding a “Head Trader” judge.
-- Keep outputs structured (claims, reason, confidence, assumptions, citations/IDs) for validation.
+### Design Benefits
+- No refetching (incremental via publish time)
+- No data loss (2-min buffer for late/skewed items)
+- Bounded database size (cleanup after LLM success)
+- Separate clocks: fetch by publish time, cleanup by insert time
 
 ---
 
-## Testing Overview (Current)
-- Layout: unit tests under `tests/unit/`; integration tests under `tests/integration/`.
-- Markers: `integration`, `network` (see `pytest.ini`).
-- Data integration tests (under `tests/integration/data/`):
-  - `test_roundtrip_e2e.py` — end-to-end flows; upsert invariants; duplicate prevention
-  - `test_dedup_news.py` — URL normalization and cross-provider deduplication
-  - `test_timezone_pipeline.py` — UTC handling across pipeline (generic tz conversion)
-  - `test_decimal_precision.py` — Decimal precision preservation with extreme values
-  - `test_schema_constraints.py` — DB CHECK/enum/JSON constraints and rollback
-  - `test_wal_sqlite.py` — WAL mode functionality and concurrent read/write stability
-- LLM integration tests live in `tests/integration/llm/` and are gated by API keys.
-- JSON1 required: `init_database` fails fast if JSON1 is missing.
+## Future Explorations
+
+### Multi-Agent Answer Refinement
+- 4 agents answer independently
+- Each refines after seeing others
+- Judge model picks best or synthesizes
+- Reduces single-model bias
+
+### Judge Rubric (0-5 scoring):
+- Correctness: aligns with facts
+- Evidence use: cites data/IDs
+- Logical validity: clear reasoning
+- Completeness: covers key angles
+- Calibration: appropriate confidence
+
+### Advanced Features
+- Local ML filtering before LLM
+- Options flow analysis
+- Cross-market correlations
+- Risk management framework

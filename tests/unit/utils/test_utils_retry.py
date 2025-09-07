@@ -1,6 +1,6 @@
 """
 Tests for utils.retry module.
-Focus on behaviors we rely on in v0.2.1.
+Focus on behaviors we rely on in v0.3.1.
 """
 
 import pytest
