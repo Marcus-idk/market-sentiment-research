@@ -64,7 +64,6 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 **Files**:
 - `data/__init__.py` - Package marker
-- `data/API_Reference.md` - Documentation for storage API functions
 - `data/schema.sql` - SQLite schema definition with constraints
 
 - `data/base.py` - Abstract base classes for data sources
@@ -148,7 +147,6 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 **Files**:
 - `llm/__init__.py` - Package marker
-- `llm/llm-providers-guide.md` - Provider usage documentation and examples
 
 - `llm/base.py` - Abstract base classes
   - `LLMProvider` - Base class for all LLM providers
