@@ -57,7 +57,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 **Components**:
 - Finnhub provider (news + prices)
 - HTTP helper with retry (`utils/http.get_json_with_retry`)
-- Basic scheduler for 5-minute polling
+- Basic poller for 5-minute data collection
 - Config package for API keys
 
 **Watermark System**:
@@ -81,7 +81,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - RSS provider for additional news
 - Urgent keyword detection (bankruptcy, SEC investigation, etc.)
 - Cross-source deduplication working
-- Enhanced scheduler for multi-source orchestration
+- Enhanced poller for multi-source orchestration
 
 **Flow**: Every 5 min → fetch incremental → dedup → store → filter urgent
 
