@@ -33,7 +33,7 @@ This document outlines the 5 data sources planned for US equities (stocks). Cryp
   - Method/Path: `GET /company-news`
   - Params: `symbol` (ticker), `from` (YYYY-MM-DD), `to` (YYYY-MM-DD), `token` (API key)
   - Returns: array of objects with fields including `datetime` (epoch seconds, UTC), `headline`, `source`, `summary`, `url`, `id`, `category`, `image`, `related`.
-  - Notes: We map `headline`, `url`, `source`, `datetime→published`, `summary→content`; `symbol` comes from the request symbol. Finnhub docs don’t explicitly state whether `to` is inclusive; we treat it as inclusive and still filter client‑side to `published > since` to avoid duplicates.
+  - Notes: We map `headline`, `url`, `source`, `datetime→published`, `summary→content`; `symbol` comes from the request symbol. Finnhub docs don’t explicitly state whether `to` is inclusive; we treat it as inclusive. We apply a 2‑minute buffer to the `since` watermark and then filter client‑side to `published > buffered_since` to avoid duplicates and equality gaps.
 - Quote (per symbol):
   - Method/Path: `GET /quote`
   - Params: `symbol` (ticker), `token` (API key)

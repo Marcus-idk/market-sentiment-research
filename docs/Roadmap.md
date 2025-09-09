@@ -59,13 +59,14 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - HTTP helper with retry (`utils/http.get_json_with_retry`)
 - Basic poller for 5-minute data collection
 - Config package for API keys
+- Centralized Finnhub API validation in client (providers delegate)
 
 **Watermark System**:
 - State table: `last_seen(key PRIMARY KEY, value)`
 - `news_since_iso`: Track last fetched news publish time (incremental fetching)
 - `llm_last_run_iso`: Track LLM cutoff for cleanup (prep for v0.5)
 - Two-clock design: Fetch by publish time, cleanup by insert time (handles late arrivals)
-- 2-minute safety buffer for clock skew
+- 2-minute safety buffer for clock skew (implemented in v0.3.1 via `FinnhubNewsProvider.fetch_incremental()`)
 
 **Data Flow**:
 - 5-min loop: Read watermark → Fetch incremental → Store → Update watermark

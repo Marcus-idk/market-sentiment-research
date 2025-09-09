@@ -61,6 +61,20 @@ class FinnhubClient:
             mult=self.settings.retry_config.mult,
             jitter=self.settings.retry_config.jitter,
         )
+    
+    async def validate_connection(self) -> bool:
+        """
+        Test connection by fetching quote for SPY (always available).
+        Centralized validation logic for all Finnhub providers.
+        
+        Returns:
+            True if connection successful, False otherwise (never raises)
+        """
+        try:
+            await self.get('/quote', {'symbol': 'SPY'})
+            return True
+        except Exception:
+            return False
 
 
 class FinnhubNewsProvider(NewsDataSource):
@@ -86,16 +100,12 @@ class FinnhubNewsProvider(NewsDataSource):
         
     async def validate_connection(self) -> bool:
         """
-        Test connection by fetching quote for SPY (always available).
+        Validate connection via the centralized client method.
         
         Returns:
             True if connection successful, False otherwise (never raises)
         """
-        try:
-            await self.client.get('/quote', {'symbol': 'SPY'})
-            return True
-        except Exception:
-            return False
+        return await self.client.validate_connection()
     
     async def fetch_incremental(self, since: Optional[datetime] = None) -> List[NewsItem]:
         """
@@ -113,12 +123,16 @@ class FinnhubNewsProvider(NewsDataSource):
         
         # Determine date range for API calls
         now_utc = datetime.now(timezone.utc)
+        
+        # Calculate effective since time with buffer
         if since is not None:
-            # Use 1-day cushion to avoid missing items around day boundaries
-            from_date = min(since.date(), (now_utc - timedelta(days=1)).date())
+            # Apply 2-minute buffer to catch late-arriving articles
+            buffer_time = since - timedelta(minutes=2)
+            from_date = buffer_time.date()
         else:
             # Default: fetch last 2 days to avoid missing late postings
             from_date = (now_utc - timedelta(days=2)).date()
+            buffer_time = None
         
         to_date = now_utc.date()
         
@@ -141,7 +155,8 @@ class FinnhubNewsProvider(NewsDataSource):
                 # Process each article
                 for article in articles:
                     try:
-                        news_item = self._parse_article(article, symbol, since)
+                        # Pass buffer_time for filtering, not original since
+                        news_item = self._parse_article(article, symbol, buffer_time if since else None)
                         if news_item:
                             news_items.append(news_item)                                
                     except Exception:
@@ -155,14 +170,14 @@ class FinnhubNewsProvider(NewsDataSource):
         return news_items
     
     def _parse_article(self, article: Dict[str, Any], symbol: str, 
-                      since: Optional[datetime]) -> Optional[NewsItem]:
+                      buffer_time: Optional[datetime]) -> Optional[NewsItem]:
         """
         Parse Finnhub article JSON into NewsItem model.
         
         Args:
             article: Raw article data from Finnhub API
             symbol: Stock symbol this article is associated with
-            since: Filter out articles published before this time
+            buffer_time: Filter out articles published at or before this time (includes buffer)
             
         Returns:
             NewsItem if valid, None if article should be skipped
@@ -182,8 +197,8 @@ class FinnhubNewsProvider(NewsDataSource):
         except (ValueError, OSError):
             return None
         
-        # Filter by since timestamp (client-side filtering as API date ranges may be inclusive)
-        if since and published <= since:
+        # Filter by buffer_time (exclusive to avoid duplicates)
+        if buffer_time and published <= buffer_time:
             return None
         
         # Extract other fields with defaults
@@ -229,16 +244,12 @@ class FinnhubPriceProvider(PriceDataSource):
     
     async def validate_connection(self) -> bool:
         """
-        Test connection by fetching quote for SPY (always available).
+        Validate connection via the centralized client method.
         
         Returns:
             True if connection successful, False otherwise (never raises)
         """
-        try:
-            await self.client.get('/quote', {'symbol': 'SPY'})
-            return True
-        except Exception:
-            return False
+        return await self.client.validate_connection()
     
     async def fetch_incremental(self, since: Optional[datetime] = None) -> List[PriceData]:
         """

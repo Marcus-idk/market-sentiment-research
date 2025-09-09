@@ -164,14 +164,17 @@ class TestFinnhubNewsProvider:
     
     @pytest.mark.asyncio
     async def test_filters_old_articles(self, monkeypatch):
-        """Test that articles with published <= since are filtered out"""
+        """Test that articles are filtered with 2-minute buffer (published <= buffer_time)"""
         settings = FinnhubSettings(api_key='test_key')
         provider = FinnhubNewsProvider(settings, ['AAPL'])
         
+        # Buffer: 1000 - 120 = 880 seconds
         news_fixture = [
-            {'headline': 'Old News', 'url': 'http://old.com', 'datetime': 100, 'source': 'Reuters'},
-            {'headline': 'Recent News', 'url': 'http://recent.com', 'datetime': 200, 'source': 'Bloomberg'},
-            {'headline': 'Latest News', 'url': 'http://latest.com', 'datetime': 300, 'source': 'Yahoo'},
+            {'headline': 'Very Old', 'url': 'http://veryold.com', 'datetime': 500, 'source': 'Reuters'},     # Before buffer
+            {'headline': 'Old News', 'url': 'http://old.com', 'datetime': 880, 'source': 'Reuters'},         # Exactly at buffer (filtered)
+            {'headline': 'Buffer Zone', 'url': 'http://buffer.com', 'datetime': 950, 'source': 'Bloomberg'}, # In buffer zone (kept)
+            {'headline': 'At Watermark', 'url': 'http://exact.com', 'datetime': 1000, 'source': 'CNN'},      # At watermark (kept)
+            {'headline': 'Latest News', 'url': 'http://latest.com', 'datetime': 1100, 'source': 'Yahoo'},    # After watermark (kept)
         ]
         
         async def mock_get(path, params=None):
@@ -181,13 +184,15 @@ class TestFinnhubNewsProvider:
         
         provider.client.get = mock_get
         
-        # Set since to datetime(150) - should filter out article with datetime=100
-        since = datetime.fromtimestamp(150, tz=timezone.utc)
+        # Set since to datetime(1000)
+        since = datetime.fromtimestamp(1000, tz=timezone.utc)
         results = await provider.fetch_incremental(since)
         
-        assert len(results) == 2
-        assert results[0].headline == 'Recent News'
-        assert results[1].headline == 'Latest News'
+        # Should keep articles at 950, 1000, and 1100 (3 articles)
+        assert len(results) == 3
+        assert results[0].headline == 'Buffer Zone'    # In the 2-minute buffer window
+        assert results[1].headline == 'At Watermark'   # Exactly at watermark (now kept!)
+        assert results[2].headline == 'Latest News'    # After watermark
     
     @pytest.mark.asyncio
     async def test_parses_valid_article(self, monkeypatch):

@@ -15,7 +15,7 @@ When updating this file, follow this checklist:
 ---
 
 ## Core Idea
-Framework for US equities data collection and LLM-ready storage. Current scope: strict UTC models, SQLite with constraints/dedup, and LLM provider integrations (OpenAI, Gemini). Automated polling/scheduling and trading decisions are not implemented yet; session support exists but no ET conversion or trading engine is present.
+Framework for US equities data collection and LLM-ready storage. Current scope: strict UTC models, SQLite with constraints/dedup, LLM provider integrations (OpenAI, Gemini), and a 5‑minute Finnhub poller. Trading decisions are not implemented yet; session support exists but no ET conversion or trading engine is present.
 
 ## Time Policy
 - Persistence: UTC everywhere (ISO `YYYY-MM-DDTHH:MM:SSZ`).
@@ -26,10 +26,18 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `OPENAI_API_KEY` - Required for OpenAI LLM provider
 - `GEMINI_API_KEY` - Required for Gemini LLM provider
 - `DATABASE_PATH` - Optional, defaults to data/trading_bot.db
+- `SYMBOLS` - Required for `run_poller.py`; comma-separated tickers (e.g., "AAPL,MSFT,TSLA")
 
 ## Test Markers
 - `@pytest.mark.integration` - Integration tests requiring database/API setup
 - `@pytest.mark.network` - Tests requiring network connectivity
+
+## Main Entry Points
+- `run_poller.py` - Main data collection script
+  - `main()` - Async entry point with signal handling
+  - Uses `utils.logging.setup_logging()` for consistent logging
+  - Uses `utils.signals.register_graceful_shutdown()` for SIGINT/SIGTERM
+  - Requires `SYMBOLS` and `FINNHUB_API_KEY` in environment
 
 ## Project Structure
 
@@ -74,26 +82,33 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 - `data/models.py` - Core dataclasses and enums
   **Enums**:
-  - `Session` - Trading sessions: REG="REG", PRE="PRE", POST="POST"
-  - `Stance` - Analysis stances: BULLISH="BULLISH", BEARISH="BEARISH", NEUTRAL="NEUTRAL"
-  - `AnalysisType` - Analysis types: TECHNICAL="TECHNICAL", FUNDAMENTAL="FUNDAMENTAL", SENTIMENT="SENTIMENT"
+  - `Session` - Trading sessions: REG, PRE, POST
+  - `Stance` - Analysis stances: BULL, BEAR, NEUTRAL
+  - `AnalysisType` - Types: `news_analysis`, `sentiment_analysis`, `sec_filings`, `head_trader`
   
   **Dataclasses**:
-  - `NewsItem` - News article with url, headline, summary, symbols, source, published_at
-  - `PriceData` - Price snapshot with symbol, price, volume, timestamp, session
-  - `AnalysisResult` - LLM analysis with symbol, analysis_type, stance, confidence, reasoning, metadata, analyzed_at
-  - `Holdings` - Portfolio holdings with symbol, shares, avg_price, total_value, last_updated, metadata
+  - `NewsItem` - `symbol`, `url`, `headline`, `published` (UTC), `source`, `content` (optional)
+  - `PriceData` - `symbol`, `timestamp` (UTC), `price` (Decimal), `volume` (optional), `session` (Session)
+  - `AnalysisResult` - `symbol`, `analysis_type` (AnalysisType), `model_name`, `stance` (Stance), `confidence_score` (0–1), `last_updated` (UTC), `result_json` (JSON string), `created_at` (UTC, optional)
+  - `Holdings` - `symbol`, `quantity` (Decimal), `break_even_price` (Decimal), `total_cost` (Decimal), `notes` (optional), `created_at`/`updated_at` (UTC, optional)
   
   **Functions**:
   - `_valid_http_url()` - Validate HTTP/HTTPS URLs
 
+- `data/poller.py` - Data poller orchestration
+  - `DataPoller` — Orchestrates multiple providers concurrently
+    - `__init__(db_path, news_providers: list[NewsDataSource], price_providers: list[PriceDataSource])`
+    - `poll_once()` — Fetches news/prices; updates watermark to latest news publish time
+    - `run()` — 5‑minute loop with consistent-interval scheduling and graceful stop
+    - `stop()` — Requests shutdown
+
 - `data/storage.py` - SQLite storage operations
   **Database Management**:
-  - `init_database()` - Create tables and enable WAL mode
+  - `init_database()` - Create tables (WAL via schema PRAGMA)
   - `finalize_database()` - Checkpoint WAL and optimize database
   
   **Storage Operations**:
-  - `store_news_items()` - Insert news with deduplication by URL
+  - `store_news_items()` - Insert news with URL normalization + dedup
   - `store_price_data()` - Insert price data
   - `upsert_analysis_result()` - Insert/update analysis results
   - `upsert_holdings()` - Insert/update holdings
@@ -107,10 +122,10 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `get_prices_before()` - Fetch prices before cutoff (for LLM batching)
   
   **Watermark Management**:
-  - `get_last_seen()` - Get last processed timestamp for a key
-  - `set_last_seen()` - Update last processed timestamp
-  - `get_last_news_time()` - Get last news timestamp
-  - `set_last_news_time()` - Update last news timestamp
+  - `get_last_seen()` - Get last processed value for a key
+  - `set_last_seen()` - Update last processed value
+  - `get_last_news_time()` - Get last news publish timestamp
+  - `set_last_news_time()` - Update last news publish timestamp
   
   **LLM Batch Operations**:
   - `commit_llm_batch()` - Mark data as processed and return counts
@@ -125,20 +140,28 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `_row_to_analysis_result()` - Convert DB row to AnalysisResult
   - `_row_to_holdings()` - Convert DB row to Holdings
 
+- `data/poller.py` - Data collection orchestration
+  - `DataPoller` - Manages 5-minute polling cycles
+    - `__init__()` - Initialize with database path and lists of providers
+    - `poll_once()` - Execute single polling cycle for all providers concurrently
+    - `run()` - Continuous polling loop with interval management
+    - `stop()` - Graceful shutdown
+
 **Subdirectories**:
 - `data/providers/` - Data source implementations
-  - `data/providers/finnhub.py`
+- `data/providers/finnhub.py`
     - `FinnhubClient` - HTTP client for Finnhub API with retry logic
       - `__init__()` - Initialize with settings
       - `get()` - Make authenticated API request with retry
+      - `validate_connection()` - Centralized API validation used by providers
     - `FinnhubNewsProvider` - News fetching implementation
       - `__init__()` - Initialize with settings and symbols
-      - `validate_connection()` - Test API connectivity
+      - `validate_connection()` - Delegates to client
       - `fetch_incremental()` - Fetch news since timestamp
       - `_parse_article()` - Convert API response to NewsItem
     - `FinnhubPriceProvider` - Price quote fetching implementation
       - `__init__()` - Initialize with settings and symbols
-      - `validate_connection()` - Test API connectivity
+      - `validate_connection()` - Delegates to client
       - `fetch_incremental()` - Fetch current prices
       - `_parse_quote()` - Convert API response to PriceData
 
@@ -184,6 +207,12 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 - `utils/http.py` - HTTP utilities
   - `get_json_with_retry()` - Fetch JSON with automatic retry on failures
+  
+- `utils/logging.py` - Centralized logging configuration
+  - `setup_logging()` - Configure logging level/format/handlers from env
+
+- `utils/signals.py` - Graceful shutdown utilities
+  - `register_graceful_shutdown(on_stop)` - Cross‑platform SIGINT/SIGTERM registration
 
 ### `tests/` — Test suite
 **Purpose**: Unit and integration tests with fixtures
@@ -230,10 +259,10 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 ## Database Schema
 Tables (WITHOUT ROWID):
-- `news_items(symbol, url, headline, summary, source, published_at, created_at)` - PK: (symbol, url)
-- `price_data(symbol, price, volume, timestamp, session, created_at)` - PK: (symbol, timestamp)
-- `analysis_results(symbol, analysis_type, stance, confidence, reasoning, metadata, analyzed_at, created_at)` - PK: (symbol, analysis_type)
-- `holdings(symbol, shares, avg_price, total_value, last_updated, metadata, created_at)` - PK: symbol
-- `last_seen(key, value)` - Watermarks for incremental processing
+- `news_items(symbol, url, headline, content, published_iso, source, created_at_iso)` — PK: (symbol, url)
+- `price_data(symbol, timestamp_iso, price TEXT, volume, session, created_at_iso)` — PK: (symbol, timestamp_iso)
+- `analysis_results(symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json, created_at_iso)` — PK: (symbol, analysis_type)
+- `holdings(symbol, quantity TEXT, break_even_price TEXT, total_cost TEXT, notes, created_at_iso, updated_at_iso)` — PK: symbol
+- `last_seen(key, value)` — Watermarks (`news_since_iso`, `llm_last_run_iso`)
 
-Constraints: NOT NULL on required fields, CHECK constraints for positive values, enum validations, JSON object validation for metadata fields
+Constraints: NOT NULL on required fields, CHECK constraints for positive values, enum validations, JSON object validation for JSON columns
