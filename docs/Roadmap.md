@@ -77,7 +77,26 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 **Cost**: $0 (Finnhub free tier)
 
-### v0.3.2 — Multi-Source Collection
+**Status**: Complete
+
+### v0.3.2 — Database Viewer (Read‑Only)
+**Goal**: Simple GUI to browse the SQLite database locally for validation and debugging
+
+**Achieves**:
+- Run a local, read‑only web UI using Datasette
+- Browse tables (`news_items`, `price_data`, `last_seen`, etc.) with filters and sorting
+- Ad‑hoc SQL queries in browser, quick CSV/JSON/JSONL exports
+
+**Dev UX**:
+- Install: `pip install datasette`
+- Run: `datasette data/trading_bot.db -o` (opens browser)
+- Scope: local development (read‑only); do not expose publicly
+
+**Success**: You can filter by symbol/time window, open article links, and export rows without writing any code
+
+**Cost**: $0
+
+### v0.3.3 — Multi-Source Collection
 **Achieves**:
 - RSS provider for additional news
 - Urgent keyword detection (bankruptcy, SEC investigation, etc.)
@@ -86,7 +105,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 **Flow**: Every 5 min → fetch incremental → dedup → store → filter urgent
 
-### v0.3.3 — Complete Data Pipeline
+### v0.3.4 — Complete Data Pipeline
 **Achieves**:
 - Polygon.io (backup market data, 5 calls/min free)
 - Reddit sentiment (PRAW, ~100 queries/min)
