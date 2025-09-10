@@ -87,3 +87,19 @@ class TestURLNormalization:
         expected = "https://example.com?id=123&page=2&sort=date"
         result = _normalize_url(original)
         assert result == expected
+    
+    def test_normalize_url_lowercases_hostname(self):
+        """Test hostname is lowercased for consistent deduplication"""
+        assert _normalize_url("HTTP://Example.COM/p?a=1&utm_source=x") == "http://example.com/p?a=1"
+        
+        # Additional test cases
+        test_cases = [
+            ("HTTPS://EXAMPLE.COM/news", "https://example.com/news"),
+            ("Http://Example.Com/article", "http://example.com/article"),
+            ("https://NEWS.Example.COM/page", "https://news.example.com/page"),
+            ("HTTP://API.FINNHUB.IO/v1/news", "http://api.finnhub.io/v1/news"),
+        ]
+        
+        for original, expected in test_cases:
+            result = _normalize_url(original)
+            assert result == expected, f"Failed for {original}: expected {expected}, got {result}"

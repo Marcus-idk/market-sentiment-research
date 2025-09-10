@@ -36,7 +36,7 @@ class NewsItem:
     content: Optional[str] = None
 
     def __post_init__(self):
-        self.symbol = self.symbol.strip()
+        self.symbol = self.symbol.strip().upper()
         self.url = self.url.strip()
         self.headline = self.headline.strip()
         self.source = self.source.strip()
@@ -58,7 +58,7 @@ class PriceData:
     session: Session = Session.REG
 
     def __post_init__(self):
-        self.symbol = self.symbol.strip()
+        self.symbol = self.symbol.strip().upper()
         if not self.symbol: raise ValueError("symbol cannot be empty")
         if self.timestamp.tzinfo is None: 
             self.timestamp = self.timestamp.replace(tzinfo=timezone.utc)
@@ -81,7 +81,7 @@ class AnalysisResult:
     created_at: Optional[datetime] = None
 
     def __post_init__(self):
-        self.symbol = self.symbol.strip()
+        self.symbol = self.symbol.strip().upper()
         self.model_name = self.model_name.strip()
         self.result_json = self.result_json.strip()
         if not self.symbol: raise ValueError("symbol cannot be empty")
@@ -120,7 +120,7 @@ class Holdings:
     updated_at: Optional[datetime] = None
 
     def __post_init__(self):
-        self.symbol = self.symbol.strip()
+        self.symbol = self.symbol.strip().upper()
         if self.notes is not None:
             self.notes = self.notes.strip()
         if not self.symbol: raise ValueError("symbol cannot be empty")

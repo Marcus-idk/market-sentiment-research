@@ -98,6 +98,27 @@ class TestNewsItem:
         # NOTE: content is NOT trimmed (per codex correction)
         item = NewsItem(**{**base_data, "content": "  \n  "})
         assert item.content == "  \n  "  # Preserved as-is
+    
+    def test_newsitem_symbol_uppercasing(self):
+        """Test symbol is automatically uppercased"""
+        item = NewsItem(
+            symbol="aapl",
+            url="https://example.com/news",
+            headline="Test",
+            source="Test",
+            published=datetime.now()
+        )
+        assert item.symbol == "AAPL"
+        
+        # Test mixed case
+        item2 = NewsItem(
+            symbol="tSlA",
+            url="https://example.com/news2",
+            headline="Test",
+            source="Test",
+            published=datetime.now()
+        )
+        assert item2.symbol == "TSLA"
 
     def test_newsitem_timezone_normalization(self):
         """Test naive datetime → UTC conversion"""
@@ -119,6 +140,24 @@ class TestNewsItem:
 
 class TestPriceData:
     """Test PriceData model validation"""
+    
+    def test_pricedata_symbol_uppercasing(self):
+        """Test symbol is automatically uppercased"""
+        price = PriceData(
+            symbol="aapl",
+            timestamp=datetime.now(),
+            price=Decimal("150.50")
+        )
+        assert price.symbol == "AAPL"
+        
+        # Test mixed case
+        price2 = PriceData(
+            symbol="mSfT",
+            timestamp=datetime.now(),
+            price=Decimal("400.00"),
+            volume=1000
+        )
+        assert price2.symbol == "MSFT"
     
     def test_pricedata_price_must_be_positive(self):
         """Test price > 0 validation (not >= 0)"""
@@ -230,6 +269,31 @@ class TestPriceData:
 
 class TestAnalysisResult:
     """Test AnalysisResult model validation"""
+    
+    def test_analysisresult_symbol_uppercasing(self):
+        """Test symbol is automatically uppercased"""
+        result = AnalysisResult(
+            symbol="aapl",
+            analysis_type=AnalysisType.NEWS_ANALYSIS,
+            model_name="gpt-4",
+            stance=Stance.BULL,
+            confidence_score=0.85,
+            last_updated=datetime.now(),
+            result_json='{"test": "data"}'
+        )
+        assert result.symbol == "AAPL"
+        
+        # Test mixed case
+        result2 = AnalysisResult(
+            symbol="gOoGl",
+            analysis_type=AnalysisType.SENTIMENT_ANALYSIS,
+            model_name="gemini",
+            stance=Stance.NEUTRAL,
+            confidence_score=0.5,
+            last_updated=datetime.now(),
+            result_json='{"analysis": "neutral"}'
+        )
+        assert result2.symbol == "GOOGL"
     
     def test_analysisresult_json_validation(self):
         """Test result_json must be valid JSON object"""
@@ -378,6 +442,26 @@ class TestAnalysisResult:
 
 class TestHoldings:
     """Test Holdings model validation"""
+    
+    def test_holdings_symbol_uppercasing(self):
+        """Test symbol is automatically uppercased"""
+        holding = Holdings(
+            symbol="aapl",
+            quantity=Decimal("100"),
+            break_even_price=Decimal("150.00"),
+            total_cost=Decimal("15000.00")
+        )
+        assert holding.symbol == "AAPL"
+        
+        # Test mixed case
+        holding2 = Holdings(
+            symbol="nVdA",
+            quantity=Decimal("50"),
+            break_even_price=Decimal("500.00"),
+            total_cost=Decimal("25000.00"),
+            notes="Test holding"
+        )
+        assert holding2.symbol == "NVDA"
     
     def test_holdings_financial_values_positive(self):
         """Test quantity > 0, break_even_price > 0, total_cost > 0"""

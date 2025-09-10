@@ -23,6 +23,8 @@ def _normalize_url(url: str) -> str:
     Removes: utm_source, utm_medium, utm_campaign, ref, fbclid, etc.
     """
     parsed = urlparse(url)
+    # Lowercase the hostname for consistent deduplication
+    parsed = parsed._replace(netloc=parsed.netloc.lower())
     
     # Common tracking parameters to remove
     tracking_params = {
