@@ -33,10 +33,9 @@ class OpenAIProvider(LLMProvider):
         self.settings = settings
         self.model_name = model_name
         self.temperature = temperature
-        self.reasoning = reasoning
+        self.reasoning = reasoning if reasoning is not None else {"effort": "low"}
         self.tools = tools
         self.tool_choice = tool_choice
-        # Disable SDK retries - we handle retries ourselves
         self.client = AsyncOpenAI(
             api_key=settings.api_key,
             max_retries=0, 

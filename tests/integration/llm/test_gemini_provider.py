@@ -47,10 +47,14 @@ async def test_gemini_code_execution():
         tools=[{"code_execution": {}}]
     )
     out_with_tools = await provider_with_tools.generate(prompt)
+    digest_with_tools = extract_hex64(out_with_tools)
+    assert expected_sha == digest_with_tools, f"with tools: expected {expected_sha}, got {digest_with_tools}"
 
-    ok_with_tools = expected_sha == extract_hex64(out_with_tools)
-
-    if ok_with_tools:
-        print("Gemini: Code execution working correctly (SHA-256 test)")
-    else:
-        print("Gemini: Code execution may not be working")
+    # Without tools (negative check)
+    provider_no_tools = GeminiProvider(
+        settings=gemini_settings,
+        model_name="gemini-2.5-flash"
+    )
+    out_no_tools = await provider_no_tools.generate(prompt)
+    digest_no_tools = extract_hex64(out_no_tools)
+    assert expected_sha != digest_no_tools, "without tools: digest unexpectedly matched expected SHA"

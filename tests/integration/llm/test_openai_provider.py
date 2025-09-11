@@ -48,10 +48,15 @@ async def test_openai_code_interpreter():
         tool_choice="auto"
     )
     out_with_tools = await provider_with_tools.generate(prompt)
+    digest_with_tools = extract_hex64(out_with_tools)
+    assert expected_sha == digest_with_tools, f"with tools: expected {expected_sha}, got {digest_with_tools}"
 
-    ok_with_tools = expected_sha == extract_hex64(out_with_tools)
-
-    if ok_with_tools:
-        print("OpenAI: Code interpreter working correctly (SHA-256 test)")
-    else:
-        print("OpenAI: Code interpreter may not be working")
+    # Without tools (negative check)
+    provider_no_tools = OpenAIProvider(
+        settings=openai_settings,
+        model_name="gpt-5",
+        tool_choice="none"
+    )
+    out_no_tools = await provider_no_tools.generate(prompt)
+    digest_no_tools = extract_hex64(out_no_tools)
+    assert expected_sha != digest_no_tools, "without tools: digest unexpectedly matched expected SHA"

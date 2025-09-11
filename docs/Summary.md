@@ -184,6 +184,8 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `llm/providers/openai.py`
     - `OpenAIProvider` - OpenAI implementation using Responses API
       - `__init__()` - Configure with model, temperature, tools, tool_choice, reasoning
+        - Defaults: if `reasoning` is not provided, the provider sets `{"effort": "low"}` (keeps tool compatibility and reduces cost vs. higher efforts)
+        - Note: `code_interpreter` cannot be used with `reasoning.effort = "minimal"` (API rejects that combo)
       - `generate()` - Send prompt and get response
       - `validate_connection()` - Test API connectivity
       - `_classify_openai_exception()` - Map SDK errors to retry logic
@@ -191,6 +193,8 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `llm/providers/gemini.py`
     - `GeminiProvider` - Google Gemini implementation
       - `__init__()` - Configure with model, temperature, tools, thinking_config
+        - Defaults: if `thinking_config` is not provided, the provider sets `{"thinking_budget": 128}` (small but non‑zero reasoning budget)
+        - Code execution is opt‑in via `tools=[{"code_execution": {}}]`
       - `generate()` - Send prompt and get response
       - `validate_connection()` - Test API connectivity
       - `_classify_gemini_exception()` - Map SDK errors to retry logic
@@ -256,8 +260,13 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `providers/test_finnhub_live.py` - Live API test (network-marked)
   
   - `tests/integration/llm/` - LLM integration tests
-    - `test_providers.py` - Live LLM provider tests (network-marked)
-      - Tests SHA-256 tool use for both OpenAI and Gemini
+    - `test_openai_provider.py` - OpenAI live tests (network-marked)
+      - Connection smoke test
+      - SHA-256 check: with `code_interpreter` → digest must match; without tools (`tool_choice="none"`) → digest must not match
+    - `test_gemini_provider.py` - Gemini live tests (network-marked)
+      - Connection smoke test
+      - SHA-256 check: with `code_execution` → digest must match; without tools → digest must not match
+    - Notes: Tests require `OPENAI_API_KEY` / `GEMINI_API_KEY`; rate limits or timeouts will surface as test failures
 
 ## Database Schema
 Tables (WITHOUT ROWID):

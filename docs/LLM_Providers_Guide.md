@@ -12,8 +12,9 @@
 - **`temperature: float | None`** — randomness control; `0` = deterministic, higher = more diverse.  
   `OpenAIProvider(..., temperature=0.2, ...)`
 
-- **`reasoning: dict | None`** — reasoning effort (only for reasoning models).  
-  Allowed: `{"effort": "low" | "medium" | "high"}`  
+- **`reasoning: dict | None`** — reasoning effort.  
+  Allowed: `{"effort": "minimal" | "low" | "medium" | "high"}`  
+  Defaults: If omitted, the provider sets `{"effort":"low"}` to balance cost with tool compatibility.  
   `OpenAIProvider(..., reasoning={"effort":"medium"}, ...)`
 
 - **`tools: list[dict] | None`** — enable built-ins or custom function tools.  
@@ -84,6 +85,7 @@
 - **`thinking_config: dict | None`** — reasoning controls.  
   - `thinking_budget: int` — max tokens for “thinking” phase.  
   - `include_thoughts: bool` — include a summary of thoughts in output.  
+  Defaults: If omitted, the provider sets a small budget (`{"thinking_budget": 128}`) to enable lightweight reasoning while limiting cost.  
   `GeminiProvider(..., thinking_config={"thinking_budget":2048,"include_thoughts":False}, ...)`
 
 - **`**kwargs -> self.config`** — passed into `GenerateContentConfig(...)`.  

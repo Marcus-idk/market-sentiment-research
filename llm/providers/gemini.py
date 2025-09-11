@@ -25,7 +25,7 @@ class GeminiProvider(LLMProvider):
         self.temperature = temperature
         self.tools = tools
         self.tool_choice = tool_choice
-        self.thinking_config = thinking_config
+        self.thinking_config = thinking_config if thinking_config is not None else {"thinking_budget": 128}
         self.client = genai.Client(
             api_key=settings.api_key,
             http_options=types.HttpOptions(timeout=settings.retry_config.timeout_seconds * 1000)
