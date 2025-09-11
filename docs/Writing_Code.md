@@ -19,11 +19,12 @@ Scope: Applies to all new/changed code. New code should follow existing patterns
 
 ## Consistency (Must)
 - Mirror existing file layout, naming, and style. New code follows old code.
+- Imports: use absolute imports from project root (e.g., `from data.models import NewsItem`). Only root-level `__init__.py` files exist; pytest.ini sets `pythonpath = .`.
 - Naming: modules/functions `snake_case`, classes `PascalCase`, constants `UPPER_SNAKE`.
 - Time and numbers: use timezone‑aware timestamps (UTC recommended); use precise numeric types for money (avoid binary floats).
 - Persistence: validate at write boundaries; choose stable representations; version schema/migrations clearly.
 - Logging: structured and actionable; no secrets/API keys; appropriate levels.
-- Comments/docstrings: brief and explain “why”, not just “what”.
+- Comments/docstrings: brief and explain "why", not just "what".
 
 ## Tests & Docs (Must)
 - Add/adjust tests for every change. Follow the project’s testing conventions; mark slower integration/network tests.
