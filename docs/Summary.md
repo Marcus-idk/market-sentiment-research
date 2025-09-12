@@ -211,7 +211,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `retry_and_call()` - Generic async retry wrapper with backoff
 
 - `utils/http.py` - HTTP utilities
-  - `get_json_with_retry()` - Fetch JSON with automatic retry on failures
+  - `get_json_with_retry(url, *, params=None, headers=None, timeout, max_retries, base=..., mult=..., jitter=...)` - Async GET JSON with retries; supports query params and custom headers (e.g., User‑Agent)
   
 - `utils/logging.py` - Centralized logging configuration
   - `setup_logging()` - Configure logging level/format/handlers from env
@@ -260,13 +260,12 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `providers/test_finnhub_live.py` - Live API test (network-marked)
   
   - `tests/integration/llm/` - LLM integration tests
+    - `helpers.py` - Shared helpers: `extract_hex64`, `fetch_featured_wiki`, `make_base64_blob`, `normalize_title`
     - `test_openai_provider.py` - OpenAI live tests (network-marked)
-      - Connection smoke test
-      - SHA-256 check: with `code_interpreter` → digest must match; without tools (`tool_choice="none"`) → digest must not match
+      - Web search check: with `tools=[{"type":"web_search"}]` and `tool_choice="auto"` → returns yesterday’s Wikipedia Featured article title; without tools (`tool_choice="none"`) → response should not contain the correct title
     - `test_gemini_provider.py` - Gemini live tests (network-marked)
-      - Connection smoke test
-      - SHA-256 check: with `code_execution` → digest must match; without tools → digest must not match
-    - Notes: Tests require `OPENAI_API_KEY` / `GEMINI_API_KEY`; rate limits or timeouts will surface as test failures
+      - Web search check: with `tools=[{"google_search":{}}]` → returns yesterday’s Wikipedia Featured article title; without tools → response should not contain the correct title
+    - Notes: Requires API keys; uses Wikipedia with a descriptive `User-Agent`; network issues may fail tests
 
 ## Database Schema
 Tables (WITHOUT ROWID):

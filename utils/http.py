@@ -10,6 +10,7 @@ async def get_json_with_retry(
     url: str,
     *,
     params: Optional[Dict[str, Any]] = None,
+    headers: Optional[Dict[str, str]] = None,
     timeout: float,
     max_retries: int,
     base: float = 0.25,
@@ -27,7 +28,7 @@ async def get_json_with_retry(
         try:
             # Use native async HTTP client for non-blocking requests
             async with httpx.AsyncClient() as client:
-                response = await client.get(url, params=params, timeout=timeout)
+                response = await client.get(url, params=params, headers=headers, timeout=timeout)
 
             # SUCCESS CASES
             if response.status_code == 200:
