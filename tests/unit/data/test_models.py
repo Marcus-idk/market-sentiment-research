@@ -6,7 +6,6 @@ Tests all __post_init__ validation logic (pure Python, no database).
 import pytest
 from datetime import datetime, timezone
 from decimal import Decimal
-import json
 
 from data.models import (
     NewsItem, PriceData, AnalysisResult, Holdings,

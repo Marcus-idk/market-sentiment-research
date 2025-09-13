@@ -17,31 +17,41 @@ class TestFinnhubCriticalErrorHandling:
     """Test critical error scenarios that could break production"""
     
     @pytest.mark.asyncio
-    async def test_rate_limit_triggers_retry(self, monkeypatch):
+    async def test_rate_limit_triggers_retry(self, mock_http_client):
         """Test that 429 rate limit errors trigger retry with backoff
         
         Finnhub free tier = 60 calls/minute. This WILL happen in production.
         """
+        from unittest.mock import Mock, patch, AsyncMock
+        
         settings = FinnhubSettings(api_key='test_key')
         client = FinnhubClient(settings)
         
+        # Create response sequence: 429, 429, then 200 success
+        responses = [
+            Mock(status_code=429, headers={"Retry-After": "0.01"}),  # Small delay for testing
+            Mock(status_code=429, headers={"Retry-After": "0.01"}),
+            Mock(status_code=200, json=Mock(return_value={'c': 150.0, 't': 1705320000}))
+        ]
+        
         call_count = 0
-        async def mock_get_json(*args, **kwargs):
+        async def mock_get(*args, **kwargs):
             nonlocal call_count
+            response = responses[call_count]
             call_count += 1
-            # get_json_with_retry handles retries internally,
-            # so we only see one call here
-            if call_count == 1:
-                # Simulate successful retry after rate limit
-                return {'c': 150.0, 't': 1705320000}
-            raise AssertionError("Should not be called more than once")
+            return response
         
-        monkeypatch.setattr('data.providers.finnhub.get_json_with_retry', mock_get_json)
+        # Mock at HTTP client level (following established pattern)
+        mock_http_client(mock_get)
         
-        # Should succeed (get_json_with_retry handles the retry logic)
-        result = await client.get('/quote', {'symbol': 'AAPL'})
-        assert result == {'c': 150.0, 't': 1705320000}
-        assert call_count == 1  # get_json_with_retry handles retries internally
+        with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
+            # Should eventually succeed after retries
+            result = await client.get('/quote', {'symbol': 'AAPL'})
+            assert result == {'c': 150.0, 't': 1705320000}
+            assert call_count == 3  # Initial + 2 retries = 3 total calls
+            
+            # Verify that sleep was called for retries
+            assert mock_sleep.call_count == 2  # Two sleeps between 3 attempts
     
     @pytest.mark.asyncio
     async def test_auth_error_fails_fast(self, monkeypatch):

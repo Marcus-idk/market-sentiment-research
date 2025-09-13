@@ -1,12 +1,8 @@
 """
-Database schema constraint tests and enum value locks.
-Tests database-level CHECK constraints by bypassing Python validation.
-Uses direct SQL operations to validate constraint enforcement.
-Also locks enum values to prevent breaking database changes.
+Tests enum value constraints and locks critical enum values against changes.
 """
 
 import sqlite3
-import gc
 import pytest
 
 from data.storage import init_database
@@ -65,8 +61,7 @@ class TestEnumConstraints:
         with sqlite3.connect(temp_db) as conn:
             cursor = conn.cursor()
             
-            # Valid values (using realistic US market hours in UTC)
-            # Assuming EDT (UTC-4): PRE: 08:00–13:30 UTC, REG: 13:30–20:00 UTC, POST: 20:00–24:00 UTC, CLOSED: 00:00–08:00 UTC
+            # Valid enum values - test data with different hours for each session type
             session_hours = {'REG': '14', 'PRE': '09', 'POST': '21', 'CLOSED': '02'}
             for session in ['REG', 'PRE', 'POST', 'CLOSED']:
                 cursor.execute("""

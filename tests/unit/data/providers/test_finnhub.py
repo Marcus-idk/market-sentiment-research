@@ -6,7 +6,6 @@ Tests FinnhubClient, FinnhubNewsProvider, and FinnhubPriceProvider.
 import pytest
 from datetime import datetime, timezone, timedelta
 from decimal import Decimal
-from unittest.mock import AsyncMock
 
 from config.providers.finnhub import FinnhubSettings
 from config.retry import DEFAULT_DATA_RETRY
@@ -71,11 +70,11 @@ class TestFinnhubClient:
         
         await client.get('/quote')
         
-        assert captured_args['timeout'] == 30  # DEFAULT_DATA_RETRY.timeout_seconds
-        assert captured_args['max_retries'] == 3
-        assert captured_args['base'] == 0.25
-        assert captured_args['mult'] == 2.0
-        assert captured_args['jitter'] == 0.1
+        assert captured_args['timeout'] == DEFAULT_DATA_RETRY.timeout_seconds
+        assert captured_args['max_retries'] == DEFAULT_DATA_RETRY.max_retries
+        assert captured_args['base'] == DEFAULT_DATA_RETRY.base
+        assert captured_args['mult'] == DEFAULT_DATA_RETRY.mult
+        assert captured_args['jitter'] == DEFAULT_DATA_RETRY.jitter
 
 
 class TestFinnhubNewsProvider:

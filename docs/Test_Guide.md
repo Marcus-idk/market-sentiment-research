@@ -212,8 +212,9 @@ tests/integration/
 - [ ] Is the test file < 600 lines? (split if not)
 - [ ] Are test names descriptive?
 - [ ] Do enums have value lock tests?
+- [ ] If testing retry logic, does it follow the established pattern? (Mock at HTTP client level)
 - [ ] Avoid duplicate assertions across layers (e.g., database default values
-      live in schema tests; don’t repeat the same default in model tests).
+      live in schema tests; don't repeat the same default in model tests).
 - [ ] Are integration tests marked correctly?
 
 ## Example Patterns
@@ -235,6 +236,25 @@ tests/integration/
 # Tests organized by workflow, not source structure:
 # test_dedup_news.py, test_roundtrip_e2e.py, test_timezone_pipeline.py
 ```
+
+## Testing Patterns
+
+### How to Test Retry Logic
+
+**Pattern**: Mock HTTP client with response sequences (not the retry wrapper).
+
+```python
+# ✅ CORRECT: Mock HTTP responses, verify retry behavior
+responses = [Mock(status_code=429), Mock(status_code=429), Mock(status_code=200)]
+mock_http_client(mock_get_function)
+assert call_count == 3  # Verify retries happened
+
+# ❌ WRONG: Mock retry wrapper, only test delegation  
+monkeypatch.setattr('get_json_with_retry', mock_success)
+assert call_count == 1  # Doesn't test retries!
+```
+
+**Reference**: `tests/unit/utils/test_http.py::test_429_numeric_retry_after`
 
 ## When in Doubt
 

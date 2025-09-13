@@ -1,11 +1,8 @@
 """
-Database schema constraint tests.
-Tests database-level CHECK constraints by bypassing Python validation.
-Uses direct SQL operations to validate constraint enforcement.
+Tests NOT NULL constraints for required database fields.
 """
 
 import sqlite3
-import gc
 import pytest
 
 from data.storage import init_database

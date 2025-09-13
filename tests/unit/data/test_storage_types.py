@@ -1,7 +1,5 @@
 """
-Storage operations tests.
-Tests CRUD operations, type conversions, and SQLite database functionality.
-Uses Windows-safe cleanup patterns for WAL mode databases.
+Tests type conversion helper functions (_datetime_to_iso, _decimal_to_text).
 """
 
 import pytest

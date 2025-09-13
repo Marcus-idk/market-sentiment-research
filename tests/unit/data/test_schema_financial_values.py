@@ -1,11 +1,8 @@
 """
-Database schema constraint tests.
-Tests database-level CHECK constraints by bypassing Python validation.
-Uses direct SQL operations to validate constraint enforcement.
+Tests financial value constraints for prices and decimal storage.
 """
 
 import sqlite3
-import gc
 import pytest
 
 from data.storage import init_database

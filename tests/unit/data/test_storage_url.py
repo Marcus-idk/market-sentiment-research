@@ -1,7 +1,5 @@
 """
-Storage operations tests.
-Tests CRUD operations, type conversions, and SQLite database functionality.
-Uses Windows-safe cleanup patterns for WAL mode databases.
+Tests URL normalization and deduplication logic for news items.
 """
 
 import pytest
