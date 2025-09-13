@@ -14,16 +14,6 @@ from config.retry import (
 class TestLLMRetryConfig:
     """Test LLMRetryConfig frozen dataclass"""
     
-    def test_default_values(self):
-        """Test LLMRetryConfig has correct default values"""
-        config = LLMRetryConfig()
-        
-        assert config.timeout_seconds == 360
-        assert config.max_retries == 3
-        assert config.base == 0.25
-        assert config.mult == 2.0
-        assert config.jitter == 0.1
-    
     def test_custom_values(self):
         """Test LLMRetryConfig can be instantiated with custom values"""
         config = LLMRetryConfig(
@@ -66,7 +56,6 @@ class TestLLMRetryConfig:
     
     def test_default_instance(self):
         """Test DEFAULT_LLM_RETRY instance exists with correct values"""
-        assert DEFAULT_LLM_RETRY is not None
         assert isinstance(DEFAULT_LLM_RETRY, LLMRetryConfig)
         assert DEFAULT_LLM_RETRY.timeout_seconds == 360
         assert DEFAULT_LLM_RETRY.max_retries == 3
@@ -82,16 +71,6 @@ class TestLLMRetryConfig:
 
 class TestDataRetryConfig:
     """Test DataRetryConfig frozen dataclass"""
-    
-    def test_default_values(self):
-        """Test DataRetryConfig has correct default values"""
-        config = DataRetryConfig()
-        
-        assert config.timeout_seconds == 30  # Data APIs are faster
-        assert config.max_retries == 3
-        assert config.base == 0.25
-        assert config.mult == 2.0
-        assert config.jitter == 0.1
     
     def test_custom_values(self):
         """Test DataRetryConfig can be instantiated with custom values"""
@@ -135,7 +114,6 @@ class TestDataRetryConfig:
     
     def test_default_instance(self):
         """Test DEFAULT_DATA_RETRY instance exists with correct values"""
-        assert DEFAULT_DATA_RETRY is not None
         assert isinstance(DEFAULT_DATA_RETRY, DataRetryConfig)
         assert DEFAULT_DATA_RETRY.timeout_seconds == 30
         assert DEFAULT_DATA_RETRY.max_retries == 3
@@ -147,6 +125,10 @@ class TestDataRetryConfig:
         """Test DEFAULT_DATA_RETRY instance cannot be modified"""
         with pytest.raises(FrozenInstanceError):
             DEFAULT_DATA_RETRY.timeout_seconds = 999
+
+
+class TestRetryBusinessRules:
+    """Test cross-config business rules for retry configurations"""
     
     def test_different_timeouts(self):
         """Test that LLM and Data configs have different default timeouts"""

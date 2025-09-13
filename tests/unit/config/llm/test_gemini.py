@@ -18,8 +18,6 @@ class TestGeminiSettings:
         
         assert settings.api_key == 'AIzaSyTest123456789'
         assert settings.retry_config == DEFAULT_LLM_RETRY
-        assert settings.retry_config.timeout_seconds == 360
-        assert settings.retry_config.max_retries == 3
     
     def test_from_env_missing_key(self, monkeypatch):
         """Test raises ValueError when GEMINI_API_KEY is not set"""

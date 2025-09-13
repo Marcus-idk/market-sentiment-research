@@ -20,8 +20,6 @@ class TestFinnhubSettings:
         assert settings.api_key == 'test_key_123'
         assert settings.base_url == 'https://finnhub.io/api/v1'
         assert settings.retry_config == DEFAULT_DATA_RETRY
-        assert settings.retry_config.timeout_seconds == 30
-        assert settings.retry_config.max_retries == 3
     
     def test_from_env_missing_key(self, monkeypatch):
         """Test raises ValueError when FINNHUB_API_KEY is not set"""
