@@ -1,5 +1,14 @@
 # Trading Bot Development Roadmap
 
+## Instructions for Updating Roadmap
+- **ALWAYS** read the WHOLE document before making any updates
+- Keep the pattern of updating exactly the same as the current version sections:
+  - Each version has: Goal, Achieves, Status (and optionally Cost, Success, etc.)
+  - Use ✅ emoji to indicate completed versions/sections
+  - Use appropriate emojis for future sections (☁️, 🧠, 🎯)
+  - Maintain consistent formatting and structure throughout
+- The tick emoji (✅) means done/complete
+
 ## Project Goal
 Automated trading bot that uses LLMs for fundamental analysis. Polls data every 5 minutes, flags urgent events, and issues HOLD/SELL recommendations via scheduled LLM analysis.
 
@@ -31,8 +40,6 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Clean provider pattern with async implementation
 - SHA-256 validation tests
 
-**Status**: Production-ready
-
 ---
 
 ## v0.2 — Core Infrastructure ✅
@@ -46,11 +53,9 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 **Environment**: Requires SQLite JSON1 extension (fails fast if missing)
 
-**Status**: Complete with full test coverage
-
 ---
 
-## v0.3 — Data Collection Layer 📡
+## v0.3 — Data Collection Layer ✅
 **Goal**: Build complete data ingestion pipeline
 
 ### v0.3.1 — First Market Connection
@@ -76,8 +81,6 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 **Success**: Manual script fetches data every 5 minutes with deduplication
 
 **Cost**: $0 (Finnhub free tier)
-
-**Status**: Complete
 
 ### v0.3.2 — Database Viewer (Read‑Only)
 **Goal**: Simple GUI to browse the SQLite database locally for validation and debugging
