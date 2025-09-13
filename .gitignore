@@ -215,8 +215,8 @@ __marimo__/
 tempFiles/
 
 # Trading Bot Database Files
-data/trading_bot.db
-data/trading_bot.db-wal
-data/trading_bot.db-shm
+*trading_bot.db
+*trading_bot.db-wal
+*trading_bot.db-shm
 *.db-wal
 *.db-shm

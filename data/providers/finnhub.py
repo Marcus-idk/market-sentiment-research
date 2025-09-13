@@ -15,6 +15,7 @@ from config.providers.finnhub import FinnhubSettings
 from data.base import NewsDataSource, PriceDataSource, DataSourceError
 from data.models import NewsItem, PriceData, Session
 from utils.http import get_json_with_retry
+from utils.market_hours import classify_us_session
 
 class FinnhubClient:
     """
@@ -323,7 +324,7 @@ class FinnhubPriceProvider(PriceDataSource):
                 timestamp=timestamp, 
                 price=price,
                 volume=None,  # Not provided by /quote endpoint
-                session=Session.REG  # Default to regular session for now
+                session=classify_us_session(timestamp)  # Determine actual session based on ET
             )
         except ValueError:
             # PriceData validation failed

@@ -15,11 +15,11 @@ When updating this file, follow this checklist:
 ---
 
 ## Core Idea
-Framework for US equities data collection and LLM-ready storage. Current scope: strict UTC models, SQLite with constraints/dedup, LLM provider integrations (OpenAI, Gemini), and a configurable (5 mins for now) Finnhub poller. Trading decisions are not implemented yet; session support exists but no ET conversion or trading engine is present.
+Framework for US equities data collection and LLM-ready storage. Current scope: strict UTC models, SQLite with constraints/dedup, LLM provider integrations (OpenAI, Gemini), and a configurable (5 mins for now) Finnhub poller. Trading decisions are not implemented yet; session detection is implemented via ET conversion.
 
 ## Time Policy
 - Persistence: UTC everywhere (ISO `YYYY-MM-DDTHH:MM:SSZ`).
-- Sessions: `Session = {REG, PRE, POST}` is available in models. ET conversion helpers and session-detection logic are not implemented yet; providers currently normalize datetimes to UTC and, where needed, default `session` (e.g., Finnhub quotes use `Session.REG`).
+- Sessions: `Session = {REG, PRE, POST, CLOSED}` is available in models. ET conversion and session classification are implemented; providers normalize timestamps to UTC and use `utils.market_hours.classify_us_session()` to set the session.
 
 ## Environment Variables
 - `FINNHUB_API_KEY` - Required for market data fetching
@@ -28,6 +28,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `DATABASE_PATH` - Optional, defaults to data/trading_bot.db
 - `SYMBOLS` - Required for `run_poller.py`; comma-separated tickers (e.g., "AAPL,MSFT,TSLA")
 - `POLL_INTERVAL` - Required for `run_poller.py`; polling frequency in seconds (e.g., 300 for 5 minutes)
+ - `DATASETTE_PORT` - Optional, defaults to 8001; port used when launching web viewer with `-v/--with-viewer`
 
 ## Test Markers
 - `@pytest.mark.integration` - Integration tests requiring database/API setup
@@ -39,6 +40,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - Uses `utils.logging.setup_logging()` for consistent logging
   - Uses `utils.signals.register_graceful_shutdown()` for SIGINT/SIGTERM
   - Requires `SYMBOLS`, `POLL_INTERVAL`, and `FINNHUB_API_KEY` in environment
+  - Optional web viewer: run with `-v/--with-viewer` (port configurable via `DATASETTE_PORT`, default 8001)
 
 ## Project Structure
 
@@ -83,7 +85,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 - `data/models.py` - Core dataclasses and enums
   **Enums**:
-  - `Session` - Trading sessions: REG, PRE, POST
+  - `Session` - Trading sessions: REG, PRE, POST, CLOSED
   - `Stance` - Analysis stances: BULL, BEAR, NEUTRAL
   - `AnalysisType` - Types: `news_analysis`, `sentiment_analysis`, `sec_filings`, `head_trader`
   
@@ -164,7 +166,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
       - `__init__()` - Initialize with settings and symbols
       - `validate_connection()` - Delegates to client
       - `fetch_incremental()` - Fetch current prices
-      - `_parse_quote()` - Convert API response to PriceData
+      - `_parse_quote()` - Convert API response to PriceData with ET-based session detection
 
 ### `llm/` — LLM provider abstractions
 **Purpose**: Base classes and provider implementations for LLM interactions
@@ -218,6 +220,9 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 - `utils/signals.py` - Graceful shutdown utilities
   - `register_graceful_shutdown(on_stop)` - Cross‑platform SIGINT/SIGTERM registration
+
+- `utils/market_hours.py` - US equity market session classification
+  - `classify_us_session(ts_utc)` - Determine if timestamp is PRE/REG/POST/CLOSED based on ET trading hours
 
 ### `tests/` — Test suite
 **Purpose**: Unit and integration tests with fixtures

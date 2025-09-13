@@ -448,11 +448,13 @@ class TestFinnhubPriceProvider:
     
     @pytest.mark.asyncio
     async def test_defaults_session_and_volume(self, monkeypatch):
-        """Test default values for session and volume"""
+        """Test session classification and default volume"""
         settings = FinnhubSettings(api_key='test_key')
         provider = FinnhubPriceProvider(settings, ['AAPL'])
-        
-        quote_fixture = {'c': 150.0, 't': 1705320000}
+        # Choose a UTC timestamp that maps to REG in ET. For Jan 15, 2024,
+        # 15:00:00 UTC = 10:00:00 ET (REG session in winter EST).
+        reg_dt_utc = datetime(2024, 1, 15, 15, 0, tzinfo=timezone.utc)
+        quote_fixture = {'c': 150.0, 't': int(reg_dt_utc.timestamp())}
         
         async def mock_get(path, params=None):
             if path == '/quote':

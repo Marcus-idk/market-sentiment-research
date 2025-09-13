@@ -5,9 +5,11 @@ Runs continuous data collection from Finnhub every 5 minutes,
 storing results in SQLite database.
 """
 
+import argparse
 import asyncio
 import logging
 import os
+import subprocess
 import sys
 from pathlib import Path
 
@@ -22,9 +24,12 @@ from utils.signals import register_graceful_shutdown
 
 logger = logging.getLogger(__name__)
 
-async def main() -> int:
+async def main(with_viewer: bool = False) -> int:
     """
     Main entry point for the poller.
+    
+    Args:
+        with_viewer: If True, launch Datasette web viewer alongside poller
     
     Returns:
         Exit code (0 for success, non-zero for failure)
@@ -48,6 +53,26 @@ async def main() -> int:
     except Exception as e:
         logger.error(f"Failed to initialize database: {e}")
         return 1
+    
+    # Launch Datasette viewer if requested
+    datasette_process = None
+    datasette_port = os.getenv("DATASETTE_PORT", "8001")
+    
+    if with_viewer:
+        try:
+            datasette_process = subprocess.Popen(
+                ["datasette", db_path, "--port", datasette_port],
+                stdout=subprocess.DEVNULL,
+                stderr=subprocess.DEVNULL
+            )
+            logger.info(f"Datasette viewer started at http://localhost:{datasette_port}")
+            logger.info("Open your browser and navigate to the URL above to view data")
+        except FileNotFoundError:
+            logger.warning("Datasette not found. Install with: pip install datasette")
+            logger.warning("Continuing without viewer...")
+        except Exception as e:
+            logger.warning(f"Failed to start Datasette: {e}")
+            logger.warning("Continuing without viewer...")
     
     # Create Finnhub settings and providers
     try:
@@ -130,6 +155,8 @@ async def main() -> int:
     logger.info(f"Monitoring {len(symbols)} symbols: {', '.join(symbols)}")
     logger.info(f"Database: {db_path}")
     logger.info(f"Poll interval: {poll_interval}s")
+    if datasette_process:
+        logger.info(f"Web viewer: http://localhost:{datasette_port}")
     logger.info("Press Ctrl+C to stop")
     logger.info("=" * 60)
     
@@ -142,12 +169,37 @@ async def main() -> int:
         return 1
     finally:
         logger.info("Poller stopped")
+        
+        # Clean up Datasette process if running
+        if datasette_process:
+            try:
+                datasette_process.terminate()
+                datasette_process.wait(timeout=5)
+                logger.info("Datasette viewer stopped")
+            except Exception as e:
+                logger.warning(f"Error stopping Datasette: {e}", exc_info=True)
+                try:
+                    datasette_process.kill()
+                    datasette_process.wait(timeout=3)
+                except Exception as e2:
+                    logger.error(f"Datasette kill() failed: {e2}", exc_info=True)
     
     logger.info("Shutdown complete")
     return 0
 
 
 if __name__ == "__main__":
-    # Run the async main function
-    exit_code = asyncio.run(main())
+    # Parse command-line arguments
+    parser = argparse.ArgumentParser(
+        description="Trading Bot Data Poller - Collects market data every 5 minutes"
+    )
+    parser.add_argument(
+        "-v", "--with-viewer",
+        action="store_true",
+        help="Launch Datasette web viewer (default port: 8001, configurable via DATASETTE_PORT)"
+    )
+    args = parser.parse_args()
+    
+    # Run the async main function with parsed arguments
+    exit_code = asyncio.run(main(with_viewer=args.with_viewer))
     sys.exit(exit_code)

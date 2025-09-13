@@ -124,6 +124,8 @@ class TestDataSourceContract:
 class Session(Enum):
     REG = "REG"
     PRE = "PRE"
+    POST = "POST"
+    CLOSED = "CLOSED"
 ```
 
 **Add a simple test:**
@@ -133,6 +135,8 @@ def test_enum_values_unchanged():
     # These values are in the database - MUST NOT CHANGE
     assert Session.REG.value == "REG"
     assert Session.PRE.value == "PRE"
+    assert Session.POST.value == "POST"
+    assert Session.CLOSED.value == "CLOSED"
 ```
 
 ✅ **GOOD:** Prevents accidental breaking changes  

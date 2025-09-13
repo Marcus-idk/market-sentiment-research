@@ -19,8 +19,8 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 ## Market & Tech Specs
 - Market: US equities (NYSE/NASDAQ); US-listed stocks only
-- Sessions (ET): Pre 4:00–9:30, Regular 9:30–16:00, Post 16:00–20:00
-- Timezone: Store UTC (ISO Z); convert to ET for logic; session enum {REG, PRE, POST}
+- Sessions (ET): Pre 4:00–9:30, Regular 9:30–16:00, Post 16:00–20:00, Closed 20:00–4:00
+- Timezone: Store UTC (ISO Z); convert to ET for logic; session enum {REG, PRE, POST, CLOSED}
 - Data Sources: Finnhub, Polygon.io, SEC EDGAR, RSS, Reddit
 
 ---

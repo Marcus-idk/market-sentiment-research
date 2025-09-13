@@ -212,7 +212,7 @@ class TestPriceData:
         }
         
         # Valid enum values
-        for session in [Session.REG, Session.PRE, Session.POST]:
+        for session in [Session.REG, Session.PRE, Session.POST, Session.CLOSED]:
             item = PriceData(**{**base_data, "session": session})
             assert item.session == session
             

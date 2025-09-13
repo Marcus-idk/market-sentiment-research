@@ -7,9 +7,10 @@ from urllib.parse import urlparse
 import json
 
 class Session(Enum):
-    REG = "REG"      # Regular trading session
-    PRE = "PRE"      # Pre-market session
-    POST = "POST"    # Post-market session
+    REG = "REG"       # Regular trading session (09:30–16:00 ET)
+    PRE = "PRE"       # Pre-market session (04:00–09:30 ET)
+    POST = "POST"     # After-hours session (16:00–20:00 ET)
+    CLOSED = "CLOSED" # Overnight/closed (20:00–04:00 ET)
 
 class Stance(Enum):
     BULL = "BULL"    # Bullish/positive stance

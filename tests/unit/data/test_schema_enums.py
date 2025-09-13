@@ -14,14 +14,14 @@ class TestEnumConstraints:
     """Test enum value constraints."""
     
     def test_session_enum_values(self, temp_db):
-        """Test session IN ('REG', 'PRE', 'POST') constraint."""
+        """Test session IN ('REG', 'PRE', 'POST', 'CLOSED') constraint."""
         with sqlite3.connect(temp_db) as conn:
             cursor = conn.cursor()
             
             # Valid values (using realistic US market hours in UTC)
-            # Assuming EDT (UTC-4): PRE: 8-13:30 UTC, REG: 13:30-20 UTC, POST: 20-24 UTC
-            session_hours = {'REG': '14', 'PRE': '09', 'POST': '21'}
-            for session in ['REG', 'PRE', 'POST']:
+            # Assuming EDT (UTC-4): PRE: 08:00–13:30 UTC, REG: 13:30–20:00 UTC, POST: 20:00–24:00 UTC, CLOSED: 00:00–08:00 UTC
+            session_hours = {'REG': '14', 'PRE': '09', 'POST': '21', 'CLOSED': '02'}
+            for session in ['REG', 'PRE', 'POST', 'CLOSED']:
                 cursor.execute("""
                     INSERT INTO price_data (symbol, timestamp_iso, price, session)
                     VALUES (?, ?, '150.00', ?)

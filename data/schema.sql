@@ -20,7 +20,7 @@ CREATE TABLE IF NOT EXISTS price_data (
     timestamp_iso TEXT NOT NULL,        -- UTC ISO
     price TEXT NOT NULL CHECK(CAST(price AS REAL) > 0), -- Decimal as TEXT
     volume INTEGER CHECK(volume >= 0),
-    session TEXT DEFAULT 'REG' CHECK(session IN ('REG', 'PRE', 'POST')),
+    session TEXT DEFAULT 'REG' CHECK(session IN ('REG', 'PRE', 'POST', 'CLOSED')),
     created_at_iso TEXT NOT NULL DEFAULT (strftime('%Y-%m-%dT%H:%M:%SZ','now')),
     PRIMARY KEY (symbol, timestamp_iso)
 ) WITHOUT ROWID;
@@ -55,4 +55,3 @@ CREATE TABLE IF NOT EXISTS last_seen (
     key TEXT PRIMARY KEY CHECK(key IN ('news_since_iso', 'llm_last_run_iso')),
     value TEXT NOT NULL
 ) WITHOUT ROWID;
-
