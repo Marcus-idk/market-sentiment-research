@@ -32,7 +32,6 @@ class TestGetJsonWithRetry:
             call_count += 1
             return mock_response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         result = await get_json_with_retry(
@@ -57,7 +56,6 @@ class TestGetJsonWithRetry:
             call_count += 1
             return mock_response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with pytest.raises(DataSourceError) as exc_info:
@@ -82,7 +80,6 @@ class TestGetJsonWithRetry:
             call_count += 1
             return mock_response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         result = await get_json_with_retry(
@@ -95,30 +92,29 @@ class TestGetJsonWithRetry:
         assert call_count == 1  # No retries for success
     
     @pytest.mark.asyncio
-    async def test_401_403_auth_errors(self, mock_http_client):
+    @pytest.mark.parametrize("status_code", [401, 403])
+    async def test_401_403_auth_errors(self, mock_http_client, status_code):
         """Test 401/403 auth errors raise DataSourceError without retry"""
-        for status_code in [401, 403]:
-            mock_response = Mock()
-            mock_response.status_code = status_code
-            
-            call_count = 0
-            async def mock_get(*args, **kwargs):
-                nonlocal call_count
-                call_count += 1
-                return mock_response
-            
-            # Use the fixture - much cleaner!
-            mock_http_client(mock_get)
-            
-            with pytest.raises(DataSourceError) as exc_info:
-                await get_json_with_retry(
-                    "https://example.com/api",
-                    timeout=10,
-                    max_retries=3
-                )
-            
-            assert "Authentication failed" in str(exc_info.value)
-            assert call_count == 1  # No retries for auth errors
+        mock_response = Mock()
+        mock_response.status_code = status_code
+        
+        call_count = 0
+        async def mock_get(*args, **kwargs):
+            nonlocal call_count
+            call_count += 1
+            return mock_response
+        
+        mock_http_client(mock_get)
+        
+        with pytest.raises(DataSourceError) as exc_info:
+            await get_json_with_retry(
+                "https://example.com/api",
+                timeout=10,
+                max_retries=3
+            )
+        
+        assert "Authentication failed" in str(exc_info.value)
+        assert call_count == 1  # No retries for auth errors
     
     @pytest.mark.asyncio
     async def test_other_4xx_errors(self, mock_http_client):
@@ -132,7 +128,6 @@ class TestGetJsonWithRetry:
             call_count += 1
             return mock_response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with pytest.raises(DataSourceError) as exc_info:
@@ -161,7 +156,6 @@ class TestGetJsonWithRetry:
             call_count += 1
             return response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
@@ -200,7 +194,6 @@ class TestGetJsonWithRetry:
             call_count += 1
             return response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
@@ -219,12 +212,11 @@ class TestGetJsonWithRetry:
             assert len(sleep_calls) == 1
             delay = sleep_calls[0][0][0]
             
-            # Parse the header ourselves to get expected value
-            from utils.retry import parse_retry_after
-            expected = parse_retry_after(http_date)
-            assert expected is not None
-            # Tight assertion: should be close to 1.0, definitely not 0.1 (exponential minimum)
-            assert pytest.approx(expected, abs=0.2) == delay
+            # Compute expected delay directly (not using parse_retry_after for independence)
+            now = datetime.now(timezone.utc)
+            expected = (future_time - now).total_seconds()
+            # Should be close to 1.0, definitely not 0.1 (exponential minimum)
+            assert pytest.approx(expected, abs=0.3) == delay  # Allow some tolerance for execution time
     
     @pytest.mark.asyncio
     async def test_5xx_server_errors(self, mock_http_client):
@@ -242,7 +234,6 @@ class TestGetJsonWithRetry:
             call_count += 1
             return response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
@@ -278,7 +269,6 @@ class TestGetJsonWithRetry:
             call_count += 1
             return mock_response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
@@ -311,7 +301,6 @@ class TestGetJsonWithRetry:
                 raise exc
             return Mock(status_code=200, json=Mock(return_value={"success": True}))
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
@@ -343,7 +332,6 @@ class TestGetJsonWithRetry:
                 raise exc
             return Mock(status_code=200, json=Mock(return_value={"success": True}))
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with patch('asyncio.sleep', new_callable=AsyncMock) as mock_sleep:
@@ -371,7 +359,6 @@ class TestGetJsonWithRetry:
             captured_params = params
             return mock_response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         test_params = {"key": "value", "number": 42, "list": ["a", "b"]}
@@ -397,7 +384,6 @@ class TestGetJsonWithRetry:
             captured["timeout"] = timeout
             return mock_response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         await get_json_with_retry(
@@ -419,7 +405,6 @@ class TestGetJsonWithRetry:
         async def mock_get(*args, **kwargs):
             return mock_response
         
-        # Use the fixture - much cleaner!
         mock_http_client(mock_get)
         
         with pytest.raises(DataSourceError) as exc_info:

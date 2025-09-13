@@ -254,8 +254,8 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   
   - `tests/unit/utils/` - Utils module tests
     - `test_http.py` - HTTP utility tests
-    - `test_utils_retry.py` - Retry logic tests
     - `test_market_hours.py` - Market hours session classification tests
+    - `test_retry.py` - Retry logic tests
 
 - `tests/integration/` - Integration tests (organized by workflow)
   - `tests/integration/data/` - Data integration tests

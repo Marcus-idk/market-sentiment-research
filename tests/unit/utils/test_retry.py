@@ -95,20 +95,22 @@ class TestRetryAndCall:
             assert result == "success"
             assert op.call_count == 4
             
-            # Verify delays are increasing (exponential backoff)
+            # Verify delays match exact exponential backoff formula
             sleep_calls = mock_sleep.call_args_list
             assert len(sleep_calls) == 3
             
+            # With jitter=0.0, we get exact exponential backoff:
             # First delay: base * (mult^0) = 0.25
             # Second delay: base * (mult^1) = 0.5
             # Third delay: base * (mult^2) = 1.0
-            # (with minimum of 0.1 enforced)
+            # (with minimum of 0.1 enforced, so first delay is max(0.1, 0.25) = 0.25)
             first_delay = sleep_calls[0][0][0]
             second_delay = sleep_calls[1][0][0]
             third_delay = sleep_calls[2][0][0]
             
-            assert first_delay < second_delay < third_delay
-            assert first_delay >= 0.1  # Minimum delay
+            assert first_delay == pytest.approx(0.25, abs=0.01)
+            assert second_delay == pytest.approx(0.5, abs=0.01)
+            assert third_delay == pytest.approx(1.0, abs=0.01)
     
     @pytest.mark.asyncio
     async def test_exponential_backoff_with_jitter(self):

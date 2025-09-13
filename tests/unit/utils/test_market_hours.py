@@ -19,7 +19,7 @@ class TestClassifyUsSession:
         # Test various times during regular session
         test_cases = [
             # datetime UTC, expected session
-            # 9:30 AM ET = 14:30 UTC (EDT) or 15:30 UTC (EST)
+            # 9:30 AM ET = 13:30 UTC (EDT) or 14:30 UTC (EST)
             (datetime(2024, 7, 15, 13, 30, tzinfo=timezone.utc), Session.REG),  # 9:30 AM EDT
             (datetime(2024, 7, 15, 14, 0, tzinfo=timezone.utc), Session.REG),   # 10:00 AM EDT
             (datetime(2024, 7, 15, 18, 0, tzinfo=timezone.utc), Session.REG),   # 2:00 PM EDT
@@ -159,7 +159,11 @@ class TestClassifyUsSession:
         assert classify_us_session(utc_time) == Session.REG
     
     def test_weekend_dates(self):
-        """Test that weekend dates still classify by time (not market calendar)"""
+        """Test that weekend dates still classify by time (not market calendar)
+        
+        Note: This function is intentionally not calendar-aware. It only checks
+        time-of-day, so weekends and holidays still return session classifications.
+        """
         # Saturday July 13, 2024 at 10:00 AM EDT (14:00 UTC)
         saturday = datetime(2024, 7, 13, 14, 0, tzinfo=timezone.utc)
         
