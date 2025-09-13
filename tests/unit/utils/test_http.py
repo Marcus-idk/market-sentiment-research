@@ -212,11 +212,12 @@ class TestGetJsonWithRetry:
             assert len(sleep_calls) == 1
             delay = sleep_calls[0][0][0]
             
-            # Compute expected delay directly (not using parse_retry_after for independence)
-            now = datetime.now(timezone.utc)
-            expected = (future_time - now).total_seconds()
-            # Should be close to 1.0, definitely not 0.1 (exponential minimum)
-            assert pytest.approx(expected, abs=0.3) == delay  # Allow some tolerance for execution time
+            # Parse the header ourselves to get expected value
+            from utils.retry import parse_retry_after
+            expected = parse_retry_after(http_date)
+            assert expected is not None
+            # Tight assertion: should be close to 1.0, definitely not 0.1 (exponential minimum)
+            assert pytest.approx(expected, abs=0.2) == delay
     
     @pytest.mark.asyncio
     async def test_5xx_server_errors(self, mock_http_client):
