@@ -244,8 +244,10 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `tests/unit/data/` - Data module tests
     - `test_base_contracts.py` - Abstract base class tests
     - `test_models.py` - Dataclass validation tests
-    - `test_schema_*.py` - Database constraint tests (6 files)
-    - `test_storage_*.py` - Storage function tests (12 files, split by feature)
+    - `schema/` - Database constraint tests (6 files)
+      - `test_schema_*.py` - Schema validation tests organized by constraint type
+    - `storage/` - Storage function tests (12 files)
+      - `test_storage_*.py` - Storage operations tests organized by feature
     - `test_poller.py` - DataPoller orchestrator tests (one-cycle store, watermark, errors)
     - `providers/test_finnhub.py` - Finnhub provider unit tests
     - `providers/test_finnhub_critical.py` - Critical error handling tests

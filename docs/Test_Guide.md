@@ -58,12 +58,12 @@ def get_price_data_since():
 
 **Split tests by FEATURE into multiple files:**
 ```python
-# tests/unit/data/test_storage_news.py
+# tests/unit/data/storage/test_storage_news.py
 class TestNewsStorage:
     def test_store_news_items_valid():
     def test_get_news_since_returns_sorted():
 
-# tests/unit/data/test_storage_prices.py  
+# tests/unit/data/storage/test_storage_prices.py  
 class TestPriceStorage:
     def test_store_price_data_valid():
     def test_get_price_data_since_filters_correctly():
