@@ -15,7 +15,7 @@ from config.providers.finnhub import FinnhubSettings
 from data.base import NewsDataSource, PriceDataSource, DataSourceError
 from data.models import NewsItem, PriceData, Session
 from utils.http import get_json_with_retry
-from utils.market_hours import classify_us_session
+from utils.market_sessions import classify_us_session
 
 class FinnhubClient:
     """

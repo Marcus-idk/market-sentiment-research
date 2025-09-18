@@ -19,7 +19,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 ## Time Policy
 - Persistence: UTC everywhere (ISO `YYYY-MM-DDTHH:MM:SSZ`).
-- Sessions: `Session = {REG, PRE, POST, CLOSED}` is available in models. ET conversion and session classification are implemented; providers normalize timestamps to UTC and use `utils.market_hours.classify_us_session()` to set the session.
+- Sessions: `Session = {REG, PRE, POST, CLOSED}` is available in models. ET conversion and session classification are implemented; providers normalize timestamps to UTC and use `utils.market_sessions.classify_us_session()` to set the session.
 
 ## Environment Variables
 - `FINNHUB_API_KEY` - Required for market data fetching
@@ -221,8 +221,8 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `utils/signals.py` - Graceful shutdown utilities
   - `register_graceful_shutdown(on_stop)` - Cross‑platform SIGINT/SIGTERM registration
 
-- `utils/market_hours.py` - US equity market session classification
-  - `classify_us_session(ts_utc)` - Determine if timestamp is PRE/REG/POST/CLOSED based on ET trading hours
+- `utils/market_sessions.py` - US equity market session classification with NYSE calendar integration
+  - `classify_us_session(ts_utc)` - Determine if timestamp is PRE/REG/POST/CLOSED based on ET trading hours and NYSE calendar (holidays, early closes)
 
 ### `tests/` — Test suite
 **Purpose**: Unit and integration tests with fixtures
@@ -254,7 +254,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   
   - `tests/unit/utils/` - Utils module tests
     - `test_http.py` - HTTP utility tests
-    - `test_market_hours.py` - Market hours session classification tests
+    - `test_market_sessions.py` - Market sessions classification tests with holiday/early close support
     - `test_retry.py` - Retry logic tests
 
 - `tests/integration/` - Integration tests (organized by workflow)

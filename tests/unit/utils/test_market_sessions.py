@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from zoneinfo import ZoneInfo
 
 from data.models import Session
-from utils.market_hours import classify_us_session
+from utils.market_sessions import classify_us_session
 
 
 class TestClassifyUsSession:
@@ -16,17 +16,15 @@ class TestClassifyUsSession:
     
     def test_regular_session_hours(self):
         """Test regular trading session (9:30 AM - 4:00 PM ET)"""
-        # Test various times during regular session
         test_cases = [
-            # datetime UTC, expected session
-            # 9:30 AM ET = 13:30 UTC (EDT) or 14:30 UTC (EST)
+            # Summer (EDT = UTC-4)
             (datetime(2024, 7, 15, 13, 30, tzinfo=timezone.utc), Session.REG),  # 9:30 AM EDT
             (datetime(2024, 7, 15, 14, 0, tzinfo=timezone.utc), Session.REG),   # 10:00 AM EDT
             (datetime(2024, 7, 15, 18, 0, tzinfo=timezone.utc), Session.REG),   # 2:00 PM EDT
             (datetime(2024, 7, 15, 19, 59, tzinfo=timezone.utc), Session.REG),  # 3:59 PM EDT
-            # Winter (EST)
-            (datetime(2024, 1, 15, 14, 30, tzinfo=timezone.utc), Session.REG),  # 9:30 AM EST
-            (datetime(2024, 1, 15, 20, 59, tzinfo=timezone.utc), Session.REG),  # 3:59 PM EST
+            # Winter (EST = UTC-5)
+            (datetime(2024, 1, 17, 14, 30, tzinfo=timezone.utc), Session.REG),  # 9:30 AM EST
+            (datetime(2024, 1, 17, 20, 59, tzinfo=timezone.utc), Session.REG),  # 3:59 PM EST
         ]
         
         for ts_utc, expected in test_cases:
@@ -42,8 +40,8 @@ class TestClassifyUsSession:
             (datetime(2024, 7, 15, 10, 0, tzinfo=timezone.utc), Session.PRE),   # 6:00 AM EDT
             (datetime(2024, 7, 15, 13, 29, tzinfo=timezone.utc), Session.PRE),  # 9:29 AM EDT
             # Winter (EST = UTC-5)
-            (datetime(2024, 1, 15, 9, 0, tzinfo=timezone.utc), Session.PRE),    # 4:00 AM EST
-            (datetime(2024, 1, 15, 14, 29, tzinfo=timezone.utc), Session.PRE),  # 9:29 AM EST
+            (datetime(2024, 1, 17, 9, 0, tzinfo=timezone.utc), Session.PRE),    # 4:00 AM EST
+            (datetime(2024, 1, 17, 14, 29, tzinfo=timezone.utc), Session.PRE),  # 9:29 AM EST
         ]
         
         for ts_utc, expected in test_cases:
@@ -53,14 +51,14 @@ class TestClassifyUsSession:
     def test_afterhours_session_hours(self):
         """Test after-hours session (4:00 PM - 8:00 PM ET)"""
         test_cases = [
-            # Summer (EDT)
+            # Summer (EDT = UTC-4)
             (datetime(2024, 7, 15, 20, 0, tzinfo=timezone.utc), Session.POST),   # 4:00 PM EDT
             (datetime(2024, 7, 15, 20, 1, tzinfo=timezone.utc), Session.POST),   # 4:01 PM EDT
             (datetime(2024, 7, 15, 22, 0, tzinfo=timezone.utc), Session.POST),   # 6:00 PM EDT
             (datetime(2024, 7, 15, 23, 59, tzinfo=timezone.utc), Session.POST),  # 7:59 PM EDT
-            # Winter (EST)
-            (datetime(2024, 1, 15, 21, 0, tzinfo=timezone.utc), Session.POST),   # 4:00 PM EST
-            (datetime(2024, 1, 15, 23, 0, tzinfo=timezone.utc), Session.POST),   # 6:00 PM EST
+            # Winter (EST = UTC-5)
+            (datetime(2024, 1, 17, 21, 0, tzinfo=timezone.utc), Session.POST),   # 4:00 PM EST
+            (datetime(2024, 1, 17, 23, 0, tzinfo=timezone.utc), Session.POST),   # 6:00 PM EST
             (datetime(2024, 2, 15, 0, 59, tzinfo=timezone.utc), Session.POST),   # 7:59 PM EST
         ]
         
@@ -71,15 +69,15 @@ class TestClassifyUsSession:
     def test_closed_session_hours(self):
         """Test closed/overnight session (8:00 PM - 4:00 AM ET)"""
         test_cases = [
-            # Summer (EDT)
+            # Summer (EDT = UTC-4)
             (datetime(2024, 7, 15, 0, 0, tzinfo=timezone.utc), Session.CLOSED),   # 8:00 PM EDT (previous day)
             (datetime(2024, 7, 15, 2, 0, tzinfo=timezone.utc), Session.CLOSED),   # 10:00 PM EDT (previous day)
             (datetime(2024, 7, 15, 4, 0, tzinfo=timezone.utc), Session.CLOSED),   # 12:00 AM EDT
             (datetime(2024, 7, 15, 7, 59, tzinfo=timezone.utc), Session.CLOSED),  # 3:59 AM EDT
-            # Winter (EST)
-            (datetime(2024, 1, 15, 1, 0, tzinfo=timezone.utc), Session.CLOSED),   # 8:00 PM EST (previous day)
-            (datetime(2024, 1, 15, 3, 0, tzinfo=timezone.utc), Session.CLOSED),   # 10:00 PM EST (previous day)
-            (datetime(2024, 1, 15, 8, 59, tzinfo=timezone.utc), Session.CLOSED),  # 3:59 AM EST
+            # Winter (EST = UTC-5)
+            (datetime(2024, 1, 17, 1, 0, tzinfo=timezone.utc), Session.CLOSED),   # 8:00 PM EST (previous day)
+            (datetime(2024, 1, 17, 3, 0, tzinfo=timezone.utc), Session.CLOSED),   # 10:00 PM EST (previous day)
+            (datetime(2024, 1, 17, 8, 59, tzinfo=timezone.utc), Session.CLOSED),  # 3:59 AM EST
         ]
         
         for ts_utc, expected in test_cases:
@@ -88,7 +86,6 @@ class TestClassifyUsSession:
     
     def test_session_boundaries_exact(self):
         """Test exact boundary times between sessions"""
-        # Using a summer date (July 15, 2024) - EDT (UTC-4)
         test_cases = [
             # Exact boundaries in EDT
             (datetime(2024, 7, 15, 8, 0, 0, tzinfo=timezone.utc), Session.PRE),      # 4:00:00 AM EDT
@@ -159,19 +156,18 @@ class TestClassifyUsSession:
         assert classify_us_session(utc_time) == Session.REG
     
     def test_weekend_dates(self):
-        """Test that weekend dates still classify by time (not market calendar)
-        
-        Note: This function is intentionally not calendar-aware. It only checks
-        time-of-day, so weekends and holidays still return session classifications.
-        """
+        """Test that weekend dates return CLOSED regardless of time"""
         # Saturday July 13, 2024 at 10:00 AM EDT (14:00 UTC)
         saturday = datetime(2024, 7, 13, 14, 0, tzinfo=timezone.utc)
-        
-        # Should still return REG based on time-of-day
-        # (function doesn't check for weekends/holidays)
-        assert classify_us_session(saturday) == Session.REG
-        
-        # Sunday at 2:00 AM EDT (6:00 UTC) - should be CLOSED
+
+        # Should return CLOSED because it's Saturday
+        assert classify_us_session(saturday) == Session.CLOSED
+
+        # Sunday at 10:00 AM EDT (14:00 UTC)
+        sunday = datetime(2024, 7, 14, 14, 0, tzinfo=timezone.utc)
+        assert classify_us_session(sunday) == Session.CLOSED
+
+        # Sunday at 2:00 AM EDT (6:00 UTC) - also CLOSED
         sunday_night = datetime(2024, 7, 14, 6, 0, tzinfo=timezone.utc)
         assert classify_us_session(sunday_night) == Session.CLOSED
     
@@ -188,13 +184,64 @@ class TestClassifyUsSession:
     
     def test_year_variations(self):
         """Test classification works across different years"""
-        years = [2020, 2021, 2022, 2023, 2024, 2025]
-        
-        for year in years:
+        # Use specific known trading days for each year to avoid weekends/holidays
+        test_cases = [
+            # (year, month, day) - all verified to be trading days
+            (2020, 1, 22),  # Wednesday
+            (2021, 1, 22),  # Friday
+            (2022, 1, 24),  # Monday (skip weekend)
+            (2023, 1, 23),  # Monday (skip weekend)
+            (2024, 1, 22),  # Monday
+            (2025, 1, 22),  # Wednesday
+        ]
+
+        for year, month, day in test_cases:
             # Test a regular trading hour in summer (10:00 AM EDT = 14:00 UTC)
-            summer_reg = datetime(year, 7, 15, 14, 0, tzinfo=timezone.utc)
-            assert classify_us_session(summer_reg) == Session.REG
-            
+            # July 15 is weekday in all our test years except 2023 (Saturday)
+            # Use July 17 for consistency (always Mon/Tue/Wed/Thu/Fri in our years)
+            summer_reg = datetime(year, 7, 17, 14, 0, tzinfo=timezone.utc)
+            result = classify_us_session(summer_reg)
+            assert result == Session.REG, f"Summer {year}-07-17 should be REG, got {result}"
+
             # Test a pre-market hour in winter (5:00 AM EST = 10:00 UTC)
-            winter_pre = datetime(year, 1, 15, 10, 0, tzinfo=timezone.utc)
-            assert classify_us_session(winter_pre) == Session.PRE
+            winter_pre = datetime(year, month, day, 10, 0, tzinfo=timezone.utc)
+            result = classify_us_session(winter_pre)
+            assert result == Session.PRE, f"Winter {year}-{month:02d}-{day:02d} should be PRE, got {result}"
+
+    def test_holidays(self):
+        """Test that US market holidays return CLOSED"""
+        test_cases = [
+            # Major US holidays that close the market
+            datetime(2024, 12, 25, 14, 0, tzinfo=timezone.utc),  # Christmas Day
+            datetime(2024, 11, 28, 14, 0, tzinfo=timezone.utc),  # Thanksgiving
+            datetime(2024, 7, 4, 14, 0, tzinfo=timezone.utc),    # Independence Day
+            datetime(2024, 1, 1, 14, 0, tzinfo=timezone.utc),    # New Year's Day
+            datetime(2024, 1, 15, 14, 0, tzinfo=timezone.utc),   # MLK Day
+            datetime(2024, 9, 2, 14, 0, tzinfo=timezone.utc),    # Labor Day
+        ]
+
+        for holiday in test_cases:
+            result = classify_us_session(holiday)
+            assert result == Session.CLOSED, f"Holiday {holiday.date()} should return CLOSED, got {result}"
+
+    def test_early_close_days(self):
+        """Test early close days (market closes at 1:00 PM ET)"""
+        # Black Friday (day after Thanksgiving) - Nov 29, 2024
+        # Market closes at 1:00 PM ET
+
+        # 12:30 PM ET - should be REG
+        black_friday_noon = datetime(2024, 11, 29, 17, 30, tzinfo=timezone.utc)  # 12:30 PM EST
+        assert classify_us_session(black_friday_noon) == Session.REG
+
+        # 1:30 PM ET - should be POST (market closed at 1:00 PM)
+        black_friday_afternoon = datetime(2024, 11, 29, 18, 30, tzinfo=timezone.utc)  # 1:30 PM EST
+        assert classify_us_session(black_friday_afternoon) == Session.POST
+
+        # Christmas Eve (Dec 24, 2024) - also early close
+        # 12:30 PM ET - should be REG
+        xmas_eve_noon = datetime(2024, 12, 24, 17, 30, tzinfo=timezone.utc)  # 12:30 PM EST
+        assert classify_us_session(xmas_eve_noon) == Session.REG
+
+        # 2:00 PM ET - should be POST
+        xmas_eve_afternoon = datetime(2024, 12, 24, 19, 0, tzinfo=timezone.utc)  # 2:00 PM EST
+        assert classify_us_session(xmas_eve_afternoon) == Session.POST

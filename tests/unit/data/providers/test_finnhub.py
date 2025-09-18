@@ -450,9 +450,8 @@ class TestFinnhubPriceProvider:
         """Test session classification and default volume"""
         settings = FinnhubSettings(api_key='test_key')
         provider = FinnhubPriceProvider(settings, ['AAPL'])
-        # Choose a UTC timestamp that maps to REG in ET. For Jan 15, 2024,
-        # 15:00:00 UTC = 10:00:00 ET (REG session in winter EST).
-        reg_dt_utc = datetime(2024, 1, 15, 15, 0, tzinfo=timezone.utc)
+        # 15:00:00 UTC = 10:00:00 ET (REG session)
+        reg_dt_utc = datetime(2024, 1, 17, 15, 0, tzinfo=timezone.utc)
         quote_fixture = {'c': 150.0, 't': int(reg_dt_utc.timestamp())}
         
         async def mock_get(path, params=None):

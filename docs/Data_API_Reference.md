@@ -42,7 +42,7 @@ This document outlines the 5 data sources planned for US equities (stocks). Cryp
     - `c → price` (must be > 0; stored as Decimal text)
     - `t → timestamp` (UTC; if missing/invalid/0, we fall back to current UTC defensively)
     - `volume = None` (the `/quote` endpoint does not supply volume)
-    - `session = classify_us_session(timestamp)` using ET trading hours with DST handling via `zoneinfo` (`America/New_York`). Returns one of `{REG, PRE, POST, CLOSED}`.
+    - `session = classify_us_session(timestamp)` using NYSE calendar for holidays/early closes and ET trading hours with DST handling via `zoneinfo` (`America/New_York`). Returns one of `{REG, PRE, POST, CLOSED}`.
     - Database default for `session` remains `REG` for backward compatibility, but the provider supplies a classified value for all quotes.
 
 ---

@@ -3,6 +3,7 @@ google-genai==1.29.0
 httpx>=0.28.1
 python-dotenv==1.1.1
 tzdata>=2025.2
+exchange-calendars>=4.11,<5.0
 # test deps
 pytest==8.4.1
 pytest-asyncio>=0.26.0

@@ -22,6 +22,8 @@ Scope: Applies to all new/changed code. New code should follow existing patterns
 - Imports: use absolute imports from project root (e.g., `from data.models import NewsItem`). Only root-level `__init__.py` files exist; pytest.ini sets `pythonpath = .`.
 - Naming: modules/functions `snake_case`, classes `PascalCase`, constants `UPPER_SNAKE`.
 - Time and numbers: use timezone‑aware timestamps (UTC recommended); use precise numeric types for money (avoid binary floats).
+- Datetime flow: API/raw input → model constructors (normalize to UTC) → storage helpers (`_datetime_to_iso`) → SQLite ISO strings ending with `Z`; read paths reverse this. Never format timestamps by hand.
+- Market sessions: Use `utils.market_sessions.classify_us_session()` for session classification (PRE/REG/POST/CLOSED). Handles NYSE holidays/early closes and UTC→ET conversion.
 - Persistence: validate at write boundaries; choose stable representations; version schema/migrations clearly.
 - Logging: structured and actionable; no secrets/API keys; appropriate levels.
 - Comments/docstrings: brief and explain "why", not just "what".
