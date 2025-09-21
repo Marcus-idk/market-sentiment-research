@@ -16,7 +16,7 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from config.providers.finnhub import FinnhubSettings
-from data.poller import DataPoller
+from workflows.poller import DataPoller
 from data.providers.finnhub import FinnhubNewsProvider, FinnhubPriceProvider
 from data.storage import init_database
 from utils.logging import setup_logging

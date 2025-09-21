@@ -11,7 +11,7 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from typing import List, Optional
 
-from data.poller import DataPoller
+from workflows.poller import DataPoller
 from data.base import NewsDataSource, PriceDataSource
 from data.models import NewsItem, PriceData, Session
 from data.storage import (

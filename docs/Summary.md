@@ -106,13 +106,6 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   **Functions**:
   - `_valid_http_url()` - Validate HTTP/HTTPS URLs
 
-- `data/poller.py` - Data poller orchestration
-  - `DataPoller` — Orchestrates multiple providers concurrently
-    - `__init__(db_path, news_providers: list[NewsDataSource], price_providers: list[PriceDataSource], poll_interval: int)`
-    - `poll_once()` — Fetches news/prices; updates watermark to latest news publish time
-    - `run()` — Configurable interval loop with consistent-interval scheduling and graceful stop
-    - `stop()` — Requests shutdown
-
 - `data/storage/` - SQLite storage package (organized into focused modules)
   **Import paths unchanged**: All functions accessible via `from data.storage import ...`
 
@@ -211,6 +204,26 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `utils/market_sessions.py` - US equity market session classification with NYSE calendar integration
   - `classify_us_session(ts_utc)` - Determine if timestamp is PRE/REG/POST/CLOSED based on ET trading hours and NYSE calendar (holidays, early closes)
 
+### `workflows/` — Orchestration layer
+**Purpose**: Coordinate data collection, processing, and analysis workflows
+
+**Files**:
+- `workflows/__init__.py` - Package marker
+- `workflows/poller.py` - Data collection orchestrator
+  - `DataPoller` - Orchestrates multiple providers concurrently with news classification
+    - `__init__(db_path, news_providers, price_providers, poll_interval)` - Initialize poller
+    - `poll_once()` - Execute one polling cycle: fetch data, classify news, update watermarks
+    - `run()` - Continuous polling loop with interval scheduling and graceful shutdown
+    - `stop()` - Request graceful shutdown
+
+### `analysis/` — Business logic and classification
+**Purpose**: News classification, sentiment analysis, and trading decisions
+
+**Files**:
+- `analysis/__init__.py` - Package marker
+- `analysis/news_classifier.py` - News classification module
+  - `classify(news_items)` - Classify news into Company/People/MarketWithMention (currently stub returning 'Company' for all)
+
 ### `docs/` — Developer and operations documentation
 **Files**:
 - `docs/Data_API_Reference.md` - External data sources, rate limits, and implementation notes
@@ -244,7 +257,6 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `tests/unit/data/` - Data module tests
     - `tests/unit/data/test_base_contracts.py` - Abstract base class contracts
     - `tests/unit/data/test_models.py` - Dataclass validation tests
-    - `tests/unit/data/test_poller.py` - DataPoller orchestration tests
     - `tests/unit/data/providers/test_finnhub.py` - Finnhub provider unit coverage
     - `tests/unit/data/providers/test_finnhub_critical.py` - Critical error handling for providers
     - `tests/unit/data/schema/test_schema_confidence_and_json.py` - JSON fields and confidence constraints
@@ -270,6 +282,12 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `tests/unit/utils/test_http.py` - HTTP retry helper tests
     - `tests/unit/utils/test_market_sessions.py` - Market session classification tests
     - `tests/unit/utils/test_retry.py` - Generic retry logic tests
+
+  - `tests/unit/workflows/` - Workflow orchestration tests
+    - `tests/unit/workflows/test_poller.py` - DataPoller orchestration tests
+
+  - `tests/unit/analysis/` - Analysis module tests
+    - `tests/unit/analysis/test_news_classifier.py` - News classification tests
 
 - `tests/integration/` - Integration tests (organized by workflow)
   - `tests/integration/data/` - Data pipeline tests
