@@ -48,7 +48,7 @@ class TestFinnhubNewsProvider:
 
 **If your file has only functions:**
 ```python
-# data/storage.py
+# data/storage/storage_crud.py
 def store_news_items():
 def get_news_since():
 def store_price_data():
@@ -239,7 +239,7 @@ tests/integration/
 
 ### ✅ GOOD: Feature-Based Function Tests
 ```python
-# Source: data/storage.py has many functions
+# Source: data/storage/storage_crud.py has many functions
 # Tests: Split into test_storage_news.py, test_storage_prices.py, etc.
 ```
 

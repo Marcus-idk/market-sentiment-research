@@ -56,8 +56,8 @@ class TestDatabaseInitialization:
                     raise FileNotFoundError("Resource 'schema.sql' not found in package 'data'")
             return MockPath()
         
-        # Patch the files function in the storage module
-        monkeypatch.setattr('data.storage.files', mock_files)
+        # Patch the files function in the storage_core module
+        monkeypatch.setattr('data.storage.storage_core.files', mock_files)
         
         with pytest.raises(FileNotFoundError, match="schema.sql"):
             init_database(temp_db_path)

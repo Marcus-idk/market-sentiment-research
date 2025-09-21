@@ -113,48 +113,29 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `run()` — Configurable interval loop with consistent-interval scheduling and graceful stop
     - `stop()` — Requests shutdown
 
-- `data/storage.py` - SQLite storage operations
-  **Database Management**:
-  - `init_database()` - Create tables (WAL via schema PRAGMA)
-  - `finalize_database()` - Checkpoint WAL and optimize database
-  
-  **Storage Operations**:
-  - `store_news_items()` - Insert news with URL normalization + dedup
-  - `store_news_labels()` - Insert/update classification labels for stored news
-  - `store_price_data()` - Insert price data
-  - `upsert_analysis_result()` - Insert/update analysis results
-  - `upsert_holdings()` - Insert/update holdings
-  
-  **Query Operations**:
-  - `get_news_since()` - Fetch news after timestamp
-  - `get_news_labels()` - Fetch stored labels (optional symbol filter)
-  - `get_price_data_since()` - Fetch prices after timestamp
-  - `get_all_holdings()` - Fetch all current holdings
-  - `get_analysis_results()` - Fetch analysis results (optional symbol filter)
-  - `get_news_before()` - Fetch news before cutoff (for LLM batching)
-  - `get_prices_before()` - Fetch prices before cutoff (for LLM batching)
+- `data/storage/` - SQLite storage package (organized into focused modules)
+  **Import paths unchanged**: All functions accessible via `from data.storage import ...`
 
-  **Watermark Management**:
-  - `get_last_seen()` - Get last processed value for a key
-  - `set_last_seen()` - Update last processed value
-  - `get_last_news_time()` - Get last news publish timestamp
-  - `set_last_news_time()` - Update last news publish timestamp
-  
-  **LLM Batch Operations**:
-  - `commit_llm_batch()` - Mark data as processed and return counts for labels/news/prices
-  
-  **Internal Helpers**:
-  - `connect()` - Open SQLite connection with required PRAGMAs (enables foreign keys)
-  - `_normalize_url()` - Standardize URLs for deduplication
-  - `_datetime_to_iso()` - Convert datetime to ISO string
-  - `_iso_to_datetime()` - Convert ISO strings (with trailing `Z`) to UTC datetime
-  - `_decimal_to_text()` - Convert Decimal to string
-  - `_check_json1_support()` - Verify SQLite JSON1 extension
-  - `_row_to_news_item()` - Convert DB row to NewsItem
-  - `_row_to_news_label()` - Convert DB row to NewsLabel
-  - `_row_to_price_data()` - Convert DB row to PriceData
-  - `_row_to_analysis_result()` - Convert DB row to AnalysisResult
-  - `_row_to_holdings()` - Convert DB row to Holdings
+  **Package Structure**:
+  - `storage_core.py` - Database lifecycle and connections (4 functions)
+    - `connect()` - Open SQLite connection with required PRAGMAs (enables foreign keys)
+    - `init_database()` - Create tables (WAL via schema PRAGMA)
+    - `finalize_database()` - Checkpoint WAL and optimize database
+    - `_check_json1_support()` - Verify SQLite JSON1 extension
+
+  - `storage_crud.py` - CRUD operations for all data types (10 functions)
+    - **Store**: `store_news_items()`, `store_news_labels()`, `store_price_data()`
+    - **Query**: `get_news_since()`, `get_news_labels()`, `get_price_data_since()`, `get_all_holdings()`, `get_analysis_results()`
+    - **Upsert**: `upsert_analysis_result()`, `upsert_holdings()`
+
+  - `storage_batch.py` - Batch operations and watermarks (7 functions)
+    - **Batch queries**: `get_news_before()`, `get_prices_before()` (for LLM processing)
+    - **Batch operations**: `commit_llm_batch()` - Mark data as processed and return counts
+    - **Watermarks**: `get_last_seen()`, `set_last_seen()`, `get_last_news_time()`, `set_last_news_time()`
+
+  - `storage_utils.py` - Utilities and type converters (9 functions)
+    - **Helpers**: `_normalize_url()`, `_datetime_to_iso()`, `_iso_to_datetime()`, `_decimal_to_text()`
+    - **Row converters**: `_row_to_news_item()`, `_row_to_news_label()`, `_row_to_price_data()`, `_row_to_analysis_result()`, `_row_to_holdings()`
 
 **Subdirectories**:
 - `data/providers/` - Data source implementations
