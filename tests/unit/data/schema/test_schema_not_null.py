@@ -5,15 +5,14 @@ Tests NOT NULL constraints for required database fields.
 import sqlite3
 import pytest
 
-from data.storage import init_database, connect
+from data.storage import init_database, _cursor_context
 
 class TestNotNullConstraints:
     """Test NOT NULL constraints across all tables."""
     
     def test_news_items_required_fields(self, temp_db):
         """Test NOT NULL constraints on news_items table."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Test symbol NOT NULL
             with pytest.raises(sqlite3.IntegrityError, match="NOT NULL"):
@@ -38,8 +37,7 @@ class TestNotNullConstraints:
     
     def test_news_labels_required_fields(self, temp_db):
         """Test NOT NULL constraints on news_labels table."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
 
             # Prepare backing news rows for FK
             cursor.execute("""
@@ -75,8 +73,7 @@ class TestNotNullConstraints:
 
     def test_price_data_required_fields(self, temp_db):
         """Test NOT NULL constraints on price_data table."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Test symbol NOT NULL
             with pytest.raises(sqlite3.IntegrityError, match="NOT NULL"):
@@ -101,8 +98,7 @@ class TestNotNullConstraints:
     
     def test_analysis_results_required_fields(self, temp_db):
         """Test NOT NULL constraints on analysis_results table."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Test model_name NOT NULL
             with pytest.raises(sqlite3.IntegrityError, match="NOT NULL"):
@@ -122,8 +118,7 @@ class TestNotNullConstraints:
     
     def test_holdings_required_fields(self, temp_db):
         """Test NOT NULL constraints on holdings table."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Test quantity NOT NULL
             with pytest.raises(sqlite3.IntegrityError, match="NOT NULL"):

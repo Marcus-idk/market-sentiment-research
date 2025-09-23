@@ -12,12 +12,12 @@ from data.models import (
     NewsItem, PriceData, AnalysisResult, Holdings, NewsLabel,
     Session, Stance, AnalysisType, NewsLabelType
 )
-from .storage_core import connect
 from .storage_utils import (
     _normalize_url, _datetime_to_iso, _decimal_to_text,
     _row_to_news_item, _row_to_news_label, _row_to_price_data,
     _row_to_analysis_result, _row_to_holdings
 )
+from .db_context import _cursor_context
 
 
 def store_news_items(db_path: str, items: List[NewsItem]) -> None:
@@ -28,9 +28,7 @@ def store_news_items(db_path: str, items: List[NewsItem]) -> None:
     if not items:
         return
 
-    with connect(db_path) as conn:
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path) as cursor:
         for item in items:
             # Normalize URL for deduplication
             normalized_url = _normalize_url(item.url)
@@ -48,8 +46,6 @@ def store_news_items(db_path: str, items: List[NewsItem]) -> None:
                 item.source
             ))
 
-        conn.commit()
-
 
 def store_news_labels(db_path: str, labels: List[NewsLabel]) -> None:
     """
@@ -58,9 +54,7 @@ def store_news_labels(db_path: str, labels: List[NewsLabel]) -> None:
     if not labels:
         return
 
-    with connect(db_path) as conn:
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path) as cursor:
         for label in labels:
             normalized_url = _normalize_url(label.url)
             created_at_iso = _datetime_to_iso(label.created_at) if label.created_at else _datetime_to_iso(datetime.now(timezone.utc))
@@ -77,8 +71,6 @@ def store_news_labels(db_path: str, labels: List[NewsLabel]) -> None:
                 created_at_iso
             ))
 
-        conn.commit()
-
 
 def store_price_data(db_path: str, items: List[PriceData]) -> None:
     """
@@ -88,9 +80,7 @@ def store_price_data(db_path: str, items: List[PriceData]) -> None:
     if not items:
         return
 
-    with connect(db_path) as conn:
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path) as cursor:
         for item in items:
             cursor.execute("""
                 INSERT OR IGNORE INTO price_data
@@ -104,17 +94,12 @@ def store_price_data(db_path: str, items: List[PriceData]) -> None:
                 item.session.value
             ))
 
-        conn.commit()
-
 def get_news_since(db_path: str, timestamp: datetime) -> List[NewsItem]:
     """
     Retrieve news items since the given timestamp.
     Returns NewsItem model objects with datetime fields in UTC.
     """
-    with connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row  # Enable dict-like access
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute("""
             SELECT symbol, url, headline, content, published_iso, source, created_at_iso
             FROM news_items
@@ -127,10 +112,7 @@ def get_news_since(db_path: str, timestamp: datetime) -> List[NewsItem]:
 
 def get_news_labels(db_path: str, symbol: Optional[str] = None) -> List[NewsLabel]:
     """Retrieve stored news labels, optionally filtered by symbol."""
-    with connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path, commit=False) as cursor:
         if symbol:
             symbol_key = symbol.strip().upper()
             cursor.execute("""
@@ -154,10 +136,7 @@ def get_price_data_since(db_path: str, timestamp: datetime) -> List[PriceData]:
     Retrieve price data since the given timestamp.
     Returns PriceData model objects with datetime fields in UTC.
     """
-    with connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row  # Enable dict-like access
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute("""
             SELECT symbol, timestamp_iso, price, volume, session, created_at_iso
             FROM price_data
@@ -173,10 +152,7 @@ def get_all_holdings(db_path: str) -> List[Holdings]:
     Retrieve all current holdings.
     Returns Holdings model objects with datetime fields in UTC.
     """
-    with connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute("""
             SELECT symbol, quantity, break_even_price, total_cost, notes,
                    created_at_iso, updated_at_iso
@@ -192,10 +168,7 @@ def get_analysis_results(db_path: str, symbol: str = None) -> List[AnalysisResul
     Retrieve analysis results, optionally filtered by symbol.
     Returns AnalysisResult model objects with datetime fields in UTC.
     """
-    with connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path, commit=False) as cursor:
         if symbol:
             cursor.execute("""
                 SELECT symbol, analysis_type, model_name, stance, confidence_score,
@@ -219,9 +192,7 @@ def upsert_analysis_result(db_path: str, result: AnalysisResult) -> None:
     Insert or update analysis result using ON CONFLICT.
     Updates existing analysis or creates new one.
     """
-    with connect(db_path) as conn:
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path) as cursor:
         # Set created_at if not provided
         created_at_iso = (_datetime_to_iso(result.created_at)
                          if result.created_at
@@ -249,17 +220,13 @@ def upsert_analysis_result(db_path: str, result: AnalysisResult) -> None:
             created_at_iso
         ))
 
-        conn.commit()
-
 
 def upsert_holdings(db_path: str, holdings: Holdings) -> None:
     """
     Insert or update holdings using ON CONFLICT.
     Updates existing position or creates new one.
     """
-    with connect(db_path) as conn:
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path) as cursor:
         # Set timestamps if not provided
         now_iso = _datetime_to_iso(datetime.now(timezone.utc))
         created_at_iso = (_datetime_to_iso(holdings.created_at)
@@ -289,5 +256,3 @@ def upsert_holdings(db_path: str, holdings: Holdings) -> None:
             created_at_iso,
             updated_at_iso
         ))
-
-        conn.commit()

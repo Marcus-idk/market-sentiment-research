@@ -8,8 +8,8 @@ from datetime import datetime
 from typing import List, Optional, Dict
 
 from data.models import NewsItem, PriceData
-from .storage_core import connect
 from .storage_utils import _datetime_to_iso, _iso_to_datetime, _row_to_news_item, _row_to_price_data
+from .db_context import _cursor_context
 
 
 def get_last_seen(db_path: str, key: str) -> Optional[str]:
@@ -23,8 +23,7 @@ def get_last_seen(db_path: str, key: str) -> Optional[str]:
     Returns:
         The stored value or None if key doesn't exist
     """
-    with connect(db_path) as conn:
-        cursor = conn.cursor()
+    with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute("SELECT value FROM last_seen WHERE key = ?", (key,))
         row = cursor.fetchone()
         return row[0] if row else None
@@ -39,13 +38,11 @@ def set_last_seen(db_path: str, key: str, value: str) -> None:
         key: The key to store
         value: The value to store
     """
-    with connect(db_path) as conn:
-        cursor = conn.cursor()
+    with _cursor_context(db_path) as cursor:
         cursor.execute(
             "INSERT OR REPLACE INTO last_seen (key, value) VALUES (?, ?)",
             (key, value)
         )
-        conn.commit()
 
 
 def get_last_news_time(db_path: str) -> Optional[datetime]:
@@ -84,10 +81,7 @@ def get_news_before(db_path: str, cutoff: datetime) -> List[NewsItem]:
         List of NewsItem model objects with datetime fields in UTC
     """
     iso_cutoff = _datetime_to_iso(cutoff)
-    with connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute("""
             SELECT symbol, url, headline, content, published_iso, source, created_at_iso
             FROM news_items
@@ -109,10 +103,7 @@ def get_prices_before(db_path: str, cutoff: datetime) -> List[PriceData]:
         List of PriceData model objects with datetime fields in UTC
     """
     iso_cutoff = _datetime_to_iso(cutoff)
-    with connect(db_path) as conn:
-        conn.row_factory = sqlite3.Row
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute("""
             SELECT symbol, timestamp_iso, price, volume, session, created_at_iso
             FROM price_data
@@ -139,9 +130,7 @@ def commit_llm_batch(db_path: str, cutoff: datetime) -> Dict[str, int]:
         Dict with counts of deleted rows: {"labels_deleted": int, "news_deleted": int, "prices_deleted": int}
     """
     iso_cutoff = _datetime_to_iso(cutoff)
-    with connect(db_path) as conn:
-        cursor = conn.cursor()
-
+    with _cursor_context(db_path) as cursor:
         # 1) Persist the cutoff watermark
         cursor.execute(
             "INSERT OR REPLACE INTO last_seen (key, value) VALUES ('llm_last_run_iso', ?)",
@@ -172,7 +161,5 @@ def commit_llm_batch(db_path: str, cutoff: datetime) -> Dict[str, int]:
             (iso_cutoff,)
         )
         prices_deleted = cursor.rowcount
-
-        conn.commit()
 
     return {"labels_deleted": labels_deleted, "news_deleted": news_deleted, "prices_deleted": prices_deleted}

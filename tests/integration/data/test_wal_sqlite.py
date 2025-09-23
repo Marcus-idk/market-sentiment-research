@@ -14,7 +14,7 @@ from decimal import Decimal
 # Mark all tests in this module as integration tests
 pytestmark = [pytest.mark.integration]
 
-from data.storage import connect, store_news_items, get_news_since, store_price_data, get_price_data_since, upsert_analysis_result, get_analysis_results
+from data.storage import connect, store_news_items, get_news_since, store_price_data, get_price_data_since, upsert_analysis_result, get_analysis_results, _cursor_context
 from data.models import NewsItem, PriceData, AnalysisResult, Session, Stance, AnalysisType
 
 
@@ -27,8 +27,7 @@ class TestWALSqlite:
         This test verifies concurrent access patterns that require WAL mode.
         """
         # Verify WAL mode is enabled
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("PRAGMA journal_mode")
             mode = cursor.fetchone()[0]
             assert mode.lower() == 'wal', f"Expected WAL mode, got {mode}"
@@ -68,8 +67,7 @@ class TestWALSqlite:
         """
         
         # VERIFY WAL MODE IS ENABLED
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("PRAGMA journal_mode")
             mode = cursor.fetchone()[0]
             assert mode.lower() == 'wal', f"Expected WAL mode, got {mode}. WAL required for concurrent operations."

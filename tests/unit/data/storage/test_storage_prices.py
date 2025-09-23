@@ -11,10 +11,11 @@ from decimal import Decimal
 from data.storage import (
     init_database, store_news_items, store_price_data,
     get_news_since, get_price_data_since, upsert_analysis_result,
-    upsert_holdings, get_all_holdings, get_analysis_results, connect,
+    upsert_holdings, get_all_holdings, get_analysis_results,
     _normalize_url, _datetime_to_iso, _decimal_to_text,
     get_last_seen, set_last_seen, get_last_news_time, set_last_news_time,
-    get_news_before, get_prices_before, commit_llm_batch, finalize_database
+    get_news_before, get_prices_before, commit_llm_batch, finalize_database,
+    _cursor_context
 )
 
 from data.models import (
@@ -42,10 +43,9 @@ class TestPriceDataStorage:
         store_price_data(temp_db, items)
         
         # Verify data stored with proper conversions
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("""
-                SELECT symbol, timestamp_iso, price, volume, session 
+                SELECT symbol, timestamp_iso, price, volume, session
                 FROM price_data WHERE symbol = 'AAPL'
             """)
             row = cursor.fetchone()
@@ -81,10 +81,9 @@ class TestPriceDataStorage:
         store_price_data(temp_db, items)
         
         # Verify deduplication worked - first item wins with INSERT OR IGNORE
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("""
-                SELECT COUNT(*), price FROM price_data 
+                SELECT COUNT(*), price FROM price_data
                 WHERE symbol = 'AAPL' AND timestamp_iso = '2024-01-15T09:30:00Z'
             """)
             count, price = cursor.fetchone()

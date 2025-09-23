@@ -10,7 +10,7 @@ import tempfile
 import pytest
 from unittest.mock import Mock, AsyncMock
 import httpx
-from data.storage import init_database, connect
+from data.storage import init_database, connect, _cursor_context
 
 
 def cleanup_sqlite_artifacts(db_path: str) -> None:

@@ -5,15 +5,14 @@ Tests primary key uniqueness constraints for all database tables.
 import sqlite3
 import pytest
 
-from data.storage import init_database, connect
+from data.storage import init_database, _cursor_context
 
 class TestPrimaryKeyConstraints:
     """Test primary key uniqueness constraints."""
     
     def test_news_items_composite_key(self, temp_db):
         """Test (symbol, url) composite primary key on news_items."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # First insert succeeds
             cursor.execute("""
@@ -36,8 +35,7 @@ class TestPrimaryKeyConstraints:
     
     def test_news_labels_composite_key(self, temp_db):
         """Test (symbol, url) composite primary key on news_labels."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
 
             # Backing news rows required for foreign key reference
             cursor.execute("""
@@ -70,8 +68,7 @@ class TestPrimaryKeyConstraints:
 
     def test_price_data_composite_key(self, temp_db):
         """Test (symbol, timestamp_iso) composite primary key on price_data."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # First insert succeeds
             cursor.execute("""
@@ -94,8 +91,7 @@ class TestPrimaryKeyConstraints:
     
     def test_analysis_results_composite_key(self, temp_db):
         """Test (symbol, analysis_type) composite primary key on analysis_results."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # First insert succeeds
             cursor.execute("""
@@ -114,8 +110,7 @@ class TestPrimaryKeyConstraints:
     
     def test_holdings_single_key(self, temp_db):
         """Test symbol primary key on holdings."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # First insert succeeds
             cursor.execute("""

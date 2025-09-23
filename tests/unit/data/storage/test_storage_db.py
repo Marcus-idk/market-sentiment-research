@@ -11,10 +11,11 @@ from decimal import Decimal
 from data.storage import (
     init_database, store_news_items, store_price_data,
     get_news_since, get_price_data_since, upsert_analysis_result,
-    upsert_holdings, get_all_holdings, get_analysis_results, connect,
+    upsert_holdings, get_all_holdings, get_analysis_results,
     _normalize_url, _datetime_to_iso, _decimal_to_text,
     get_last_seen, set_last_seen, get_last_news_time, set_last_news_time,
-    get_news_before, get_prices_before, commit_llm_batch, finalize_database
+    get_news_before, get_prices_before, commit_llm_batch, finalize_database,
+    _cursor_context
 )
 
 from data.models import (
@@ -31,17 +32,15 @@ class TestDatabaseInitialization:
         init_database(temp_db_path)
         
         # Verify all 4 tables were created
-        with connect(temp_db_path) as conn:
-            cursor = conn.cursor()
-            
+        with _cursor_context(temp_db_path, commit=False) as cursor:
             # Check table existence
             cursor.execute("""
-                SELECT name FROM sqlite_master 
-                WHERE type='table' 
+                SELECT name FROM sqlite_master
+                WHERE type='table'
                 ORDER BY name
             """)
             tables = {row[0] for row in cursor.fetchall()}
-            
+
             required_tables = {'analysis_results', 'holdings', 'news_items', 'price_data'}
             assert required_tables.issubset(tables), f"Required tables {required_tables} not found. Got: {tables}"
     
@@ -65,16 +64,14 @@ class TestDatabaseInitialization:
     def test_wal_mode_enabled(self, temp_db):
         """Test WAL mode is properly enabled (requires file-backed DB)"""
         # Check WAL mode is enabled (database already initialized by fixture)
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("PRAGMA journal_mode")
             mode = cursor.fetchone()[0]
             assert mode.lower() == 'wal', f"Expected WAL mode, got {mode}"
 
     def test_foreign_keys_enabled_by_default(self, temp_db):
         """Canary: every test connection should enforce FK constraints."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("PRAGMA foreign_keys")
             val = cursor.fetchone()[0]
             assert val == 1

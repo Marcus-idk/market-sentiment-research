@@ -10,7 +10,7 @@ from datetime import datetime, timezone, timedelta
 # Mark all tests in this module as integration tests
 pytestmark = [pytest.mark.integration]
 
-from data.storage import connect, store_news_items, store_price_data, upsert_analysis_result, upsert_holdings, get_news_since, get_price_data_since, get_analysis_results, get_all_holdings
+from data.storage import store_news_items, store_price_data, upsert_analysis_result, upsert_holdings, get_news_since, get_price_data_since, get_analysis_results, get_all_holdings, _cursor_context
 from data.models import NewsItem, PriceData, AnalysisResult, Holdings, Session, Stance, AnalysisType
 from decimal import Decimal
 
@@ -175,9 +175,7 @@ class TestTimezonePipeline:
         # PHASE 3: VERIFY RAW DATABASE STORAGE HAS 'Z' SUFFIX
         print("Phase 3: Verifying raw database ISO format has 'Z' suffix...")
         
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
-            
+        with _cursor_context(temp_db, commit=False) as cursor:
             # Check news_items table
             cursor.execute("SELECT symbol, published_iso FROM news_items WHERE symbol LIKE 'TZ%' ORDER BY symbol")
             news_rows = cursor.fetchall()

@@ -5,15 +5,14 @@ Tests financial value constraints for prices and decimal storage.
 import sqlite3
 import pytest
 
-from data.storage import init_database, connect
+from data.storage import init_database, _cursor_context
 
 class TestFinancialConstraints:
     """Test positive value constraints for financial fields."""
     
     def test_price_must_be_positive(self, temp_db):
         """Test price > 0 constraint in price_data."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid: small positive price
             cursor.execute("""
@@ -37,8 +36,7 @@ class TestFinancialConstraints:
     
     def test_price_boundary_values(self, temp_db):
         """Test price constraint with boundary values."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid: very small positive
             cursor.execute("""
@@ -61,8 +59,7 @@ class TestFinancialConstraints:
     
     def test_holdings_quantity_positive(self, temp_db):
         """Test quantity > 0 constraint in holdings."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid: positive quantity
             cursor.execute("""
@@ -79,8 +76,7 @@ class TestFinancialConstraints:
     
     def test_holdings_break_even_positive(self, temp_db):
         """Test break_even_price > 0 constraint in holdings."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Invalid: zero break_even_price
             with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
@@ -98,8 +94,7 @@ class TestFinancialConstraints:
     
     def test_holdings_total_cost_positive(self, temp_db):
         """Test total_cost > 0 constraint in holdings."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Invalid: zero total_cost
             with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
@@ -120,8 +115,7 @@ class TestVolumeConstraints:
     
     def test_volume_non_negative(self, temp_db):
         """Test volume >= 0 constraint in price_data."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid: zero volume
             cursor.execute("""
@@ -144,8 +138,7 @@ class TestVolumeConstraints:
     
     def test_volume_null_allowed(self, temp_db):
         """Test that NULL volume is allowed."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid: NULL volume (should pass CHECK constraint)
             cursor.execute("""

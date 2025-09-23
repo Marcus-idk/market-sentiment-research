@@ -11,10 +11,11 @@ from decimal import Decimal
 from data.storage import (
     init_database, store_news_items, store_price_data,
     get_news_since, get_price_data_since, upsert_analysis_result,
-    upsert_holdings, get_all_holdings, get_analysis_results, connect,
+    upsert_holdings, get_all_holdings, get_analysis_results,
     _normalize_url, _datetime_to_iso, _decimal_to_text,
     get_last_seen, set_last_seen, get_last_news_time, set_last_news_time,
-    get_news_before, get_prices_before, commit_llm_batch, finalize_database
+    get_news_before, get_prices_before, commit_llm_batch, finalize_database,
+    _cursor_context
 )
 
 from data.models import (
@@ -58,12 +59,11 @@ class TestAnalysisResultUpsert:
         upsert_analysis_result(temp_db, result2)
         
         # Verify record was updated, not duplicated
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("""
-                SELECT COUNT(*), model_name, stance, confidence_score, 
+                SELECT COUNT(*), model_name, stance, confidence_score,
                        last_updated_iso, result_json, created_at_iso
-                FROM analysis_results 
+                FROM analysis_results
                 WHERE symbol = 'AAPL' AND analysis_type = 'news_analysis'
             """)
             count, model, stance, confidence, updated, json_result, created = cursor.fetchone()
@@ -94,10 +94,9 @@ class TestAnalysisResultUpsert:
         upsert_analysis_result(temp_db, result)
         
         # Verify created_at was set automatically
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("""
-                SELECT created_at_iso FROM analysis_results 
+                SELECT created_at_iso FROM analysis_results
                 WHERE symbol = 'TSLA'
             """)
             created_at_iso = cursor.fetchone()[0]

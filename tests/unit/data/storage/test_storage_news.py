@@ -12,9 +12,10 @@ from data.storage import (
     init_database, store_news_items, store_news_labels, store_price_data,
     get_news_since, get_news_labels, get_price_data_since, upsert_analysis_result,
     upsert_holdings, get_all_holdings, get_analysis_results,
-    connect, _normalize_url, _datetime_to_iso, _decimal_to_text,
+    _normalize_url, _datetime_to_iso, _decimal_to_text,
     get_last_seen, set_last_seen, get_last_news_time, set_last_news_time,
-    get_news_before, get_prices_before, commit_llm_batch, finalize_database
+    get_news_before, get_prices_before, commit_llm_batch, finalize_database,
+    _cursor_context
 )
 
 from data.models import (
@@ -49,10 +50,9 @@ class TestNewsItemStorage:
         store_news_items(temp_db, items)
         
         # Verify deduplication worked - only first item should remain
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("""
-                SELECT COUNT(*), headline, url FROM news_items 
+                SELECT COUNT(*), headline, url FROM news_items
                 WHERE symbol = 'AAPL'
             """)
             count, headline, stored_url = cursor.fetchone()
@@ -66,8 +66,7 @@ class TestNewsItemStorage:
         store_news_items(temp_db, [])  # Should not raise error
         
         # Verify no records stored
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("SELECT COUNT(*) FROM news_items")
             count = cursor.fetchone()[0]
             assert count == 0
@@ -140,10 +139,8 @@ class TestNewsLabelStorage:
 
         # Delete first news item (parent)
         normalized_url = _normalize_url(news1.url)
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             cursor.execute("DELETE FROM news_items WHERE symbol = ? AND url = ?", ("MSFT", normalized_url))
-            conn.commit()
 
         # Verify only the label for deleted news is gone (CASCADE worked)
         remaining = get_news_labels(temp_db, symbol="MSFT")

@@ -25,7 +25,10 @@ Scope: Applies to all new/changed code. New code should follow existing patterns
 - Datetime flow: API/raw input → model constructors (normalize to UTC) → storage helpers (`_datetime_to_iso`) → SQLite ISO strings ending with `Z`; read paths reverse this. Never format timestamps by hand. Use `data.models._normalize_to_utc(dt)` inside models for consistency.
 - Market sessions: Use `utils.market_sessions.classify_us_session()` for session classification (PRE/REG/POST/CLOSED). Handles NYSE holidays/early closes and UTC→ET conversion.
 - Persistence: validate at write boundaries; choose stable representations; version schema/migrations clearly.
-- SQLite access: go through `data.storage` helpers (or reuse `connect`) so required PRAGMAs (e.g., foreign_keys=ON) stay enforced per connection.
+- SQLite access: use `data.storage._cursor_context(db_path, commit=True|False)` for all read/write operations. It ensures foreign keys, row factory, commit/rollback, and cleanup. Avoid direct `connect()` except for:
+  - `init_database()` / `finalize_database()` lifecycle calls, or
+  - Highly specific PRAGMA sequences that require connection-level access (e.g., WAL checkpointing in maintenance code or tests).
+  Prefer cursor-level helpers in application code; keep any direct connection usage contained and documented.
 - Logging: structured and actionable; no secrets/API keys; appropriate levels.
 - Comments/docstrings: brief and explain "why", not just "what".
 

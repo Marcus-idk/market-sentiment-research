@@ -5,13 +5,13 @@ Tests confidence score range and JSON validation constraints.
 import sqlite3
 import pytest
 
-from data.storage import init_database, connect
+from data.storage import init_database, _cursor_context
 
 def has_json1_support(db_path: str) -> bool:
     """Check if SQLite has JSON1 extension for conditional tests."""
     try:
-        with connect(db_path) as conn:
-            conn.execute("SELECT json_valid('{}')")
+        with _cursor_context(db_path, commit=False) as cursor:
+            cursor.execute("SELECT json_valid('{}')")
             return True
     except sqlite3.OperationalError:
         return False
@@ -21,8 +21,7 @@ class TestConfidenceScoreRange:
     
     def test_confidence_score_boundaries(self, temp_db):
         """Test confidence_score boundary values."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid: exactly 0.0
             cursor.execute("""
@@ -47,8 +46,7 @@ class TestConfidenceScoreRange:
     
     def test_confidence_score_out_of_range(self, temp_db):
         """Test confidence_score values outside 0-1 range."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Invalid: below 0
             with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
@@ -74,8 +72,7 @@ class TestJSONConstraints:
         if not has_json1_support(temp_db):
             pytest.skip("SQLite JSON1 extension not available")
         
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid: proper JSON object
             cursor.execute("""
@@ -97,8 +94,7 @@ class TestJSONConstraints:
         if not has_json1_support(temp_db):
             pytest.skip("SQLite JSON1 extension not available")
         
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid: JSON object
             cursor.execute("""

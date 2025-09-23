@@ -13,9 +13,10 @@ from data.storage import (
     init_database, store_news_items, store_news_labels, store_price_data,
     get_news_since, get_news_labels, get_price_data_since, upsert_analysis_result,
     upsert_holdings, get_all_holdings, get_analysis_results,
-    connect, _normalize_url, _datetime_to_iso, _iso_to_datetime, _decimal_to_text,
+    _normalize_url, _datetime_to_iso, _iso_to_datetime, _decimal_to_text,
     get_last_seen, set_last_seen, get_last_news_time, set_last_news_time,
-    get_news_before, get_prices_before, commit_llm_batch, finalize_database
+    get_news_before, get_prices_before, commit_llm_batch, finalize_database,
+    _cursor_context
 )
 
 from data.models import (
@@ -103,8 +104,7 @@ class TestBatchOperations:
         )
 
         # Store price data (using existing created_at from news for simplicity)
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             # Insert prices with specific created_at times matching news items
             cursor.execute("""
                 INSERT INTO price_data (symbol, timestamp_iso, price, session, created_at_iso)
@@ -123,7 +123,6 @@ class TestBatchOperations:
                 SELECT ?, ?, ?, ?, created_at_iso
                 FROM news_items WHERE symbol = ?
             """, ("GOOGL", _datetime_to_iso(base_time), str(price3.price), "POST", "GOOGL"))
-            conn.commit()
 
         # Execute commit_llm_batch
         result = commit_llm_batch(temp_db, cutoff)
@@ -199,8 +198,7 @@ class TestBatchOperations:
         ])
 
         # Get the exact created_at of the second item
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("SELECT created_at_iso FROM news_items WHERE symbol = 'TSLA'")
             exact_timestamp_iso = cursor.fetchone()[0]
 

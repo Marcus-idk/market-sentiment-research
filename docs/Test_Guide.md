@@ -209,6 +209,25 @@ tests/integration/
 - Can use real databases, APIs (in integration only!)
 - Test complete workflows, not individual functions
 
+## SQLite Helper Usage in Tests
+
+- Prefer `data.storage._cursor_context(db_path, commit=False)` for reads and default `commit=True` for writes.
+- Avoid direct `connect()` unless you must execute connection-level PRAGMAs (e.g., WAL checkpoint) or an API strictly requires a connection object.
+- Example (before → after):
+  - Before:
+    ```python
+    with connect(db_path) as conn:
+        cursor = conn.cursor()
+        cursor.execute("SELECT 1")
+        conn.commit()
+    ```
+  - After:
+    ```python
+    with _cursor_context(db_path) as cursor:
+        cursor.execute("SELECT 1")
+    # Auto-commits on success, rolls back on exception
+    ```
+
 ### Networked Live Tests
 
 - Require environment variables:

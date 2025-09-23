@@ -12,7 +12,7 @@ from decimal import Decimal
 # Mark all tests in this module as integration tests
 pytestmark = [pytest.mark.integration]
 
-from data.storage import connect, store_price_data, get_price_data_since, upsert_analysis_result, get_analysis_results, upsert_holdings, get_all_holdings
+from data.storage import store_price_data, get_price_data_since, upsert_analysis_result, get_analysis_results, upsert_holdings, get_all_holdings, _cursor_context
 from data.models import PriceData, AnalysisResult, Holdings, Session, Stance, AnalysisType
 
 
@@ -95,37 +95,31 @@ class TestSchemaConstraints:
         
         # Test 2a: Negative price violation (CHECK price > 0)
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO price_data (symbol, timestamp_iso, price, volume, session)
                     VALUES (?, ?, ?, ?, ?)
                 """, ("TSLA", "2024-01-15T13:00:00Z", "-50.00", 1000, "REG"))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for negative price, got: {exc_info.value}"
         
         # Test 2b: Negative volume violation (CHECK volume >= 0)  
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO price_data (symbol, timestamp_iso, price, volume, session)
                     VALUES (?, ?, ?, ?, ?)
                 """, ("MSFT", "2024-01-15T13:00:00Z", "100.00", -1000, "REG"))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for negative volume, got: {exc_info.value}"
         
         # Test 2c: Invalid session enum violation
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO price_data (symbol, timestamp_iso, price, volume, session)
                     VALUES (?, ?, ?, ?, ?)
                 """, ("GOOGL", "2024-01-15T13:00:00Z", "100.00", 1000, "INVALID_SESSION"))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for invalid session, got: {exc_info.value}"
         
@@ -135,73 +129,61 @@ class TestSchemaConstraints:
         
         # Test 3a: confidence_score below 0 (CHECK confidence_score BETWEEN 0 AND 1)
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO analysis_results (symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, ("TSLA", "news_analysis", "gpt-4", "BULL", -0.1, "2024-01-15T13:00:00Z", '{"test": "data"}'))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for confidence_score < 0, got: {exc_info.value}"
         
         # Test 3b: confidence_score above 1 (CHECK confidence_score BETWEEN 0 AND 1)
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO analysis_results (symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, ("MSFT", "sentiment_analysis", "claude-3", "BEAR", 1.5, "2024-01-15T13:00:00Z", '{"test": "data"}'))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for confidence_score > 1, got: {exc_info.value}"
         
         # Test 3c: Invalid stance enum
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO analysis_results (symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, ("GOOGL", "news_analysis", "gpt-4", "INVALID_STANCE", 0.5, "2024-01-15T13:00:00Z", '{"test": "data"}'))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for invalid stance, got: {exc_info.value}"
         
         # Test 3d: Invalid analysis_type enum
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO analysis_results (symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, ("NVDA", "invalid_analysis", "gpt-4", "NEUTRAL", 0.5, "2024-01-15T13:00:00Z", '{"test": "data"}'))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for invalid analysis_type, got: {exc_info.value}"
         
         # Test 3e: Invalid JSON format (not valid JSON)
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO analysis_results (symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, ("META", "news_analysis", "gpt-4", "BULL", 0.8, "2024-01-15T13:00:00Z", '{invalid json format'))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for invalid JSON, got: {exc_info.value}"
         
         # Test 3f: JSON array instead of object (must be object)
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO analysis_results (symbol, analysis_type, model_name, stance, confidence_score, last_updated_iso, result_json)
                     VALUES (?, ?, ?, ?, ?, ?, ?)
                 """, ("AMD", "sentiment_analysis", "claude-3", "NEUTRAL", 0.6, "2024-01-15T13:00:00Z", '["this", "is", "array"]'))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for JSON array instead of object, got: {exc_info.value}"
         
@@ -211,37 +193,31 @@ class TestSchemaConstraints:
         
         # Test 4a: Negative quantity (CHECK quantity > 0)
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO holdings (symbol, quantity, break_even_price, total_cost)
                     VALUES (?, ?, ?, ?)
                 """, ("TSLA", "-100.0", "200.00", "20000.00"))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for negative quantity, got: {exc_info.value}"
         
         # Test 4b: Zero break_even_price (CHECK break_even_price > 0)
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO holdings (symbol, quantity, break_even_price, total_cost)
                     VALUES (?, ?, ?, ?)
                 """, ("MSFT", "50.0", "0.0", "5000.00"))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for zero break_even_price, got: {exc_info.value}"
         
         # Test 4c: Negative total_cost (CHECK total_cost > 0)
         with pytest.raises(sqlite3.IntegrityError) as exc_info:
-            with connect(temp_db) as conn:
-                cursor = conn.cursor()
+            with _cursor_context(temp_db) as cursor:
                 cursor.execute("""
                     INSERT INTO holdings (symbol, quantity, break_even_price, total_cost)
                     VALUES (?, ?, ?, ?)
                 """, ("GOOGL", "25.0", "100.00", "-2500.00"))
-                conn.commit()
         
         assert "CHECK constraint failed" in str(exc_info.value), f"Expected CHECK constraint failure for negative total_cost, got: {exc_info.value}"
         

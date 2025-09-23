@@ -5,7 +5,7 @@ Tests enum value constraints and locks critical enum values against changes.
 import sqlite3
 import pytest
 
-from data.storage import init_database, connect
+from data.storage import init_database, _cursor_context
 from data.models import Session, Stance, AnalysisType, NewsLabelType
 
 
@@ -66,8 +66,7 @@ class TestEnumConstraints:
     
     def test_session_enum_values(self, temp_db):
         """Test session IN ('REG', 'PRE', 'POST', 'CLOSED') constraint."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid enum values - test data with different hours for each session type
             session_hours = {'REG': '14', 'PRE': '09', 'POST': '21', 'CLOSED': '02'}
@@ -93,8 +92,7 @@ class TestEnumConstraints:
     
     def test_stance_enum_values(self, temp_db):
         """Test stance IN ('BULL', 'BEAR', 'NEUTRAL') constraint."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid values
             for stance in ['BULL', 'BEAR', 'NEUTRAL']:
@@ -114,8 +112,7 @@ class TestEnumConstraints:
     
     def test_analysis_type_enum_values(self, temp_db):
         """Test analysis_type enum constraint."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Valid values
             valid_types = ['news_analysis', 'sentiment_analysis', 'sec_filings', 'head_trader']
@@ -136,8 +133,7 @@ class TestEnumConstraints:
 
     def test_news_label_enum_values(self, temp_db):
         """Test news_labels label constraint values."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
 
             for suffix, label in enumerate(['Company', 'People', 'MarketWithMention']):
                 cursor.execute("""

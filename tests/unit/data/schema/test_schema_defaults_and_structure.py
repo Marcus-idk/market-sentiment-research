@@ -5,15 +5,14 @@ Tests database table structure, default values, and schema creation.
 import sqlite3
 import pytest
 
-from data.storage import init_database, connect
+from data.storage import init_database, _cursor_context
 
 class TestDefaultValues:
     """Test default value behavior."""
     
     def test_session_default_reg(self, temp_db):
         """Test session defaults to 'REG' when not specified."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Insert without specifying session
             cursor.execute("""
@@ -30,8 +29,7 @@ class TestDefaultValues:
     
     def test_timestamp_defaults(self, temp_db):
         """Test created_at_iso defaults to current timestamp."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
             
             # Insert without specifying created_at_iso
             cursor.execute("""
@@ -52,8 +50,7 @@ class TestDefaultValues:
 
     def test_news_labels_timestamp_default(self, temp_db):
         """Test created_at_iso default for news_labels table."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
 
             cursor.execute("""
                 INSERT INTO news_items (symbol, url, headline, published_iso, source)
@@ -80,8 +77,7 @@ class TestTableStructure:
 
     def test_without_rowid_optimization(self, temp_db):
         """All user tables use WITHOUT ROWID and required tables exist."""
-        with connect(temp_db) as conn:
-            cursor = conn.cursor()
+        with _cursor_context(temp_db) as cursor:
 
             # Get all non-internal table creation SQL
             tables = cursor.execute(

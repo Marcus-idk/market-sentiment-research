@@ -49,6 +49,9 @@ from .storage_utils import (
     _row_to_holdings
 )
 
+# Internal helpers
+from .db_context import _cursor_context
+
 # All public functions (for backward compatibility)
 __all__ = [
     # Core database
@@ -88,4 +91,5 @@ __all__ = [
     '_row_to_analysis_result',
     '_row_to_holdings',
     '_check_json1_support',
+    '_cursor_context',
 ]

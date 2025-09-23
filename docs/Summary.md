@@ -112,6 +112,9 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   **Import paths unchanged**: All functions accessible via `from data.storage import ...`
 
   **Package Structure**:
+  - `db_context.py` - Internal cursor context manager (1 helper)
+    - `_cursor_context(db_path, commit=True)` - Preferred way to run DB ops; auto-commit on success, rollback on error, and enables `sqlite3.Row` row factory for dict-like access. Use `commit=False` for pure reads.
+
   - `storage_core.py` - Database lifecycle and connections (4 functions)
     - `connect()` - Open SQLite connection with required PRAGMAs (enables foreign keys)
     - `init_database()` - Create tables (WAL via schema PRAGMA)
