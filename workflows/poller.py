@@ -7,7 +7,7 @@ storing results in SQLite, and managing watermarks for incremental fetching.
 
 import asyncio
 import logging
-from typing import Any, Dict, List
+from typing import Any, Dict, List, Tuple
 
 from data.models import NewsItem, PriceData
 from data.storage import (
@@ -51,6 +51,85 @@ class DataPoller:
         self.running = False
         self._stop_event = asyncio.Event()
 
+    async def _fetch_all_data(self, last_news_time) -> Tuple[List, int, int]:
+        """Fetch data from all providers concurrently and return results."""
+        # Create tasks for all providers
+        news_tasks = [
+            provider.fetch_incremental(last_news_time)
+            for provider in self.news_providers
+        ]
+        price_tasks = [
+            provider.fetch_incremental()
+            for provider in self.price_providers
+        ]
+
+        # Fetch all data concurrently
+        all_tasks = news_tasks + price_tasks
+        results = await asyncio.gather(*all_tasks, return_exceptions=True)
+
+        return results, len(news_tasks), len(price_tasks)
+
+    def _collect_results(self, results: List, providers: List, provider_type: str) -> Tuple[List, List]:
+        """Collect successful results and log errors from providers."""
+        all_items = []
+        errors = []
+
+        for i, result in enumerate(results):
+            if isinstance(result, Exception):
+                provider_name = providers[i].__class__.__name__
+                logger.error(f"{provider_name} {provider_type} fetch failed: {result}")
+                errors.append(f"{provider_name}: {str(result)}")
+            else:
+                all_items.extend(result)
+
+        return all_items, errors
+
+    async def _process_news(self, news_items: List) -> int:
+        """Store news items, classify them, and update watermark."""
+
+        # Store news items
+        await asyncio.to_thread(
+            store_news_items,
+            self.db_path,
+            news_items,
+        )
+
+        # Classify the news items
+        try:
+            labels = classify(news_items)
+            if labels:
+                await asyncio.to_thread(
+                    store_news_labels,
+                    self.db_path,
+                    labels
+                )
+                logger.info(f"Classified {len(labels)} news items")
+        except Exception as e:
+            logger.warning(f"News classification failed: {e}")
+
+        # Update watermark with latest timestamp
+        max_time = max(n.published for n in news_items)
+        await asyncio.to_thread(
+            set_last_news_time,
+            self.db_path,
+            max_time,
+        )
+
+        logger.info(f"Stored {len(news_items)} news items, watermark updated to {max_time.isoformat()}")
+        return len(news_items)
+
+    async def _process_prices(self, price_items: List) -> int:
+        """Store price data."""
+
+        await asyncio.to_thread(
+            store_price_data,
+            self.db_path,
+            price_items,
+        )
+
+        logger.info(f"Stored {len(price_items)} price updates")
+        return len(price_items)
+
     async def poll_once(self) -> Dict[str, Any]:
         """
         Execute one polling cycle.
@@ -61,7 +140,7 @@ class DataPoller:
         stats = {"news": 0, "prices": 0, "errors": []}
 
         try:
-            # Read watermark for incremental news fetching (offload blocking I/O)
+            # Read watermark for incremental news fetching
             last_news_time = await asyncio.to_thread(
                 get_last_news_time,
                 self.db_path,
@@ -71,86 +150,30 @@ class DataPoller:
             else:
                 logger.info("No watermark found, fetching all available news")
 
-            # Create tasks for all providers
-            news_tasks = [
-                provider.fetch_incremental(last_news_time)
-                for provider in self.news_providers
-            ]
-            price_tasks = [
-                provider.fetch_incremental()
-                for provider in self.price_providers
-            ]
-
             # Fetch all data concurrently
-            all_tasks = news_tasks + price_tasks
-            results = await asyncio.gather(*all_tasks, return_exceptions=True)
+            results, news_count, price_count = await self._fetch_all_data(last_news_time)
 
-            # Split results back into news and prices
-            news_results = results[:len(news_tasks)]
-            price_results = results[len(news_tasks):]
+            # Process news
+            news_results = results[:news_count]
+            all_news, news_errors = self._collect_results(
+                news_results, self.news_providers, "news"
+            )
+            stats["errors"].extend(news_errors)
 
-            # Collect all successful news items
-            all_news = []
-            for i, news_result in enumerate(news_results):
-                if isinstance(news_result, Exception):
-                    provider_name = self.news_providers[i].__class__.__name__
-                    logger.error(f"{provider_name} news fetch failed: {news_result}")
-                    stats["errors"].append(f"{provider_name}: {str(news_result)}")
-                else:
-                    all_news.extend(news_result)
-
-            # Store all news at once (dedup happens in storage)
             if all_news:
-                await asyncio.to_thread(
-                    store_news_items,
-                    self.db_path,
-                    all_news,
-                )
-                stats["news"] = len(all_news)
-
-                # Classify the news items
-                try:
-                    labels = classify(all_news)
-                    if labels:
-                        await asyncio.to_thread(
-                            store_news_labels,
-                            self.db_path,
-                            labels
-                        )
-                        logger.info(f"Classified {len(labels)} news items")
-                except Exception as e:
-                    logger.warning(f"News classification failed: {e}")
-
-                # Update watermark with latest timestamp
-                max_time = max(n.published for n in all_news)
-                await asyncio.to_thread(
-                    set_last_news_time,
-                    self.db_path,
-                    max_time,
-                )
-                logger.info(f"Stored {len(all_news)} news items, watermark updated to {max_time.isoformat()}")
+                stats["news"] = await self._process_news(all_news)
             else:
                 logger.info("No new news items found")
 
-            # Collect all successful price data
-            all_prices = []
-            for i, price_result in enumerate(price_results):
-                if isinstance(price_result, Exception):
-                    provider_name = self.price_providers[i].__class__.__name__
-                    logger.error(f"{provider_name} price fetch failed: {price_result}")
-                    stats["errors"].append(f"{provider_name}: {str(price_result)}")
-                else:
-                    all_prices.extend(price_result)
+            # Process prices
+            price_results = results[news_count:]
+            all_prices, price_errors = self._collect_results(
+                price_results, self.price_providers, "price"
+            )
+            stats["errors"].extend(price_errors)
 
-            # Store all prices at once
             if all_prices:
-                await asyncio.to_thread(
-                    store_price_data,
-                    self.db_path,
-                    all_prices,
-                )
-                stats["prices"] = len(all_prices)
-                logger.info(f"Stored {len(all_prices)} price updates")
+                stats["prices"] = await self._process_prices(all_prices)
             else:
                 logger.info("No price data fetched")
 
