@@ -146,7 +146,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 **Subdirectories**:
 - `data/providers/` - Data source implementations
-- `data/providers/finnhub.py`
+  - `data/providers/finnhub/`
     - `FinnhubClient` - HTTP client for Finnhub API with retry logic
       - `__init__()` - Initialize with settings
       - `get()` - Make authenticated GET request with retry logic (path, optional params)

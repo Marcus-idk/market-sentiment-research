@@ -19,7 +19,7 @@ Scope: Applies to all new/changed code. New code should follow existing patterns
 
 ## Consistency (Must)
 - Mirror existing file layout, naming, and style. New code follows old code.
-- Imports: absolute project imports. Default to folder‑level (`from data.storage import …`); use submodules only when needed. Prefer top‑of‑file imports; use function‑level imports only for optional dependencies or to avoid cycles (and document why). Facades (e.g., `data/storage/__init__.py`) keep `from data.storage` stable.
+- Imports: absolute project imports. Default to package facades (`from data.storage import …`, `from data.providers.finnhub import …`); use submodules only when needed. Prefer top-of-file imports; use function-level imports only for optional dependencies or to avoid cycles (and document why). Facades (e.g., `data/storage/__init__.py`, `data/providers/finnhub/__init__.py`) keep canonical imports stable.
 - Naming: modules/functions `snake_case`, classes `PascalCase`, constants `UPPER_SNAKE`.
 - Type annotations (Python 3.10+): use built-in generics and unions — for example `list[str]`, `dict[str, Any]`, `tuple[int, ...]`, and `X | None` instead of `typing.List`, `typing.Dict`, `typing.Tuple`, `typing.Optional`, or `typing.Union`. Preserve type parameters when converting. Keep `typing.Mapping`, `Any`, `Callable`, `Awaitable`, `Iterator`, and `TypeVar` where needed.
 - Keyword-only arguments: Use `*` to enforce keyword-only params when:

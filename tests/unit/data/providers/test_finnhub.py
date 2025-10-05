@@ -8,7 +8,7 @@ from datetime import datetime, timezone
 from datetime import timedelta as real_timedelta
 from decimal import Decimal
 
-import data.providers.finnhub
+from data.providers import finnhub
 from config.providers.finnhub import FinnhubSettings
 from config.retry import DEFAULT_DATA_RETRY
 from data.providers.finnhub import FinnhubClient, FinnhubNewsProvider, FinnhubPriceProvider
@@ -30,7 +30,7 @@ class TestFinnhubClient:
             captured_args['params'] = kwargs.get('params', {})
             return {'status': 'ok'}
         
-        monkeypatch.setattr('data.providers.finnhub.get_json_with_retry', mock_get_json)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_client.get_json_with_retry', mock_get_json)
         
         await client.get('/quote')
         
@@ -47,7 +47,7 @@ class TestFinnhubClient:
             captured_args['params'] = kwargs.get('params', {})
             return {'status': 'ok'}
         
-        monkeypatch.setattr('data.providers.finnhub.get_json_with_retry', mock_get_json)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_client.get_json_with_retry', mock_get_json)
         
         await client.get('/company-news', params={'symbol': 'AAPL', 'from': '2024-01-01'})
         
@@ -68,7 +68,7 @@ class TestFinnhubClient:
             captured_args.update(kwargs)
             return {'status': 'ok'}
         
-        monkeypatch.setattr('data.providers.finnhub.get_json_with_retry', mock_get_json)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_client.get_json_with_retry', mock_get_json)
         
         await client.get('/quote')
         
@@ -102,8 +102,8 @@ class TestFinnhubNewsProvider:
         MockDatetime.timedelta = real_timedelta
         MockDatetime.timezone = timezone
 
-        monkeypatch.setattr(data.providers.finnhub, 'datetime', MockDatetime)
-        monkeypatch.setattr(data.providers.finnhub, 'timedelta', real_timedelta)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_news.datetime', MockDatetime)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_news.timedelta', real_timedelta)
         
         captured_params = {}
         async def mock_get(path, params=None):
@@ -140,8 +140,8 @@ class TestFinnhubNewsProvider:
         MockDatetime.timedelta = real_timedelta
         MockDatetime.timezone = timezone
 
-        monkeypatch.setattr(data.providers.finnhub, 'datetime', MockDatetime)
-        monkeypatch.setattr(data.providers.finnhub, 'timedelta', real_timedelta)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_news.datetime', MockDatetime)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_news.timedelta', real_timedelta)
 
         captured_params = {}
         async def mock_get(path, params=None):
@@ -393,7 +393,7 @@ class TestFinnhubPriceProvider:
             def fromtimestamp(ts, tz):
                 return datetime.fromtimestamp(ts, tz)
         
-        monkeypatch.setattr('data.providers.finnhub.datetime', MockDatetime)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_prices.datetime', MockDatetime)
         
         quote_fixture = {'c': 150.0}  # No 't' field
         
@@ -427,7 +427,7 @@ class TestFinnhubPriceProvider:
                     raise OSError('Invalid timestamp')
                 return datetime.fromtimestamp(ts, tz)
         
-        monkeypatch.setattr('data.providers.finnhub.datetime', MockDatetime)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_prices.datetime', MockDatetime)
         
         quote_fixture = {'c': 150.0, 't': -999999999999}
         

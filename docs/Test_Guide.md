@@ -25,7 +25,7 @@ What's in your source file?
 
 **If your file has classes:**
 ```python
-# data/providers/finnhub.py
+# data/providers/finnhub/
 class FinnhubClient:
     ...
 class FinnhubNewsProvider:
@@ -252,7 +252,7 @@ tests/integration/
 
 ### ✅ GOOD: 1:1 Class Mapping
 ```python
-# Source: data/providers/finnhub.py has FinnhubClient class
+# Source: data/providers/finnhub/client.py has FinnhubClient class
 # Test: tests/unit/data/providers/test_finnhub.py has TestFinnhubClient class
 ```
 

@@ -68,7 +68,7 @@ class TestFinnhubCriticalErrorHandling:
             # 401 should not retry - DataSourceError is non-retryable
             raise DataSourceError("Authentication failed (status 401)")
         
-        monkeypatch.setattr('data.providers.finnhub.get_json_with_retry', mock_get_json)
+        monkeypatch.setattr('data.providers.finnhub.finnhub_client.get_json_with_retry', mock_get_json)
         
         # Should fail immediately
         with pytest.raises(DataSourceError) as exc_info:
