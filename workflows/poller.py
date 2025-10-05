@@ -71,32 +71,28 @@ class DataPoller:
         Returns:
             Dict with keys: company_news, macro_news, prices, errors
         """
-        # Create tasks for all providers (uniform interface)
-        news_tasks = [
-            provider.fetch_incremental(since=last_news_time, min_id=last_macro_min_id)
-            for provider in self.news_providers
-        ]
-
-        price_tasks = [
-            provider.fetch_incremental()
-            for provider in self.price_providers
-        ]
-
-        # Fetch all data concurrently
-        all_tasks = news_tasks + price_tasks
-        results = await asyncio.gather(*all_tasks, return_exceptions=True)
-
         # Separate results by provider type
         company_news = []
         macro_news = []
         prices = []
         errors = []
 
-        # Process news results
-        news_results = results[:len(news_tasks)]
-        for i, result in enumerate(news_results):
-            provider = self.news_providers[i]
+        # Start both news and price fetches concurrently (don't await yet)
+        news_coro = asyncio.gather(
+            *(provider.fetch_incremental(since=last_news_time, min_id=last_macro_min_id)
+              for provider in self.news_providers),
+            return_exceptions=True
+        )
+        price_coro = asyncio.gather(
+            *(provider.fetch_incremental() for provider in self.price_providers),
+            return_exceptions=True
+        )
 
+        # Await both together to maintain full concurrency
+        news_results, price_results = await asyncio.gather(news_coro, price_coro)
+
+        # Process news results - zip keeps provider and result matched
+        for provider, result in zip(self.news_providers, news_results):
             if isinstance(result, Exception):
                 provider_name = provider.__class__.__name__
                 logger.error(f"{provider_name} news fetch failed: {result}")
@@ -107,11 +103,10 @@ class DataPoller:
                 else:
                     company_news.extend(result)
 
-        # Process price results
-        price_results = results[len(news_tasks):]
-        for i, result in enumerate(price_results):
+        # Process price results - zip keeps provider and result matched
+        for provider, result in zip(self.price_providers, price_results):
             if isinstance(result, Exception):
-                provider_name = self.price_providers[i].__class__.__name__
+                provider_name = provider.__class__.__name__
                 logger.error(f"{provider_name} price fetch failed: {result}")
                 errors.append(f"{provider_name}: {str(result)}")
             else:

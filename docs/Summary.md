@@ -236,7 +236,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `workflows/poller.py` - Data collection orchestrator
   - `DataPoller` - Orchestrates multiple providers concurrently with news classification
     - `__init__(db_path, news_providers, price_providers, poll_interval)` - Initialize poller
-    - `_fetch_all_data()` - Concurrent fetch; calls `provider.fetch_incremental(since=last_news_time, min_id=last_macro_min_id)` for all news providers; returns company_news/macro_news/prices/errors
+    - `_fetch_all_data()` - Concurrent fetch for news and price providers; calls `fetch_incremental(since=last_news_time, min_id=last_macro_min_id)` for news and `fetch_incremental()` for prices; returns company_news/macro_news/prices/errors
     - `_process_prices()` - Store price data and return count
     - `_process_news()` - Store news, classify company news, update watermarks (`news_since_iso`, `macro_news_min_id`)
     - `poll_once()` - One cycle: fetch, classify, update `news_since_iso` and `macro_news_min_id`

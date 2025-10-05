@@ -456,18 +456,9 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                 logger.debug(f"Failed to parse article {article.get('id', 'unknown')}: {e}")
                 continue
 
-        # Track max article ID for next incremental fetch (robust validation)
+        # Track max article ID for next incremental fetch
         ids = [a['id'] for a in articles if isinstance(a.get('id'), int) and a['id'] > 0]
-        if ids:
-            max_id = max(ids)
-            # Guard against unexpected API behavior
-            if min_id is not None and max_id <= min_id:
-                logger.debug(f"Max article ID {max_id} <= current min_id {min_id}, not advancing watermark")
-                self.last_fetched_max_id = None
-            else:
-                self.last_fetched_max_id = max_id
-        else:
-            self.last_fetched_max_id = None
+        self.last_fetched_max_id = max(ids) if ids else None
 
         return news_items
 
