@@ -8,7 +8,7 @@ storing results in SQLite, and managing watermarks for incremental fetching.
 import asyncio
 import logging
 from datetime import datetime
-from typing import Any
+from typing import Any, TypedDict
 
 from data.models import NewsItem, PriceData
 from data.storage import (
@@ -21,6 +21,20 @@ from data.providers.finnhub import FinnhubMacroNewsProvider
 from analysis.news_classifier import classify
 
 logger = logging.getLogger(__name__)
+
+
+class DataBatch(TypedDict):
+    """Data fetched from all providers in one cycle."""
+    company_news: list[NewsItem]
+    macro_news: list[NewsItem]
+    prices: list[PriceData]
+    errors: list[str]
+
+class PollStats(TypedDict):
+    """Statistics from one polling cycle."""
+    news: int
+    prices: int
+    errors: list[str]
 
 
 class DataPoller:
@@ -60,16 +74,22 @@ class DataPoller:
             if isinstance(provider, FinnhubMacroNewsProvider)
         }
 
+    async def _read_watermarks(self) -> tuple[datetime | None, int | None]:
+        """Read persisted watermarks on a background thread."""
+        last_news_time = await asyncio.to_thread(get_last_news_time, self.db_path)
+        last_macro_min_id = await asyncio.to_thread(get_last_macro_min_id, self.db_path)
+        return last_news_time, last_macro_min_id
+
     async def _fetch_all_data(
         self,
         last_news_time: datetime | None,
         last_macro_min_id: int | None,
-    ) -> dict[str, Any]:
+    ) -> DataBatch:
         """
         Fetch data from all providers concurrently.
 
         Returns:
-            Dict with keys: company_news, macro_news, prices, errors
+            DataBatch with company_news, macro_news, prices, and errors
         """
         # Separate results by provider type
         company_news = []
@@ -112,12 +132,12 @@ class DataPoller:
             else:
                 prices.extend(result)
 
-        return {
-            "company_news": company_news,
-            "macro_news": macro_news,
-            "prices": prices,
-            "errors": errors
-        }
+        return DataBatch(
+            company_news=company_news,
+            macro_news=macro_news,
+            prices=prices,
+            errors=errors,
+        )
 
     async def _process_prices(self, price_items: list[PriceData]) -> int:
         """Store price data."""
@@ -182,25 +202,18 @@ class DataPoller:
 
         return len(all_news)
 
-    async def poll_once(self) -> dict[str, Any]:
+    async def poll_once(self) -> PollStats:
         """
         Execute one polling cycle.
 
         Returns:
-            Dict with stats: {"news": count, "prices": count, "errors": list}
+            PollStats with news count, prices count, and errors list
         """
-        stats = {"news": 0, "prices": 0, "errors": []}
+        stats: PollStats = {"news": 0, "prices": 0, "errors": []}
 
         try:
             # Read watermarks for incremental fetching
-            last_news_time = await asyncio.to_thread(
-                get_last_news_time,
-                self.db_path,
-            )
-            last_macro_min_id = await asyncio.to_thread(
-                get_last_macro_min_id,
-                self.db_path,
-            )
+            last_news_time, last_macro_min_id = await self._read_watermarks()
 
             if last_news_time:
                 logger.info(f"Fetching news since {last_news_time.isoformat()}")
@@ -243,6 +256,8 @@ class DataPoller:
 
         Polls at specified interval until stop() is called.
         """
+        
+        self._stop_event.clear()
         self.running = True
         logger.info(f"Starting data poller with {self.poll_interval}s interval")
 
@@ -252,7 +267,7 @@ class DataPoller:
         while self.running:
             cycle_count += 1
             logger.info(f"Starting poll cycle #{cycle_count}")
-            start_time = asyncio.get_event_loop().time()
+            start_time = asyncio.get_running_loop().time()
 
             # Execute one poll cycle
             stats = await self.poll_once()
@@ -271,7 +286,7 @@ class DataPoller:
                 )
 
             # Calculate sleep time to maintain consistent interval
-            elapsed = asyncio.get_event_loop().time() - start_time
+            elapsed = asyncio.get_running_loop().time() - start_time
             sleep_time = max(0, self.poll_interval - elapsed)
 
             if self.running and sleep_time > 0:

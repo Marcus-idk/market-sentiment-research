@@ -4,6 +4,11 @@ Purpose: Keep code simple, correct, and consistent with the codebase.
 
 Scope: Applies to all new/changed code. New code should follow existing patterns first; propose improvements when they clearly reduce complexity or risk.
 
+## Python Version
+- **Target version: Python 3.13+** (project uses 3.13.4)
+- Use modern syntax: built-in generics (`list[str]`), union operator (`X | None`), `match` statements where appropriate
+- All developers should use the same Python version to avoid compatibility issues
+
 ## SWE Best Practices (Must)
 - Prefer simple solutions (KISS). One clear responsibility per module/function.
 - Avoid duplication (DRY) when the abstraction is real; avoid premature abstraction.
@@ -16,6 +21,7 @@ Scope: Applies to all new/changed code. New code should follow existing patterns
 - Keep boundaries clean: configuration → adapters/clients → models/storage → services/workflows; avoid circular dependencies.
 - Add extension points only when there are at least two real uses.
 - Use async for I/O; never block inside async paths; reuse retry/HTTP utilities.
+- Asyncio event loops: use `asyncio.get_running_loop()` inside coroutines (not the deprecated `get_event_loop()`). Fails fast if called outside async context, making bugs obvious.
 
 ## Consistency (Must)
 - Mirror existing file layout, naming, and style. New code follows old code.
