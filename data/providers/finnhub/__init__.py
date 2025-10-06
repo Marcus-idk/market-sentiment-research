@@ -1,9 +1,9 @@
 """Finnhub provider package."""
 
-from .finnhub_client import FinnhubClient
-from .finnhub_news import FinnhubNewsProvider
-from .finnhub_macro_news import FinnhubMacroNewsProvider
-from .finnhub_prices import FinnhubPriceProvider
+from data.providers.finnhub.finnhub_client import FinnhubClient
+from data.providers.finnhub.finnhub_news import FinnhubNewsProvider
+from data.providers.finnhub.finnhub_macro_news import FinnhubMacroNewsProvider
+from data.providers.finnhub.finnhub_prices import FinnhubPriceProvider
 
 __all__ = [
     "FinnhubClient",

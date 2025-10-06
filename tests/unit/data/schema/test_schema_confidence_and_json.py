@@ -5,7 +5,8 @@ Tests confidence score range and JSON validation constraints.
 import sqlite3
 import pytest
 
-from data.storage import init_database, _cursor_context
+from data.storage import init_database
+from data.storage.db_context import _cursor_context
 
 def has_json1_support(db_path: str) -> bool:
     """Check if SQLite has JSON1 extension for conditional tests."""

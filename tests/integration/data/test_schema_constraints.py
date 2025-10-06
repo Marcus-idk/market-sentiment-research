@@ -12,7 +12,8 @@ from decimal import Decimal
 # Mark all tests in this module as integration tests
 pytestmark = [pytest.mark.integration]
 
-from data.storage import store_price_data, get_price_data_since, upsert_analysis_result, get_analysis_results, upsert_holdings, get_all_holdings, _cursor_context
+from data.storage import store_price_data, get_price_data_since, upsert_analysis_result, get_analysis_results, upsert_holdings, get_all_holdings
+from data.storage.db_context import _cursor_context
 from data.models import PriceData, AnalysisResult, Holdings, Session, Stance, AnalysisType
 
 

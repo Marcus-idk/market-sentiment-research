@@ -5,7 +5,8 @@ Tests financial value constraints for prices and decimal storage.
 import sqlite3
 import pytest
 
-from data.storage import init_database, _cursor_context
+from data.storage import init_database
+from data.storage.db_context import _cursor_context
 
 class TestFinancialConstraints:
     """Test positive value constraints for financial fields."""

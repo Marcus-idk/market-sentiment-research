@@ -7,7 +7,7 @@ from typing import Any
 from config.providers.finnhub import FinnhubSettings
 from data.base import NewsDataSource
 from data.models import NewsItem
-from .finnhub_client import FinnhubClient
+from data.providers.finnhub.finnhub_client import FinnhubClient
 
 
 logger = logging.getLogger(__name__)

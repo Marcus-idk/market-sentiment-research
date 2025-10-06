@@ -25,7 +25,8 @@ Scope: Applies to all new/changed code. New code should follow existing patterns
 
 ## Consistency (Must)
 - Mirror existing file layout, naming, and style. New code follows old code.
-- Imports: absolute project imports. Default to package facades (`from data.storage import …`, `from data.providers.finnhub import …`); use submodules only when needed. Prefer top-of-file imports; use function-level imports only for optional dependencies or to avoid cycles (and document why). Facades (e.g., `data/storage/__init__.py`, `data/providers/finnhub/__init__.py`) keep canonical imports stable.
+- Imports: always use absolute project imports. Default to package facades for public APIs (`from data.storage import commit_llm_batch`, `from data.providers.finnhub import FinnhubNewsProvider`). Import submodules directly when you need an internal helper or tighter scope. Function-level imports are allowed only for optional dependencies or to break cycles—document the rationale inline.
+- Facades (`__init__.py`): keep them thin and side-effect free. Declare an explicit `__all__` and expose only public names—never re-export helpers that start with `_`. When a private helper is required (e.g., `_cursor_context`), import it from its defining module (`from data.storage.db_context import _cursor_context`). Add new provider packages to `data/providers/__init__.py` so IDEs and reviewers see the full surface area.
 - Naming: modules/functions `snake_case`, classes `PascalCase`, constants `UPPER_SNAKE`.
 - Type annotations (Python 3.10+): use built-in generics and unions — for example `list[str]`, `dict[str, Any]`, `tuple[int, ...]`, and `X | None` instead of `typing.List`, `typing.Dict`, `typing.Tuple`, `typing.Optional`, or `typing.Union`. Preserve type parameters when converting. Keep `typing.Mapping`, `Any`, `Callable`, `Awaitable`, `Iterator`, and `TypeVar` where needed.
 - Keyword-only arguments: Use `*` to enforce keyword-only params when:
@@ -40,7 +41,7 @@ Scope: Applies to all new/changed code. New code should follow existing patterns
 - Datetime flow: API/raw input → model constructors (normalize to UTC) → storage helpers (`_datetime_to_iso`) → SQLite ISO strings ending with `Z`; read paths reverse this. Never format timestamps by hand. Use `data.models._normalize_to_utc(dt)` inside models for consistency.
 - Market sessions: Use `utils.market_sessions.classify_us_session()` for session classification (PRE/REG/POST/CLOSED). Handles NYSE holidays/early closes and UTC→ET conversion.
 - Persistence: validate at write boundaries; choose stable representations; version schema/migrations clearly.
-- SQLite access: use `data.storage._cursor_context(db_path, commit=True|False)` for all read/write operations. It ensures foreign keys, row factory, commit/rollback, and cleanup. Avoid direct `connect()` except for:
+- SQLite access: use `_cursor_context` from its home module (`from data.storage.db_context import _cursor_context`) for all read/write operations. It ensures foreign keys, row factory, commit/rollback, and cleanup. Avoid direct `connect()` except for:
   - `init_database()` / `finalize_database()` lifecycle calls, or
   - Highly specific PRAGMA sequences that require connection-level access (e.g., WAL checkpointing in maintenance code or tests).
   Prefer cursor-level helpers in application code; keep any direct connection usage contained and documented.
@@ -61,6 +62,7 @@ Scope: Applies to all new/changed code. New code should follow existing patterns
 - Add/adjust tests for every change. Follow the project’s testing conventions; mark slower integration/network tests.
 - Update summary/architecture docs when public APIs, schemas, or test structure change. Keep README links valid.
 - Prefer small, focused tests and minimal examples with clear names.
+- Monkeypatch the symbol where it is looked up (module under test). Do not patch through facades; import the concrete module path instead.
 
 ## Code Review Quick Checklist
 - Correctness: timezones/units precise; money uses precise types; error paths covered; retries/backoff where needed.

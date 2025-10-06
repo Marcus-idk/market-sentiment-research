@@ -5,7 +5,8 @@ Tests enum value constraints and locks critical enum values against changes.
 import sqlite3
 import pytest
 
-from data.storage import init_database, _cursor_context
+from data.storage import init_database
+from data.storage.db_context import _cursor_context
 from data.models import Session, Stance, AnalysisType, NewsLabelType
 
 

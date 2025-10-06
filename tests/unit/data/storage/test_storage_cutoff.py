@@ -13,10 +13,10 @@ from data.storage import (
     init_database, store_news_items, store_price_data,
     get_news_since, get_price_data_since, upsert_analysis_result,
     upsert_holdings, get_all_holdings, get_analysis_results,
-    _normalize_url, _datetime_to_iso, _decimal_to_text,
     get_last_seen, set_last_seen, get_last_news_time, set_last_news_time,
     get_news_before, get_prices_before, commit_llm_batch, finalize_database
 )
+from data.storage.storage_utils import _normalize_url, _datetime_to_iso, _decimal_to_text
 
 from data.models import (
     NewsItem, PriceData, AnalysisResult, Holdings,
