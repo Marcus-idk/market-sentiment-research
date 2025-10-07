@@ -19,6 +19,7 @@ from data.storage import (
 from data.base import NewsDataSource, PriceDataSource
 from data.providers.finnhub import FinnhubMacroNewsProvider
 from analysis.news_classifier import classify
+from analysis.urgency_detector import detect_urgency
 
 logger = logging.getLogger(__name__)
 
@@ -151,8 +152,21 @@ class DataPoller:
         logger.info(f"Stored {len(price_items)} price updates")
         return len(price_items)
 
+    def _log_urgent_items(self, urgent_items: list[NewsItem]) -> None:
+        """Summarize urgency detection results with bounded detail."""
+        if not urgent_items:
+            logger.debug("No urgent news items detected")
+            return
+        logger.warning(
+            f"Found {len(urgent_items)} URGENT news items requiring attention"
+        )
+        for item in urgent_items[:10]:
+            logger.warning(f"URGENT [{item.symbol}]: {item.headline} - {item.url}")
+        if len(urgent_items) > 10:
+            logger.warning(f"... {len(urgent_items) - 10} more")
+
     async def _process_news(self, company_news: list[NewsItem], macro_news: list[NewsItem]) -> int:
-        """Store news, classify company news, and update watermarks."""
+        """Store news, classify company news, detect urgency, and update watermarks."""
         all_news = company_news + macro_news
 
         # Store all news items
@@ -175,6 +189,13 @@ class DataPoller:
                     logger.info(f"Classified {len(labels)} company news items")
             except Exception:
                 logger.exception("News classification failed")
+
+        # Detect urgent items from all news
+        if all_news:
+            try:
+                self._log_urgent_items(detect_urgency(all_news))
+            except Exception:
+                logger.exception("Urgency detection failed")
 
         # Update watermark with latest timestamp from all news
         max_time = max(n.published for n in all_news)

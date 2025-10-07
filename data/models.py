@@ -27,6 +27,10 @@ class NewsLabelType(Enum):
     PEOPLE = "People"
     MARKET_WITH_MENTION = "MarketWithMention"
 
+class Urgency(Enum):
+    URGENT = "URGENT"
+    NOT_URGENT = "NOT_URGENT"
+
 def _valid_http_url(u: str) -> bool:
     p = urlparse(u.strip())
     return p.scheme in ("http", "https") and bool(p.netloc)

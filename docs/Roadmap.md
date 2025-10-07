@@ -100,12 +100,11 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Finnhub macro news endpoint (`/news?category=general`)
 - Cross-source deduplication working
 - Enhanced poller for multi-source orchestration
+- Urgency detection stub (always returns NOT_URGENT; LLM-based detection deferred to v0.5)
 
-**Status**:
-- Implemented: Macro news ingestion, cross-source dedup, multi-source poller orchestration
-- Pending: Urgent keyword detection (bankruptcy, SEC investigation, etc.)
+**Status**: DONE
 
-**Flow**: Every 5 min → fetch incremental → dedup → store → filter urgent
+**Flow**: Every 5 min → fetch incremental → dedup → store → classify urgency (stub)
 
 ### v0.3.4 — Complete Data Pipeline
 **Achieves**:
@@ -148,9 +147,9 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - SEC Filings Analyst
 - Head Trader (synthesizes + portfolio context)
 
-**Strategy**: 
+**Strategy**:
 - Sort-and-rank approach (not numeric scoring)
-- Urgent keywords trigger immediate analysis
+- LLM-based urgent keyword detection (bankruptcy, SEC investigation, etc.) triggers immediate analysis
 - Cleanup on success, preserve on failure
 ---
 

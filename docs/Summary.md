@@ -105,6 +105,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `Stance` - Analysis stances: BULL, BEAR, NEUTRAL
   - `AnalysisType` - Types: `news_analysis`, `sentiment_analysis`, `sec_filings`, `head_trader`
   - `NewsLabelType` - News focus tags: Company, People, MarketWithMention
+  - `Urgency` - News urgency levels: URGENT, NOT_URGENT
   
   **Dataclasses**:
   - `NewsItem` - `symbol`, `url`, `headline`, `published` (UTC), `source`, `content` (optional)
@@ -235,12 +236,12 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 **Files**:
 - `workflows/__init__.py` - Package marker
 - `workflows/poller.py` - Data collection orchestrator
-  - `DataPoller` - Orchestrates multiple providers concurrently with news classification
+  - `DataPoller` - Orchestrates multiple providers concurrently with news classification and urgency detection
     - `__init__(db_path, news_providers, price_providers, poll_interval)` - Initialize poller
     - `_fetch_all_data()` - Concurrent fetch for news and price providers; calls `fetch_incremental(since=last_news_time, min_id=last_macro_min_id)` for news and `fetch_incremental()` for prices; returns company_news/macro_news/prices/errors
     - `_process_prices()` - Store price data and return count
-    - `_process_news()` - Store news, classify company news, update watermarks (`news_since_iso`, `macro_news_min_id`)
-    - `poll_once()` - One cycle: fetch, classify, update `news_since_iso` and `macro_news_min_id`
+    - `_process_news()` - Store news, classify company news, detect urgency, update watermarks (`news_since_iso`, `macro_news_min_id`)
+    - `poll_once()` - One cycle: fetch, classify, detect urgency, update `news_since_iso` and `macro_news_min_id`
     - `run()` - Continuous polling loop with interval scheduling and graceful shutdown
     - `stop()` - Request graceful shutdown
   - `DataBatch` (TypedDict) - Batch result with `company_news`, `macro_news`, `prices`, `errors`
@@ -253,6 +254,8 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `analysis/__init__.py` - Package marker
 - `analysis/news_classifier.py` - News classification module
   - `classify(news_items)` - Classify news into Company/People/MarketWithMention (currently stub returning 'Company' for all)
+- `analysis/urgency_detector.py` - Urgency detection module
+  - `detect_urgency(news_items)` - Detect urgent news requiring immediate attention (currently stub returning empty list; LLM-based detection in v0.5)
 
 ### `ui/` — Web UI
 **Purpose**: Lightweight Streamlit interface for local DB inspection
@@ -329,6 +332,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
   - `tests/unit/analysis/` - Analysis module tests
     - `tests/unit/analysis/test_news_classifier.py` - News classification tests
+    - `tests/unit/analysis/test_urgency_detector.py` - Urgency detection tests
 
 - `tests/integration/` - Integration tests (organized by workflow)
   - `tests/integration/data/` - Data pipeline tests

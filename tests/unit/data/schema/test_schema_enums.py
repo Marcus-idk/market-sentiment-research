@@ -7,7 +7,7 @@ import pytest
 
 from data.storage import init_database
 from data.storage.db_context import _cursor_context
-from data.models import Session, Stance, AnalysisType, NewsLabelType
+from data.models import Session, Stance, AnalysisType, NewsLabelType, Urgency
 
 
 class TestEnumValueLocks:
@@ -15,39 +15,30 @@ class TestEnumValueLocks:
     
     def test_session_enum_values_unchanged(self):
         """Lock Session enum values - these are stored in database."""
-        # These exact string values are persisted in the database
-        # Changing them would break all existing records
         assert Session.REG.value == "REG"
         assert Session.PRE.value == "PRE"
         assert Session.POST.value == "POST"
         assert Session.CLOSED.value == "CLOSED"
         
-        # Verify enum has exactly these 4 values
         assert len(Session) == 4
         assert set(s.value for s in Session) == {"REG", "PRE", "POST", "CLOSED"}
     
     def test_stance_enum_values_unchanged(self):
         """Lock Stance enum values - these are stored in database."""
-        # These exact string values are persisted in the database
-        # Changing them would break all existing records
         assert Stance.BULL.value == "BULL"
         assert Stance.BEAR.value == "BEAR"
         assert Stance.NEUTRAL.value == "NEUTRAL"
         
-        # Verify enum has exactly these 3 values
         assert len(Stance) == 3
         assert set(s.value for s in Stance) == {"BULL", "BEAR", "NEUTRAL"}
     
     def test_analysis_type_enum_values_unchanged(self):
         """Lock AnalysisType enum values - these are stored in database."""
-        # These exact string values are persisted in the database
-        # Changing them would break all existing records
         assert AnalysisType.NEWS_ANALYSIS.value == "news_analysis"
         assert AnalysisType.SENTIMENT_ANALYSIS.value == "sentiment_analysis"
         assert AnalysisType.SEC_FILINGS.value == "sec_filings"
         assert AnalysisType.HEAD_TRADER.value == "head_trader"
         
-        # Verify enum has exactly these 4 values
         assert len(AnalysisType) == 4
         assert set(a.value for a in AnalysisType) == {
             "news_analysis", "sentiment_analysis", "sec_filings", "head_trader"
@@ -60,6 +51,14 @@ class TestEnumValueLocks:
         assert NewsLabelType.MARKET_WITH_MENTION.value == 'MarketWithMention'
         assert len(NewsLabelType) == 3
         assert set(label.value for label in NewsLabelType) == {'Company', 'People', 'MarketWithMention'}
+
+    def test_urgency_enum_values_unchanged(self):
+        """Lock Urgency enum values - for future database storage."""
+        assert Urgency.URGENT.value == "URGENT"
+        assert Urgency.NOT_URGENT.value == "NOT_URGENT"
+
+        assert len(Urgency) == 2
+        assert set(u.value for u in Urgency) == {"URGENT", "NOT_URGENT"}
 
 
 class TestEnumConstraints:
