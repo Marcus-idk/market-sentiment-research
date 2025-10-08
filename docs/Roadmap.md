@@ -1,13 +1,16 @@
 # Trading Bot Development Roadmap
 
 ## Instructions for Updating Roadmap
-- **ALWAYS** read the WHOLE document before making any updates
-- Keep the pattern of updating exactly the same as the current version sections:
-  - Each version has: Goal, Achieves, Status (and optionally Cost, Success, etc.)
-  - Use ✅ emoji to indicate completed versions/sections
-  - Use appropriate emojis for future sections (☁️, 🧠, 🎯)
-  - Maintain consistent formatting and structure throughout
-- The tick emoji (✅) means done/complete
+- Read the WHOLE document before making any updates.
+- Keep the pattern exactly the same across sections:
+  - Required subsections (exactly these three): Goal, Achieves, Notes
+  - No other subsection headers allowed (e.g., Success, Environment, Flow, Pipeline, Roles, Strategy). Put that info under Notes.
+  - Indicate completion ONLY by adding a ✅ in the section title (e.g., `## v0.2 — Core Infrastructure ✅`).
+  - Do NOT add separate lines like "Status: ..." anywhere.
+  - For planned/future sections, keep the themed emoji in the title (☁️, 🧠, 🎯) without a ✅.
+  - Maintain consistent formatting and structure throughout.
+  - Use ✅ only when the entire section is complete.
+ - Project-wide explanations of overall behavior belong at the end of this file (bottom). Keep them high-level (e.g., Runtime Flow Snapshot and a short Processing Example). Do not include implementation details there (e.g., schema keys, internal tables, or design-benefit bullets).
 
 ## Project Goal
 Automated trading bot that uses LLMs for fundamental analysis. Polls data every 5 minutes, flags urgent events, and issues HOLD/SELL recommendations via scheduled LLM analysis.
@@ -16,12 +19,6 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Target: Retail traders (not HFT)
 - Edge: LLM scans hundreds of sources 24/7
 - Scope: Monitor existing positions only (no new discovery)
-
-## Market & Tech Specs
-- Market: US equities (NYSE/NASDAQ); US-listed stocks only
-- Sessions (ET): Pre 4:00–9:30, Regular 9:30–16:00, Post 16:00–20:00, Closed 20:00–4:00
-- Timezone: Store UTC (ISO Z); convert to ET for logic; session enum {REG, PRE, POST, CLOSED}
-- Data Sources: Finnhub, Polygon.io, SEC EDGAR, Reddit
 
 ---
 
@@ -40,6 +37,8 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Clean provider pattern with async implementation
 - SHA-256 validation tests
 
+ 
+
 ---
 
 ## v0.2 — Core Infrastructure ✅
@@ -51,37 +50,45 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - URL normalization for cross-provider dedup
 - Decimal precision for financial values
 
-**Environment**: Requires SQLite JSON1 extension (fails fast if missing)
+**Notes**:
+- Environment: Requires SQLite JSON1 extension (fails fast if missing)
+
+ 
 
 ---
 
 ## v0.3 — Data Collection Layer
 **Goal**: Build complete data ingestion pipeline
+ 
+**Achieves**:
+- 5‑minute poller ingesting Finnhub news and prices
+- Incremental fetching via watermarks with cross‑source deduplication
+- Local database UI for inspection and debugging
+- Multi‑source orchestration groundwork (company + macro news)
+- Extensible provider pattern for upcoming integrations
 
-### v0.3.1 — First Market Connection
-**Components**:
+### v0.3.1 — First Market Connection ✅
+**Achieves**:
 - Finnhub provider (news + prices)
 - HTTP helper with retry (`utils/http.get_json_with_retry`)
 - Basic poller for 5-minute data collection
 - Config package for API keys
 - Centralized Finnhub API validation in client (providers delegate)
 
-**Watermark System**:
-- State table: `last_seen(key PRIMARY KEY, value)`
-- `news_since_iso`: Track last fetched news publish time (incremental fetching)
-- `llm_last_run_iso`: Track LLM cutoff for cleanup (prep for v0.5)
-- Two-clock design: Fetch by publish time, cleanup by insert time (handles late arrivals)
-- 2-minute safety buffer for clock skew (implemented in v0.3.1 via `FinnhubNewsProvider.fetch_incremental()`)
+**Notes**:
+- Watermark system:
+  - State table: `last_seen(key PRIMARY KEY, value)`
+  - `news_since_iso`: Track last fetched news publish time (incremental)
+  - `llm_last_run_iso`: Track LLM cutoff for cleanup (prep for v0.5)
+  - Two-clock design: Fetch by publish time; cleanup by insert time (handles late arrivals)
+  - 2‑minute safety buffer for clock skew (implemented via `FinnhubNewsProvider.fetch_incremental()`)
+- Data flow:
+  - 5‑min loop: Read watermark → Fetch incremental → Store → Update watermark
+  - Cleanup prep: cutoff = T − 2min, process rows where `created_at_iso ≤ cutoff`
+  - One global `news_since_iso` acceptable (per‑provider later)
+ 
 
-**Data Flow**:
-- 5-min loop: Read watermark → Fetch incremental → Store → Update watermark
-- Cleanup prep: Define cutoff = T - 2min, process rows where `created_at_iso ≤ cutoff`
-- One global `news_since_iso` acceptable for v0.3.1 (per-provider later)
-
-**Success**: Manual script fetches data every 5 minutes with deduplication
-
-
-### v0.3.2 — Database UI + News Classifier
+### v0.3.2 — Database UI + News Classifier✅
 **Goal**: Browse the SQLite database locally and prepare news classification structure
 
 **Achieves**:
@@ -90,21 +97,20 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - `news_labels` table structure ready for future LLM-powered classification
 - Classification pipeline integrated into poller workflow
 
-**Dev UX**:
-- Install: `pip install streamlit` (or `pip install -r requirements-dev.txt`)
+**Notes**:
+- Dev UX: `pip install streamlit` (or `pip install -r requirements-dev.txt`)
 - Run: `streamlit run ui/app_min.py`
 - Scope: local development (read‑only table viewer); do not expose publicly
 
-### v0.3.3 — Multi-Source Collection
+### v0.3.3 — Macro News ✅
 **Achieves**:
-- Finnhub macro news endpoint (`/news?category=general`)
-- Cross-source deduplication working
-- Enhanced poller for multi-source orchestration
+- Finnhub macro news via `/news?category=general` with `minId` cursor
+- Independent watermark `macro_news_min_id` tracked in `last_seen`
+- Poller integrates macro news alongside company news in the 5‑min loop
 - Urgency detection stub (always returns NOT_URGENT; LLM-based detection deferred to v0.5)
 
-**Status**: DONE
-
-**Flow**: Every 5 min → fetch incremental → dedup → store → classify urgency (stub)
+**Notes**:
+- Flow: Every 5 min → fetch incremental → dedup → store → classify urgency (stub)
 
 ### v0.3.4 — Complete Data Pipeline
 **Achieves**:
@@ -114,7 +120,8 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Circuit breakers and retry logic
 - Data quality validation
 
-**Provider Pattern**: Dual providers (news+price) or single-purpose
+**Notes**:
+- Provider pattern: Dual providers (news+price) or single-purpose
 
 
 ---
@@ -128,7 +135,8 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Secrets management for API keys
 - Call `finalize_database()` before commits (WAL checkpoint)
 
-**Success**: Runs autonomously on GitHub infrastructure
+**Notes**:
+ 
 
 
 ---
@@ -136,21 +144,16 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 ## v0.5 — Trading Intelligence Layer 🧠
 **Goal**: Add LLM-powered analysis and decisions
 
-**Pipeline**:
-```
-30-min raw batches → Specialist LLMs → Persistent analysis → Head Trader LLM → HOLD/SELL
-```
-
-**Roles**:
-- News Analyst
-- Sentiment Analyst  
-- SEC Filings Analyst
-- Head Trader (synthesizes + portfolio context)
-
-**Strategy**:
-- Sort-and-rank approach (not numeric scoring)
-- LLM-based urgent keyword detection (bankruptcy, SEC investigation, etc.) triggers immediate analysis
-- Cleanup on success, preserve on failure
+**Achieves**:
+- LLM analysis pipeline producing HOLD/SELL with justifications
+- Urgent-triggered immediate analysis for critical events
+- Persistent storage of analysis results and decisions
+ 
+**Notes**:
+- Pipeline: 30‑min raw batches → Specialist LLMs → Persistent analysis → Head Trader LLM → HOLD/SELL
+- Roles: News Analyst; Sentiment Analyst; SEC Filings Analyst; Head Trader (synthesizes + portfolio context)
+- Strategy: Sort‑and‑rank approach (not numeric scoring); urgent keyword detection triggers immediate analysis; cleanup on success, preserve on failure
+ 
 ---
 
 ## v1.0 — Production Trading Bot 🎯
@@ -163,30 +166,8 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Performance metrics beating buy-and-hold
 - 99%+ collection uptime
 
-
-**Success**: Reliable, profitable recommendation engine
-
----
-
-## Data Flow Architecture
-
-### Watermark System
-**Keys in `last_seen` table**:
-- `news_since_iso`: Last news publish time fetched (providers use for incremental)
-- `llm_last_run_iso`: Last LLM cutoff processed (for cleanup after success)
-
-### Processing Timeline
-**Example flow**:
-- 10:00Z: Fetch news published ≥ 09:55Z (using `news_since_iso`)
-- 10:30Z: LLM starts, calculates cutoff = 10:28Z (T - 2min buffer)
-- 10:32Z: LLM succeeds → set `llm_last_run_iso = 10:28Z`, delete rows ≤ cutoff
-- Late arrivals after cutoff remain for next batch
-
-### Design Benefits
-- No refetching (incremental via publish time)
-- No data loss (2-min buffer for late/skewed items)
-- Bounded database size (cleanup after LLM success)
-- Separate clocks: fetch by publish time, cleanup by insert time
+**Notes**:
+ 
 
 ---
 
@@ -212,7 +193,34 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Risk management framework
 
 ## Runtime Flow Snapshot
-1. Every 5 minutes the poller wakes up, fetches fresh Finnhub news and prices, and writes them into SQLite.
-2. Right after insert, the classifier tags each article as Company, People, or MarketWithMention and stores labels in `news_labels`.
-3. The watermark moves forward so the next 5-minute loop only grabs newer records, then the poller sleeps.
-4. Every 30 minutes the LLM analysis job reads the labeled news plus recent prices, batches the inputs, and saves decisions into `analysis_results`.
+- Startup
+  - Loads `.env` and logging; parses `SYMBOLS`, `POLL_INTERVAL`, `FINNHUB_API_KEY`, `DATABASE_PATH` (default `data/trading_bot.db`). If `-v`, also uses `STREAMLIT_PORT`. Initializes SQLite (JSON1 required).
+  - Launches optional Streamlit viewer if requested (`-v`) before provider validation.
+  - Creates Finnhub providers (company, macro, price) and validates API connections.
+- Every poll (interval = `POLL_INTERVAL`, e.g., 300s; first cycle runs immediately)
+  - Read watermarks: `news_since_iso` (company/macro published time), `macro_news_min_id` (macro minId).
+  - Fetch company news (`/company-news` per symbol)
+    - If `news_since_iso` missing: use from = UTC date 2 days ago, to = today.
+    - Else: use from = date(since − 2 minutes), to = today; then ignore articles published ≤ (since − 2 minutes). Articles at exactly the watermark are kept.
+  - Fetch macro news (`/news?category=general`)
+    - If `macro_news_min_id` missing: no `minId` param; keep only articles published in the last 2 days.
+    - Else: pass `minId = macro_news_min_id`; keep only articles with id > minId. Track `last_fetched_max_id`.
+  - Fetch prices (`/quote` per symbol) and classify session (REG/PRE/POST/CLOSED) from ET.
+  - Store results
+    - `store_news_items` with URL dedup; classify company news and `store_news_labels` (stub classifier).
+    - Run urgency detector (stub; returns none; no urgent headlines logged).
+    - Advance `news_since_iso` to the max published timestamp across all news fetched.
+    - If present, advance `macro_news_min_id` to provider `last_fetched_max_id`.
+  - Sleep until next cycle.
+
+Example timeline (first run, no watermarks)
+- Now = 2024-01-15T12:00:00Z
+- Company news: from=2024-01-13, to=2024-01-15 (last 2 UTC days) for each symbol.
+- Macro news: no `minId`; keep only items with published > 2024-01-13T12:00:00Z.
+- Prices: fetch current `/quote` for each symbol; store with session classification.
+- After storing, set `news_since_iso` to the latest news.publish time (e.g., 2024-01-15T11:58:00Z) and set `macro_news_min_id` to the highest macro id seen (e.g., 123456789).
+
+Next cycle (e.g., 2024-01-15T12:05:00Z)
+- Company news: from = date(2024-01-15T11:56:00Z), filter out articles published ≤ 11:56:00Z; items at 11:58:00Z and later are included.
+- Macro news: pass `minId=123456789`; keep only articles with id > 123456789.
+- Prices: fetch current quotes; store.
