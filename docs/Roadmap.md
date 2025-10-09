@@ -68,6 +68,9 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Extensible provider pattern for upcoming integrations
 
 ### v0.3.1 — First Market Connection ✅
+**Goal**:
+- Establish first market data connection (Finnhub)
+
 **Achieves**:
 - Finnhub provider (news + prices)
 - HTTP helper with retry (`utils/http.get_json_with_retry`)
@@ -103,25 +106,34 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Scope: local development (read‑only table viewer); do not expose publicly
 
 ### v0.3.3 — Macro News ✅
+**Goal**:
+- Add macro news with independent watermark
+
 **Achieves**:
 - Finnhub macro news via `/news?category=general` with `minId` cursor
 - Independent watermark `macro_news_min_id` tracked in `last_seen`
 - Poller integrates macro news alongside company news in the 5‑min loop
-- Urgency detection stub (always returns NOT_URGENT; LLM-based detection deferred to v0.5)
+- Urgency detection stub logs cycle stats but returns no flagged items (empty list); LLM-based detection deferred to v0.5
 
 **Notes**:
 - Flow: Every 5 min → fetch incremental → dedup → store → classify urgency (stub)
 
 ### v0.3.4 — Complete Data Pipeline
+**Goal**:
+- Complete ingestion with dual price providers and dedup
+
 **Achieves**:
-- Polygon.io (backup market data, 5 calls/min free)
+- Polygon.io (concurrent price provider, 5 calls/min free tier; fetches alongside Finnhub every cycle)
 - Reddit sentiment (PRAW, ~100 queries/min)
 - SEC EDGAR (filings/insider trades, 10 req/sec)
+- RSS feeds (custom news sources)
 - Circuit breakers and retry logic
 - Data quality validation
 
 **Notes**:
 - Provider pattern: Dual providers (news+price) or single-purpose
+ - Price dedup: Compare to primary; log mismatches >= $0.01; store primary.
+ - Partial progress: Polygon price provider is implemented; Reddit, SEC EDGAR, and RSS integrations remain planned.
 
 
 ---
@@ -192,35 +204,15 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 - Cross-market correlations
 - Risk management framework
 
+### Hybrid Data Collection
+- WebSocket + REST API mixing (real-time streams + polling fallback)
+- Flat file support where necessary (CSV exports, bulk historical data)
+- Provider abstraction over multiple transport types
+
 ## Runtime Flow Snapshot
 - Startup
-  - Loads `.env` and logging; parses `SYMBOLS`, `POLL_INTERVAL`, `FINNHUB_API_KEY`, `DATABASE_PATH` (default `data/trading_bot.db`). If `-v`, also uses `STREAMLIT_PORT`. Initializes SQLite (JSON1 required).
-  - Launches optional Streamlit viewer if requested (`-v`) before provider validation.
-  - Creates Finnhub providers (company, macro, price) and validates API connections.
-- Every poll (interval = `POLL_INTERVAL`, e.g., 300s; first cycle runs immediately)
-  - Read watermarks: `news_since_iso` (company/macro published time), `macro_news_min_id` (macro minId).
-  - Fetch company news (`/company-news` per symbol)
-    - If `news_since_iso` missing: use from = UTC date 2 days ago, to = today.
-    - Else: use from = date(since − 2 minutes), to = today; then ignore articles published ≤ (since − 2 minutes). Articles at exactly the watermark are kept.
-  - Fetch macro news (`/news?category=general`)
-    - If `macro_news_min_id` missing: no `minId` param; keep only articles published in the last 2 days.
-    - Else: pass `minId = macro_news_min_id`; keep only articles with id > minId. Track `last_fetched_max_id`.
-  - Fetch prices (`/quote` per symbol) and classify session (REG/PRE/POST/CLOSED) from ET.
-  - Store results
-    - `store_news_items` with URL dedup; classify company news and `store_news_labels` (stub classifier).
-    - Run urgency detector (stub; returns none; no urgent headlines logged).
-    - Advance `news_since_iso` to the max published timestamp across all news fetched.
-    - If present, advance `macro_news_min_id` to provider `last_fetched_max_id`.
-  - Sleep until next cycle.
-
-Example timeline (first run, no watermarks)
-- Now = 2024-01-15T12:00:00Z
-- Company news: from=2024-01-13, to=2024-01-15 (last 2 UTC days) for each symbol.
-- Macro news: no `minId`; keep only items with published > 2024-01-13T12:00:00Z.
-- Prices: fetch current `/quote` for each symbol; store with session classification.
-- After storing, set `news_since_iso` to the latest news.publish time (e.g., 2024-01-15T11:58:00Z) and set `macro_news_min_id` to the highest macro id seen (e.g., 123456789).
-
-Next cycle (e.g., 2024-01-15T12:05:00Z)
-- Company news: from = date(2024-01-15T11:56:00Z), filter out articles published ≤ 11:56:00Z; items at 11:58:00Z and later are included.
-- Macro news: pass `minId=123456789`; keep only articles with id > 123456789.
-- Prices: fetch current quotes; store.
+  - Load environment and logging, initialize the database, optionally launch the local UI, and validate provider connectivity.
+- Poll cycle
+  - Read watermarks, fetch news and prices concurrently, store results, classify company news, update watermarks, then sleep until the next interval.
+- Example
+  - First run: fetch a recent window for each source; next cycle: fetch only items newer than the stored watermark.

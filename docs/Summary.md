@@ -15,7 +15,7 @@ When updating this file, follow this checklist:
 ---
 
 ## Core Idea
-Framework for US equities data collection and LLM-ready storage. Current scope: strict UTC models, SQLite with constraints/dedup, LLM provider integrations (OpenAI, Gemini), and a configurable (5 mins for now) Finnhub poller. Trading decisions are not implemented yet; session detection is implemented via ET conversion.
+Framework for US equities data collection and LLM-ready storage. Current scope: strict UTC models, SQLite with constraints/dedup, LLM provider integrations (OpenAI, Gemini), and a configurable (5 mins for now) data poller with Finnhub and Polygon providers. Trading decisions are not implemented yet; session detection is implemented via ET conversion.
 
 ## Time Policy
 - Persistence: UTC everywhere (ISO `YYYY-MM-DDTHH:MM:SSZ`).
@@ -23,6 +23,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 
 ## Environment Variables
 - `FINNHUB_API_KEY` - Required for market data fetching
+- `POLYGON_API_KEY` - Required for Polygon.io price data
 - `OPENAI_API_KEY` - Required for OpenAI LLM provider
 - `GEMINI_API_KEY` - Required for Gemini LLM provider
 - `DATABASE_PATH` - Optional, defaults to data/trading_bot.db
@@ -51,7 +52,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `main()` - Async entry point with signal handling
   - Uses `utils.logging.setup_logging()` for consistent logging
   - Uses `utils.signals.register_graceful_shutdown()` for SIGINT/SIGTERM
-  - Requires `SYMBOLS`, `POLL_INTERVAL`, and `FINNHUB_API_KEY` in environment
+  - Requires `SYMBOLS`, `POLL_INTERVAL`, `FINNHUB_API_KEY`, and `POLYGON_API_KEY` in environment
   - Optional web UI: run with `-v` (port configurable via `STREAMLIT_PORT`, default 8501)
 - `ui/app_min.py` - Streamlit database UI. Run with `streamlit run ui/app_min.py` (uses `DATABASE_PATH`).
 
@@ -81,6 +82,9 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `config/providers/finnhub.py`
     - `FinnhubSettings` - Dataclass for Finnhub configuration
     - `FinnhubSettings.from_env()` - Load settings from environment
+  - `config/providers/polygon.py`
+    - `PolygonSettings` - Dataclass for Polygon.io configuration
+    - `PolygonSettings.from_env()` - Load settings from environment
 
 ### `data/` — Data models, storage, and providers
 **Purpose**: Core data structures, SQLite operations, and data source implementations
@@ -163,13 +167,23 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
       - `validate_connection()` - Delegates to client
       - `fetch_incremental(since=None, min_id=...)` - ID-based; uses Finnhub `minId`; ignores `since`; tracks `last_fetched_max_id`
       - `_parse_article()` - Convert API response to NewsItem list per watchlist symbol, defaulting to 'ALL' when none match
-    - `_extract_symbols_from_related()` - Filter `related` field against watchlist, fallback to ['ALL']
+    - `_extract_symbols_from_related()` - Filter `related` field against watchlist; if nothing survives, fallback to ['ALL'] for market-wide coverage
       - `last_fetched_max_id` - Stores latest article ID for watermark updates
     - `FinnhubPriceProvider` - Price quote fetching implementation
       - `__init__()` - Initialize with settings and symbols
       - `validate_connection()` - Delegates to client
       - `fetch_incremental()` - Fetch current prices
       - `_parse_quote()` - Convert API response to PriceData with ET-based session detection
+  - `data/providers/polygon/`
+    - `PolygonClient` - HTTP client for Polygon.io API with retry logic
+      - `__init__()` - Initialize with settings
+      - `get()` - Make authenticated GET request with retry logic (path, optional params)
+      - `validate_connection()` - API validation using market status endpoint
+    - `PolygonPriceProvider` - Price snapshot fetching implementation
+      - `__init__()` - Initialize with settings and symbols
+      - `validate_connection()` - Delegates to client
+      - `fetch_incremental()` - Fetch current price snapshots
+      - `_parse_snapshot()` - Convert API response to PriceData; prefers lastTrade.p, fallbacks to quote midpoint; nanosecond timestamp conversion
 
 ### `llm/` — LLM provider abstractions
 **Purpose**: Base classes and provider implementations for LLM interactions
@@ -238,13 +252,13 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `workflows/poller.py` - Data collection orchestrator
   - `DataPoller` - Orchestrates multiple providers concurrently with news classification and urgency detection
     - `__init__(db_path, news_providers, price_providers, poll_interval)` - Initialize poller
-    - `_fetch_all_data()` - Concurrent fetch for news and price providers; calls `fetch_incremental(since=last_news_time, min_id=last_macro_min_id)` for news and `fetch_incremental()` for prices; returns company_news/macro_news/prices/errors
-    - `_process_prices()` - Store price data and return count
-    - `_process_news()` - Store news, classify company news, detect urgency, update watermarks (`news_since_iso`, `macro_news_min_id`)
-    - `poll_once()` - One cycle: fetch, classify, detect urgency, update `news_since_iso` and `macro_news_min_id`
+    - `_fetch_all_data()` - Concurrently fetch news and prices; return company/macro news and per‑provider prices with errors
+    - `_process_news()` - Store news, classify company items, detect urgency, update watermarks
+    - `_process_prices()` - Deduplicate per symbol using primary provider; log mismatches ≥ $0.01; store primary only
+    - `poll_once()` - One cycle: fetch, process, update watermarks, return stats
     - `run()` - Continuous polling loop with interval scheduling and graceful shutdown
     - `stop()` - Request graceful shutdown
-  - `DataBatch` (TypedDict) - Batch result with `company_news`, `macro_news`, `prices`, `errors`
+  - `DataBatch` (TypedDict) - Batch result with `company_news`, `macro_news`, `prices: dict[str, dict[str, PriceData]]` (provider → {symbol → PriceData}), `errors`
   - `PollStats` (TypedDict) - Per-cycle stats with `news`, `prices`, `errors`
 
 ### `analysis/` — Business logic and classification

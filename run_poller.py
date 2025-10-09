@@ -1,8 +1,8 @@
 """
 Main entry point for the trading bot data poller.
 
-Runs continuous data collection from Finnhub every 5 minutes,
-storing results in SQLite database.
+Runs continuous data collection from configured providers at a configurable interval
+(POLL_INTERVAL, seconds), storing results in SQLite.
 """
 
 import argparse
@@ -17,9 +17,11 @@ from pathlib import Path
 from dotenv import load_dotenv
 
 from config.providers.finnhub import FinnhubSettings
+from config.providers.polygon import PolygonSettings
 from workflows.poller import DataPoller
 from data.providers.finnhub import FinnhubNewsProvider, FinnhubMacroNewsProvider, FinnhubPriceProvider
-from data.base import NewsDataSource, PriceDataSource
+from data.providers.polygon import PolygonPriceProvider
+from data import NewsDataSource, PriceDataSource
 from data.storage import init_database
 from utils.logging import setup_logging
 from utils.symbols import parse_symbols
@@ -37,6 +39,7 @@ class PollerConfig:
     poll_interval: int
     ui_port: int | None
     finnhub_settings: FinnhubSettings
+    polygon_settings: PolygonSettings
 
 
 def setup_environment() -> None:
@@ -81,12 +84,19 @@ def build_config(with_viewer: bool) -> PollerConfig:
     except ValueError as e:
         raise ValueError(f"Failed to load Finnhub settings: {e}. Please set FINNHUB_API_KEY environment variable")
 
+    # Load Polygon settings
+    try:
+        polygon_settings = PolygonSettings.from_env()
+    except ValueError as e:
+        raise ValueError(f"Failed to load Polygon settings: {e}. Please set POLYGON_API_KEY environment variable")
+
     return PollerConfig(
         db_path=db_path,
         symbols=symbols,
         poll_interval=poll_interval,
         ui_port=ui_port,
-        finnhub_settings=finnhub_settings
+        finnhub_settings=finnhub_settings,
+        polygon_settings=polygon_settings
     )
 
 
@@ -136,10 +146,17 @@ async def create_and_validate_providers(config: PollerConfig) -> tuple[list[News
     logger.info(f"Tracking symbols: {', '.join(config.symbols)}")
     logger.info(f"Poll interval: {config.poll_interval} seconds")
 
-    # Create providers
+    # Create Finnhub providers
     company_news_provider = FinnhubNewsProvider(config.finnhub_settings, config.symbols)
     macro_news_provider = FinnhubMacroNewsProvider(config.finnhub_settings, config.symbols)
-    price_provider = FinnhubPriceProvider(config.finnhub_settings, config.symbols)
+    finnhub_price_provider = FinnhubPriceProvider(config.finnhub_settings, config.symbols)
+
+    # Create Polygon provider
+    polygon_price_provider = PolygonPriceProvider(config.polygon_settings, config.symbols)
+
+    # Group providers by type
+    news_providers = [company_news_provider, macro_news_provider]
+    price_providers = [finnhub_price_provider, polygon_price_provider]
 
     # Validate connections
     logger.info("Validating API connections...")
@@ -148,25 +165,32 @@ async def create_and_validate_providers(config: PollerConfig) -> tuple[list[News
         if not company_news_valid:
             logger.error("Failed to validate Finnhub company news API connection")
             raise ValueError("Finnhub company news API connection validation failed")
-        logger.info("Company news API connection validated successfully")
+        logger.info("Finnhub company news API connection validated successfully")
 
         macro_news_valid = await macro_news_provider.validate_connection()
         if not macro_news_valid:
             logger.error("Failed to validate Finnhub macro news API connection")
             raise ValueError("Finnhub macro news API connection validation failed")
-        logger.info("Macro news API connection validated successfully")
+        logger.info("Finnhub macro news API connection validated successfully")
 
-        price_valid = await price_provider.validate_connection()
-        if not price_valid:
+        finnhub_price_valid = await finnhub_price_provider.validate_connection()
+        if not finnhub_price_valid:
             logger.error("Failed to validate Finnhub price API connection")
             raise ValueError("Finnhub price API connection validation failed")
-        logger.info("Price API connection validated successfully")
+        logger.info("Finnhub price API connection validated successfully")
+
+        # Validate Polygon
+        polygon_price_valid = await polygon_price_provider.validate_connection()
+        if not polygon_price_valid:
+            logger.error("Failed to validate Polygon price API connection")
+            raise ValueError("Polygon price API connection validation failed")
+        logger.info("Polygon price API connection validated successfully")
 
     except Exception as e:
         logger.error(f"Connection validation failed: {e}")
         raise ValueError(f"Provider validation failed: {e}")
 
-    return [company_news_provider, macro_news_provider], [price_provider]
+    return news_providers, price_providers
 
 
 def cleanup_ui_process(ui_process: subprocess.Popen | None) -> None:

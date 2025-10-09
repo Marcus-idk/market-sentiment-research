@@ -123,7 +123,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                     content=content,
                 )
                 news_items.append(news_item)
-            except ValueError as exc:  # pragma: no cover
+            except ValueError as exc:
                 logger.debug(
                     f"NewsItem validation failed for {symbol} (url={url}): {exc}"
                 )
@@ -135,5 +135,15 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         if not related or not related.strip():
             return ["ALL"]
 
-        return parse_symbols(related, filter_to=self.symbols, validate=True, log_label="RELATED")
+        symbols = parse_symbols(
+            related,
+            filter_to=self.symbols,
+            validate=True,
+            log_label="RELATED",
+        )
+
+        if not symbols:
+            return ["ALL"]
+
+        return symbols
 

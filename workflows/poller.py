@@ -1,13 +1,15 @@
 """
 Data poller for continuous market data collection.
 
-Orchestrates fetching from Finnhub providers every 5 minutes,
-storing results in SQLite, and managing watermarks for incremental fetching.
+Orchestrates fetching from configured providers at regular intervals,
+storing results in SQLite, managing watermarks for incremental fetching,
+and deduplicating prices from multiple providers.
 """
 
 import asyncio
 import logging
 from datetime import datetime
+from decimal import Decimal
 from typing import Any, TypedDict
 
 from data.models import NewsItem, PriceData
@@ -28,7 +30,7 @@ class DataBatch(TypedDict):
     """Data fetched from all providers in one cycle."""
     company_news: list[NewsItem]
     macro_news: list[NewsItem]
-    prices: list[PriceData]
+    prices: dict[str, dict[str, PriceData]]  # {provider_name: {symbol: PriceData}}
     errors: list[str]
 
 class PollStats(TypedDict):
@@ -40,10 +42,10 @@ class PollStats(TypedDict):
 
 class DataPoller:
     """
-    Polls Finnhub for news and price data at regular intervals.
+    Polls configured providers for news and price data at regular intervals.
 
     Handles watermark-based incremental fetching, partial failures,
-    and graceful shutdown.
+    price deduplication across providers, and graceful shutdown.
     """
 
     def __init__(
@@ -95,7 +97,7 @@ class DataPoller:
         # Separate results by provider type
         company_news = []
         macro_news = []
-        prices = []
+        prices_by_provider: dict[str, dict[str, PriceData]] = {}
         errors = []
 
         # Start both news and price fetches concurrently (don't await yet)
@@ -124,33 +126,90 @@ class DataPoller:
                 else:
                     company_news.extend(result)
 
-        # Process price results - zip keeps provider and result matched
+        # Process price results - keep providers separate
         for provider, result in zip(self.price_providers, price_results):
+            provider_name = provider.__class__.__name__
             if isinstance(result, Exception):
-                provider_name = provider.__class__.__name__
                 logger.error(f"{provider_name} price fetch failed: {result}")
                 errors.append(f"{provider_name}: {str(result)}")
             else:
-                prices.extend(result)
+                # Convert list to dict keyed by symbol
+                prices_by_provider[provider_name] = {p.symbol: p for p in result}
 
         return DataBatch(
             company_news=company_news,
             macro_news=macro_news,
-            prices=prices,
+            prices=prices_by_provider,
             errors=errors,
         )
 
-    async def _process_prices(self, price_items: list[PriceData]) -> int:
-        """Store price data."""
+    async def _process_prices(self, prices_by_provider: dict[str, dict[str, PriceData]]) -> int:
+        """
+        Deduplicate and store price data from multiple providers.
+
+        Compares prices by symbol across providers. If prices differ by >= $0.01,
+        logs an error. Always stores the primary provider's price (first in order).
+
+        Args:
+            prices_by_provider: Dict mapping provider name to symbol-keyed prices
+
+        Returns:
+            Number of prices stored
+        """
+        if not prices_by_provider:
+            return 0
+
+        # Primary provider = first in configured order
+        provider_order = [p.__class__.__name__ for p in self.price_providers]
+        primary_provider = provider_order[0]
+
+        # Get primary provider's prices (or empty dict if failed)
+        primary_prices = prices_by_provider.get(primary_provider, {})
+
+        # Collect all unique symbols across all providers
+        all_symbols = set()
+        for provider_prices in prices_by_provider.values():
+            all_symbols.update(provider_prices.keys())
+
+        # Compare and store
+        deduplicated_prices = []
+        for symbol in all_symbols:
+            # Get primary provider's price
+            primary_price_data = primary_prices.get(symbol)
+            if primary_price_data is None:
+                logger.warning(f"{primary_provider} missing price for {symbol}")
+                continue
+
+            # Always store primary provider's price
+            deduplicated_prices.append(primary_price_data)
+
+            # Compare with other providers
+            for provider_name in provider_order[1:]:
+                if provider_name not in prices_by_provider:
+                    continue
+
+                other_price_data = prices_by_provider[provider_name].get(symbol)
+                if other_price_data is None:
+                    logger.warning(f"{provider_name} missing price for {symbol}")
+                    continue
+
+                # Check for mismatch
+                diff = abs(primary_price_data.price - other_price_data.price)
+                if diff >= Decimal("0.01"):
+                    logger.error(
+                        f"Price mismatch for {symbol}: "
+                        f"{primary_provider}=${primary_price_data.price} vs "
+                        f"{provider_name}=${other_price_data.price} (diff=${diff})"
+                    )
 
         await asyncio.to_thread(
             store_price_data,
             self.db_path,
-            price_items,
+            deduplicated_prices,
         )
 
-        logger.info(f"Stored {len(price_items)} price updates")
-        return len(price_items)
+        logger.info(f"Stored {len(deduplicated_prices)} price updates")
+        return len(deduplicated_prices)
 
     def _log_urgent_items(self, urgent_items: list[NewsItem]) -> None:
         """Summarize urgency detection results with bounded detail."""
@@ -258,10 +317,10 @@ class DataPoller:
                 logger.info("No new news items found")
 
             # Process prices
-            prices = data["prices"]
+            prices_by_provider = data["prices"]
 
-            if prices:
-                stats["prices"] = await self._process_prices(prices)
+            if prices_by_provider:
+                stats["prices"] = await self._process_prices(prices_by_provider)
             else:
                 logger.info("No price data fetched")
 

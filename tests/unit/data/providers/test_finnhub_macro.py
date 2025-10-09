@@ -182,7 +182,7 @@ class TestFinnhubMacroNewsProvider:
         assert len(items) == 1
         assert items[0].symbol == 'AAPL'
 
-        # Case 3: no matches → skip (provider returns no items when watchlist filters everything)
+        # Case 3: no matches → falls back to macro catch-all
         provider = FinnhubMacroNewsProvider(settings, ['AAPL'])
         article = {
             'id': 3,
@@ -192,9 +192,10 @@ class TestFinnhubMacroNewsProvider:
             'related': 'XYZ,ABC'
         }
         items = provider._parse_article(article, buffer_time=None)
-        assert items == []
+        assert len(items) == 1
+        assert items[0].symbol == 'ALL'
 
-        # Case 4: empty watchlist → no items
+        # Case 4: empty watchlist → treat as macro and tag ALL
         provider = FinnhubMacroNewsProvider(settings, [])
         article = {
             'id': 4,
@@ -204,7 +205,8 @@ class TestFinnhubMacroNewsProvider:
             'related': 'AAPL,MSFT'
         }
         items = provider._parse_article(article, buffer_time=None)
-        assert len(items) == 0
+        assert len(items) == 1
+        assert items[0].symbol == 'ALL'
 
         # Case 5: missing 'related' field → ALL
         provider = FinnhubMacroNewsProvider(settings, ['AAPL'])

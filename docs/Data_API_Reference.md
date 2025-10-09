@@ -85,10 +85,56 @@ The **"Endpoints"** section shows only what we actually call/use (matching the �
 
 ---
 
-## Other providers (coverage only for now)
-- Polygon — Covers: ✅ Prices (backup) · ✅ Company News *(plan-dependent)*
-- SEC EDGAR — Covers: ✅ Filings (10‑K, 10‑Q, 8‑K, insider)
-- Reddit — Covers: ✅ Social/Sentiment (subreddits, posts, comments)
+## Provider: Polygon.io
+**Auth & Base**: API key (query param `apiKey`) · Base: `https://api.polygon.io`
+
+**What they provide**
+- Prices/Market Data — ✅
+
+**Endpoints**
+- Prices/Market Data — `GET /v2/snapshot/locale/us/markets/stocks/tickers/{symbol}`
+  - Path: `symbol` (ticker, case-sensitive)
+  - Params: `apiKey`
+  - Returns:
+    ```json
+    {
+      "status": "OK",
+      "ticker": {
+        "ticker": "AAPL",
+        "updated": 1699891198523000000,
+        "lastTrade": {
+          "p": 150.26,
+          "s": 100,
+          "t": 1699891198523000000,
+          "x": 4
+        },
+        "lastQuote": {
+          "P": 150.27,
+          "p": 150.25,
+          "S": 10,
+          "s": 5,
+          "t": 1699891198507251700
+        },
+        "day": {
+          "c": 150.26,
+          "h": 151.20,
+          "l": 149.50,
+          "o": 150.00,
+          "v": 28727868,
+          "vw": 150.12
+        }
+      }
+    }
+    ```
+  - **Note**: Timestamps are in nanoseconds. We prefer `lastTrade.p` (actual execution) over quote midpoint.
+
+- Connection Validation — `GET /v1/marketstatus/now`
+  - Params: `apiKey`
+  - Used for validating API connectivity (cheap endpoint, doesn't count against rate limits)
+
+**Rate Limits**
+- Free tier: ~5 calls/min
+- Caution: Fetching per-symbol snapshots with large watchlists may exceed free tier limits (e.g., >25 symbols with 5-min polling)
 
 ---
 
