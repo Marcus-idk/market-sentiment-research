@@ -157,6 +157,48 @@ for article in results:
         logger.debug(f"Skipping malformed item: {exc}")
 ```
 
+### ERROR_HANDLING_EXPECTED_PARSING
+Parsing helpers may return sentinel values (e.g., `None`) without logging when a comment documents the intentional fallthrough and the function contract defines the sentinel.
+```python
+def parse_retry_after(value: str | float | int | None) -> float | None:
+    try:
+        return max(0.0, float(value))
+    except (TypeError, ValueError):
+        # Intentional fallthrough: try HTTP-date parsing next.
+        pass
+    ...
+    return None
+```
+
+### ORCHESTRATOR_TIMEOUTS
+Polling loops must log normal timeout or cancellation signals instead of silently swallowing them.
+```python
+except asyncio.TimeoutError:
+    logger.debug("Poll wait timeout; continuing")
+```
+
+### CLEANUP_SHUTDOWN
+Before escalating from graceful shutdown to forceful termination, emit a `WARNING` with the cause.
+```python
+except Exception as exc:
+    logger.warning(f"Graceful stop failed; forcing kill: {exc}")
+    process.kill()
+```
+
+### PER_ITEM_CATCHES
+Per-item parsing loops should catch explicit data issues (`ValueError`, `TypeError`, `KeyError`, `AttributeError`, and provider-domain errors) instead of `except Exception`.
+```python
+except (ValueError, TypeError, KeyError, AttributeError, DataSourceError) as exc:
+    logger.debug(f"Skipping malformed item: {exc}")
+```
+
+### CAUSE_CHAINING
+When wrapping exceptions, use `raise ... from exc` so upstream callers retain the original traceback.
+```python
+except SDKError as exc:
+    raise DataSourceError("Provider failed") from exc
+```
+
 ### CENTRALIZE_CONCERNS
 Centralize I/O, HTTP, retries/backoff, timezones, data normalization, logging.
 **ALWAYS check `utils/` and `data/storage/storage_utils.py` for existing helpers before writing new code.**

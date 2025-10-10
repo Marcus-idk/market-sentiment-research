@@ -6,9 +6,10 @@ from decimal import Decimal
 from typing import Any
 
 from config.providers.finnhub import FinnhubSettings
-from data import PriceDataSource
+from data import PriceDataSource, DataSourceError
 from data.models import PriceData
 from utils.market_sessions import classify_us_session
+from utils.retry import RetryableError
 from data.providers.finnhub.finnhub_client import FinnhubClient
 
 
@@ -42,8 +43,17 @@ class FinnhubPriceProvider(PriceDataSource):
                 price_item = self._parse_quote(quote, symbol)
                 if price_item:
                     price_data.append(price_item)
-            except Exception as exc:
+            except (
+                RetryableError,
+                DataSourceError,
+                ValueError,
+                TypeError,
+                KeyError,
+            ) as exc:
                 logger.warning(f"Price quote fetch failed for {symbol}: {exc}")
+                continue
+            except Exception as exc:  # pragma: no cover - unexpected
+                logger.exception(f"Unexpected error fetching price for {symbol}: {exc}")
                 continue
 
         return price_data

@@ -381,8 +381,8 @@ class DataPoller:
                     logger.info("Stop event received during wait")
                     break
                 except asyncio.TimeoutError:
-                    # Normal timeout, continue to next cycle
-                    pass
+                    logger.debug("Poll wait timeout; continuing to next cycle")
+                    continue
                 except asyncio.CancelledError:
                     logger.info("Wait cancelled, exiting...")
                     break

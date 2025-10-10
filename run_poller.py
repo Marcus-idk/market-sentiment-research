@@ -70,8 +70,10 @@ def build_config(with_viewer: bool) -> PollerConfig:
 
     try:
         poll_interval = int(poll_interval_str)
-    except ValueError:
-        raise ValueError(f"Invalid POLL_INTERVAL '{poll_interval_str}', must be an integer. Please provide a valid integer value (e.g., POLL_INTERVAL=300)")
+    except ValueError as exc:
+        raise ValueError(
+            f"Invalid POLL_INTERVAL '{poll_interval_str}', must be an integer. Please provide a valid integer value (e.g., POLL_INTERVAL=300)"
+        ) from exc
 
     # Get UI port if viewer enabled
     ui_port = None
@@ -81,14 +83,18 @@ def build_config(with_viewer: bool) -> PollerConfig:
     # Load Finnhub settings
     try:
         finnhub_settings = FinnhubSettings.from_env()
-    except ValueError as e:
-        raise ValueError(f"Failed to load Finnhub settings: {e}. Please set FINNHUB_API_KEY environment variable")
+    except ValueError as exc:
+        raise ValueError(
+            f"Failed to load Finnhub settings: {exc}. Please set FINNHUB_API_KEY environment variable"
+        ) from exc
 
     # Load Polygon settings
     try:
         polygon_settings = PolygonSettings.from_env()
-    except ValueError as e:
-        raise ValueError(f"Failed to load Polygon settings: {e}. Please set POLYGON_API_KEY environment variable")
+    except ValueError as exc:
+        raise ValueError(
+            f"Failed to load Polygon settings: {exc}. Please set POLYGON_API_KEY environment variable"
+        ) from exc
 
     return PollerConfig(
         db_path=db_path,
@@ -186,9 +192,9 @@ async def create_and_validate_providers(config: PollerConfig) -> tuple[list[News
             raise ValueError("Polygon price API connection validation failed")
         logger.info("Polygon price API connection validated successfully")
 
-    except Exception as e:
-        logger.error(f"Connection validation failed: {e}")
-        raise ValueError(f"Provider validation failed: {e}")
+    except Exception as exc:
+        logger.error(f"Connection validation failed: {exc}")
+        raise ValueError(f"Provider validation failed: {exc}") from exc
 
     return news_providers, price_providers
 
@@ -200,7 +206,10 @@ def cleanup_ui_process(ui_process: subprocess.Popen | None) -> None:
         try:
             ui_process.wait(timeout=5)
             logger.info("Streamlit UI stopped")
-        except Exception:
+        except Exception as exc:
+            logger.warning(
+                f"Streamlit UI did not stop gracefully; forcing termination: {exc}"
+            )
             ui_process.kill()
 
 

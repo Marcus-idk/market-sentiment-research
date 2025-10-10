@@ -6,10 +6,11 @@ from decimal import Decimal
 from typing import Any
 
 from config.providers.polygon import PolygonSettings
-from data import PriceDataSource
+from data import PriceDataSource, DataSourceError
 from data.models import PriceData
 from data.providers.polygon.polygon_client import PolygonClient
 from utils.market_sessions import classify_us_session
+from utils.retry import RetryableError
 
 
 logger = logging.getLogger(__name__)
@@ -56,8 +57,17 @@ class PolygonPriceProvider(PriceDataSource):
                 price_item = self._parse_snapshot(ticker_data, symbol)
                 if price_item:
                     price_data.append(price_item)
-            except Exception as exc:
+            except (
+                RetryableError,
+                DataSourceError,
+                ValueError,
+                TypeError,
+                KeyError,
+            ) as exc:
                 logger.warning(f"Price snapshot fetch failed for {symbol}: {exc}")
+                continue
+            except Exception as exc:  # pragma: no cover - unexpected
+                logger.exception(f"Unexpected error fetching polygon snapshot for {symbol}: {exc}")
                 continue
 
         return price_data
@@ -102,8 +112,11 @@ class PolygonPriceProvider(PriceDataSource):
             if day_volume and day_volume > 0:
                 try:
                     volume = int(day_volume)
-                except (ValueError, TypeError):
-                    pass
+                except (ValueError, TypeError) as exc:
+                    logger.debug(
+                        f"Invalid volume for {symbol}: {day_volume!r} ({exc}) - skipping volume"
+                    )
+                    volume = None
 
         # Parse timestamp (nanoseconds)
         timestamp_ns = ticker.get("updated", 0)

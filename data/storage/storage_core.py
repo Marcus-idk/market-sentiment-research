@@ -31,7 +31,8 @@ def _check_json1_support(conn: sqlite3.Connection) -> bool:
     try:
         conn.execute("SELECT json_valid('{}')")
         return True
-    except sqlite3.OperationalError:
+    except sqlite3.OperationalError as exc:
+        logger.debug(f"SQLite JSON1 extension not available: {exc}")
         return False
 
 

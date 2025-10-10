@@ -68,8 +68,8 @@ class OpenAIProvider(LLMProvider):
             try:
                 resp = await self.client.responses.create(**args)
                 return resp.output_text
-            except Exception as e:
-                raise self._classify_openai_exception(e)
+            except Exception as exc:
+                raise self._classify_openai_exception(exc) from exc
         
         # Use retry wrapper with provider's settings
         return await retry_and_call(

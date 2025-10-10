@@ -11,6 +11,7 @@ from data.models import NewsItem
 from utils.symbols import parse_symbols
 from data.providers.polygon.polygon_client import PolygonClient, _NEWS_LIMIT, _NEWS_ORDER
 from data.storage.storage_utils import _datetime_to_iso, _parse_rfc3339
+from utils.retry import RetryableError
 
 
 logger = logging.getLogger(__name__)
@@ -91,7 +92,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
                     try:
                         items = self._parse_article(article, buffer_time)
                         news_items.extend(items)
-                    except Exception as exc:
+                    except (ValueError, TypeError, KeyError, AttributeError) as exc:
                         logger.debug(
                             f"Failed to parse macro news article {article.get('id', 'unknown')}: {exc}"
                         )
@@ -107,9 +108,20 @@ class PolygonMacroNewsProvider(NewsDataSource):
                 if not cursor:
                     break
 
-            except Exception as exc:
+            except (
+                RetryableError,
+                DataSourceError,
+                ValueError,
+                TypeError,
+                KeyError,
+            ) as exc:
                 logger.warning(
                     f"Macro news pagination failed: {exc}"
+                )
+                raise
+            except Exception as exc:  # pragma: no cover - unexpected
+                logger.exception(
+                    f"Unexpected error during macro news pagination: {exc}"
                 )
                 raise
 
@@ -122,7 +134,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
             query_params = urllib.parse.parse_qs(parsed.query)
             cursor = query_params.get("cursor", [None])[0]
             return cursor
-        except Exception as exc:
+        except (ValueError, TypeError, KeyError, AttributeError) as exc:
             logger.debug(f"Failed to extract cursor from next_url: {exc}")
             return None
 

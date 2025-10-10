@@ -81,9 +81,11 @@ def classify_us_session(ts_utc: datetime) -> Session:
         # Any close before 4:00 PM is an early close
         if session_close_et.hour < 16:
             POST_START = session_close_et.hour * 60 + session_close_et.minute
-    except Exception as e:
+    except (ValueError, TypeError, KeyError, AttributeError) as exc:
         # If we can't determine close time, assume regular hours (4:00 PM)
-        logger.warning(f"Could not determine session close time for {session_label}, falling back to 16:00 ET: {e}")
+        logger.warning(
+            f"Could not determine session close time for {session_label}, falling back to 16:00 ET: {exc}"
+        )
 
     # Calculate minutes since midnight for time-based classification
     minutes = et.hour * 60 + et.minute

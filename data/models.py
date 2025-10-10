@@ -131,8 +131,8 @@ class AnalysisResult:
             parsed_json = json.loads(self.result_json)
             if not isinstance(parsed_json, dict):
                 raise ValueError("result_json must be a JSON object")
-        except json.JSONDecodeError as e:
-            raise ValueError(f"result_json must be valid JSON: {e}")
+        except json.JSONDecodeError as exc:
+            raise ValueError(f"result_json must be valid JSON: {exc}") from exc
         if not isinstance(self.analysis_type, AnalysisType):
             raise ValueError("analysis_type must be an AnalysisType enum value")
         if not isinstance(self.stance, Stance):

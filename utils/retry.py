@@ -20,8 +20,8 @@ def parse_retry_after(value: str | float | int | None) -> float | None:
     try:
         # Try parsing as numeric seconds (most common: "120")
         return max(0.0, float(value))
-    except ValueError:
-        # Not numeric, continue to try HTTP-date format
+    except (TypeError, ValueError):
+        # Intentional fallthrough: non-numeric values will try HTTP-date parsing next.
         pass
 
     try:

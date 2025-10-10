@@ -90,8 +90,8 @@ class GeminiProvider(LLMProvider):
                         out.append(p.code_execution_result.output or "")
                 return "\n".join(out).strip()
                 
-            except Exception as e:
-                raise self._classify_gemini_exception(e)
+            except Exception as exc:
+                raise self._classify_gemini_exception(exc) from exc
         
         # Use retry wrapper with provider's settings
         return await retry_and_call(

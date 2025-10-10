@@ -79,9 +79,14 @@ class FinnhubMacroNewsProvider(NewsDataSource):
             try:
                 items = self._parse_article(article, buffer_time)
                 news_items.extend(items)
-            except Exception as exc:
+            except (ValueError, TypeError, KeyError, AttributeError) as exc:
                 logger.debug(
                     f"Failed to parse macro news article {article.get('id', 'unknown')}: {exc}"
+                )
+                continue
+            except Exception as exc:  # pragma: no cover - unexpected
+                logger.exception(
+                    f"Unexpected error parsing macro news article {article.get('id', 'unknown')}: {exc}"
                 )
                 continue
 

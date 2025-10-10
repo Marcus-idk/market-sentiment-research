@@ -6,6 +6,7 @@ from typing import Any
 
 from config.providers.finnhub import FinnhubSettings
 from data import NewsDataSource, DataSourceError
+from utils.retry import RetryableError
 from data.models import NewsItem
 from data.providers.finnhub.finnhub_client import FinnhubClient
 
@@ -65,16 +66,21 @@ class FinnhubNewsProvider(NewsDataSource):
                         news_item = self._parse_article(article, symbol, buffer_time if since else None)
                         if news_item:
                             news_items.append(news_item)
-                    except Exception as exc:
+                    except (ValueError, TypeError, KeyError, AttributeError) as exc:
                         logger.debug(
                             f"Failed to parse company news article for {symbol}: {exc}"
                         )
                         continue
             except DataSourceError:
                 raise
-            except Exception as exc:
+            except (RetryableError, ValueError, TypeError, KeyError, AttributeError) as exc:
                 logger.warning(
                     f"Company news fetch failed for {symbol}: {exc}"
+                )
+                continue
+            except Exception as exc:  # pragma: no cover - unexpected, logged for visibility
+                logger.exception(
+                    f"Unexpected error fetching company news for {symbol}: {exc}"
                 )
                 continue
 

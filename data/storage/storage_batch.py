@@ -3,12 +3,16 @@ Batch operations and watermark management for trading bot data.
 Handles LLM processing batches and state tracking.
 """
 
+import logging
 import sqlite3
 from datetime import datetime
 
 from data.models import NewsItem, PriceData
 from data.storage.storage_utils import _datetime_to_iso, _iso_to_datetime, _row_to_news_item, _row_to_price_data
 from data.storage.db_context import _cursor_context
+
+
+logger = logging.getLogger(__name__)
 
 
 def get_last_seen(db_path: str, key: str) -> str | None:
@@ -80,7 +84,10 @@ def get_last_macro_min_id(db_path: str) -> int | None:
     if value:
         try:
             return int(value)
-        except ValueError:
+        except ValueError as exc:
+            logger.warning(
+                f"Invalid macro_news_min_id in database ('{value}'); treating as unset: {exc}"
+            )
             return None
     return None
 

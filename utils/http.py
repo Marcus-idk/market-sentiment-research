@@ -34,9 +34,9 @@ async def get_json_with_retry(
             if response.status_code == 200:
                 try:
                     return response.json()  # Parse and return JSON data
-                except Exception as e:
+                except (ValueError, TypeError, httpx.DecodingError) as exc:
                     # JSON parsing failed - this is a server/data problem, don't retry
-                    raise DataSourceError(f"Invalid JSON response from {url}: {e}")
+                    raise DataSourceError(f"Invalid JSON response from {url}: {exc}") from exc
 
             if response.status_code == 204:
                 return None  # No Content - valid empty response
@@ -63,18 +63,18 @@ async def get_json_with_retry(
             raise DataSourceError(f"Unexpected HTTP status: {response.status_code}")
 
         # NETWORK PROBLEMS (retryable)
-        except httpx.TimeoutException:
+        except httpx.TimeoutException as exc:
             # Request timed out - server might be slow, worth retrying
-            raise RetryableError("Network/timeout", retry_after=None)
-        except httpx.TransportError:
+            raise RetryableError("Network/timeout", retry_after=None) from exc
+        except httpx.TransportError as exc:
             # Connection failed - network issue, DNS problem, etc.
-            raise RetryableError("Network/timeout", retry_after=None)
+            raise RetryableError("Network/timeout", retry_after=None) from exc
         except (RetryableError, DataSourceError):
             # Re-raise our own exceptions unchanged
             raise
-        except Exception as e:
+        except Exception as exc:
             # Any other unexpected error - don't retry unknown problems
-            raise DataSourceError(f"Unexpected error during HTTP request: {e}")
+            raise DataSourceError(f"Unexpected error during HTTP request: {exc}") from exc
 
     # Call the retry wrapper - will run _op() up to max_retries+1 times
     # (1 initial attempt + max_retries additional attempts)
