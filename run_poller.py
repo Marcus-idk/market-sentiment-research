@@ -25,7 +25,11 @@ from data.providers.finnhub import (
     FinnhubNewsProvider,
     FinnhubPriceProvider,
 )
-from data.providers.polygon import PolygonPriceProvider
+from data.providers.polygon import (
+    PolygonPriceProvider,
+    PolygonNewsProvider,
+    PolygonMacroNewsProvider,
+)
 from data import DataSourceError, NewsDataSource, PriceDataSource
 from data.storage import init_database
 from utils.logging import setup_logging
@@ -163,40 +167,39 @@ async def create_and_validate_providers(config: PollerConfig) -> tuple[list[News
     macro_news_provider = FinnhubMacroNewsProvider(config.finnhub_settings, config.symbols)
     finnhub_price_provider = FinnhubPriceProvider(config.finnhub_settings, config.symbols)
 
-    # Create Polygon provider
+    # Create Polygon providers
+    polygon_company_news_provider = PolygonNewsProvider(config.polygon_settings, config.symbols)
+    polygon_macro_news_provider = PolygonMacroNewsProvider(config.polygon_settings, config.symbols)
     polygon_price_provider = PolygonPriceProvider(config.polygon_settings, config.symbols)
 
     # Group providers by type
-    news_providers = [company_news_provider, macro_news_provider]
+    news_providers = [
+        company_news_provider,
+        macro_news_provider,
+        polygon_company_news_provider,
+        polygon_macro_news_provider,
+    ]
     price_providers = [finnhub_price_provider, polygon_price_provider]
 
     # Validate connections
     logger.info("Validating API connections...")
     try:
-        company_news_valid = await company_news_provider.validate_connection()
-        if not company_news_valid:
-            logger.error("Failed to validate Finnhub company news API connection")
-            raise ValueError("Finnhub company news API connection validation failed")
-        logger.info("Finnhub company news API connection validated successfully")
+        providers_to_validate = [
+            (company_news_provider, "Finnhub company news"),
+            (macro_news_provider, "Finnhub macro news"),
+            (finnhub_price_provider, "Finnhub price"),
+            (polygon_company_news_provider, "Polygon company news"),
+            (polygon_macro_news_provider, "Polygon macro news"),
+            (polygon_price_provider, "Polygon price"),
+        ]
 
-        macro_news_valid = await macro_news_provider.validate_connection()
-        if not macro_news_valid:
-            logger.error("Failed to validate Finnhub macro news API connection")
-            raise ValueError("Finnhub macro news API connection validation failed")
-        logger.info("Finnhub macro news API connection validated successfully")
+        results = await asyncio.gather(*[p.validate_connection() for p, _ in providers_to_validate])
 
-        finnhub_price_valid = await finnhub_price_provider.validate_connection()
-        if not finnhub_price_valid:
-            logger.error("Failed to validate Finnhub price API connection")
-            raise ValueError("Finnhub price API connection validation failed")
-        logger.info("Finnhub price API connection validated successfully")
-
-        # Validate Polygon
-        polygon_price_valid = await polygon_price_provider.validate_connection()
-        if not polygon_price_valid:
-            logger.error("Failed to validate Polygon price API connection")
-            raise ValueError("Polygon price API connection validation failed")
-        logger.info("Polygon price API connection validated successfully")
+        for (_, name), valid in zip(providers_to_validate, results):
+            if not valid:
+                logger.error(f"Failed to validate {name} API connection")
+                raise ValueError(f"{name} API connection validation failed")
+            logger.info(f"{name} API connection validated successfully")
 
     except (DataSourceError, RetryableError, RuntimeError) as exc:
         logger.error(f"Connection validation failed: {exc}")
