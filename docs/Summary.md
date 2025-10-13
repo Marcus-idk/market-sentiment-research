@@ -300,7 +300,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `docs/LLM_Providers_Guide.md` - LLM provider configuration cheat sheet (OpenAI, Gemini)
 - `docs/Roadmap.md` - Milestones from v0.1 through v1.0 with status tracking
 - `docs/Summary.md` - This code index, kept in sync with repository structure
-- `docs/Test_Guide.md` - Testing structure, naming conventions, and markers
+- `docs/Test_Guide.md` - Testing structure, naming conventions, markers, and contract-testing rules
 - `docs/Writing_Code.md` - Coding standards, design principles, and review checklist
 
 ### `tests/` — Test suite
@@ -317,11 +317,12 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 **Subdirectories**:
 - `tests/unit/` - Unit tests (mirror source structure)
   - `tests/unit/config/` - Configuration module tests
+    - `tests/unit/config/contracts/test_settings_contract.py` - Shared `from_env` contract for Finnhub, Polygon, OpenAI, Gemini (API keys, defaults, error text)
+    - `tests/unit/config/llm/test_gemini.py` - Reserved for Gemini-only settings behavior (core checks live in contracts)
+    - `tests/unit/config/llm/test_openai.py` - Reserved for OpenAI-only settings behavior (core checks live in contracts)
+    - `tests/unit/config/providers/test_finnhub_settings.py` - Reserved for Finnhub-only settings behavior (core checks live in contracts)
+    - `tests/unit/config/providers/test_polygon_settings.py` - Reserved for Polygon-only settings behavior (core checks live in contracts)
     - `tests/unit/config/test_config_retry.py` - Retry configuration tests
-    - `tests/unit/config/llm/test_gemini.py` - Gemini settings loader tests
-    - `tests/unit/config/llm/test_openai.py` - OpenAI settings loader tests
-    - `tests/unit/config/providers/test_finnhub_settings.py` - Finnhub settings tests
-    - `tests/unit/config/providers/test_polygon_settings.py` - Polygon settings tests
 
   - `tests/unit/llm/` - LLM module tests
     - `tests/unit/llm/test_llm_base.py` - LLM provider base class contract tests

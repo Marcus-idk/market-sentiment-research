@@ -36,6 +36,7 @@ Is it unit or integration test?
 ```
 What's in your source file?
 ├── CLASSES ONLY → Rule 1: Test<ClassName> for each class
+│   └── Multiple similar classes with same behavior? → Rule 6: Contract tests
 ├── FUNCTIONS ONLY → Rule 2: Split by feature into test_<module>_<feature>.py
 ├── BOTH → Rule 3: Test<ClassName> + test_<module>_functions.py
 ├── ABSTRACT BASE CLASSES → Rule 4: Test<ClassName>Contract
@@ -131,6 +132,138 @@ def test_enum_values_unchanged():
     assert Session.CLOSED.value == "CLOSED"
 ```
 ✅ Prevents someone changing "REG" to "REGULAR" and breaking DB
+
+## Rule 6: Repeated Behavior Uses Contract Tests
+When multiple similar classes share identical behavior, use contract tests instead of copying tests.
+
+### When to Use Contract Tests
+- ✅ **Same behavior, different data format**: Finnhub vs Polygon news parsing
+- ✅ **Multiple implementations of same interface**: Different provider implementations
+- ✅ **Shared validation logic**: All providers validate connections the same way
+- ❌ **Provider-specific quirks**: Pagination details, endpoint paths (keep separate)
+
+### Pattern
+```python
+# tests/unit/data/providers/conftest.py
+@pytest.fixture
+def provider_specs():
+    """Specs for all news providers"""
+    return [
+        ProviderSpec(
+            name='finnhub',
+            provider_cls=FinnhubNewsProvider,
+            settings=FinnhubSettings(api_key='test_key'),
+            symbols=['AAPL'],
+            make_valid_article=lambda: {
+                'headline': 'Breaking News',
+                'url': 'https://example.com/news',
+                'datetime': 1705320000,  # Epoch
+                'source': 'Reuters',
+                'summary': 'Article content'
+            },
+            make_missing_headline=lambda: {
+                'url': 'https://example.com/news',
+                'datetime': 1705320000
+            }
+        ),
+        ProviderSpec(
+            name='polygon',
+            provider_cls=PolygonNewsProvider,
+            settings=PolygonSettings(api_key='test_key'),
+            symbols=['AAPL'],
+            make_valid_article=lambda: {
+                'title': 'Breaking News',  # Different field name
+                'article_url': 'https://example.com/news',
+                'published_utc': '2024-01-15T12:00:00Z',  # RFC3339
+                'publisher': {'name': 'Reuters'},
+                'description': 'Article content'
+            },
+            make_missing_headline=lambda: {
+                'article_url': 'https://example.com/news',
+                'published_utc': '2024-01-15T12:00:00Z'
+            }
+        )
+    ]
+
+# tests/unit/data/providers/contracts/test_news_company_contract.py
+class TestNewsCompanyContract:
+    """Shared behavior tests for all company news providers"""
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("spec", provider_specs())
+    async def test_skips_missing_headline(self, spec):
+        """All providers skip articles without headlines"""
+        provider = spec.provider_cls(spec.settings, spec.symbols)
+
+        # Mock provider's client with spec-specific data format
+        async def mock_get(path, params=None):
+            return [spec.make_missing_headline()]
+
+        provider.client.get = mock_get
+
+        # Behavior is identical across providers
+        results = await provider.fetch_incremental()
+        assert len(results) == 0
+
+    @pytest.mark.asyncio
+    @pytest.mark.parametrize("spec", provider_specs())
+    async def test_parses_valid_article(self, spec):
+        """All providers parse valid articles correctly"""
+        provider = spec.provider_cls(spec.settings, spec.symbols)
+
+        async def mock_get(path, params=None):
+            return [spec.make_valid_article()]
+
+        provider.client.get = mock_get
+
+        results = await provider.fetch_incremental()
+        assert len(results) == 1
+        assert results[0].symbol == 'AAPL'
+        assert results[0].headline == 'Breaking News'
+        assert results[0].url == 'https://example.com/news'
+```
+
+### What Goes Where
+
+**Shared contracts** → `tests/unit/data/providers/contracts/test_*.py`
+- Skips missing headlines (same logic, different data format)
+- Filters old articles with 2-minute buffer
+- Validation success/failure
+- Structural error handling (non-list response)
+
+**Provider-specific** → `tests/unit/data/providers/test_<provider>_*.py`
+- Polygon cursor pagination
+- Finnhub minId tracking
+- Endpoint paths and URL construction
+- Provider-specific field extraction quirks
+
+### ProviderSpec Structure
+```python
+@dataclass
+class ProviderSpec:
+    """Specification for parametrizing provider contract tests"""
+    name: str                           # 'finnhub', 'polygon'
+    provider_cls: type                  # FinnhubNewsProvider
+    settings: Any                       # FinnhubSettings instance
+    symbols: list[str]                  # ['AAPL', 'MSFT']
+
+    # Factory methods for test data in provider's format
+    make_valid_article: callable        # Returns dict in provider's API format
+    make_missing_headline: callable     # Missing required field
+    make_invalid_timestamp: callable    # Invalid timestamp format
+    # ... other edge case factories
+```
+
+### Benefits
+✅ **Write once, test all**: Shared behavior tested across all providers automatically
+✅ **Add provider easily**: New provider = add spec, get all shared tests free
+✅ **Clear separation**: See what's shared vs unique at a glance
+✅ **Less duplication**: No copy-pasting identical tests
+
+### References
+- ABC contracts: `tests/unit/data/test_base_contracts.py`
+- LLM contracts: `tests/unit/llm/test_llm_base.py`
+- Provider contracts: `tests/unit/data/providers/contracts/` (when created)
 
 ---
 
@@ -377,6 +510,76 @@ except Exception:
     pass
 ```
 
+### Shared Test Setup
+Initialize shared objects at the class/fixture level, not in every test method. Avoid repeating initialization code.
+
+**Using pytest fixtures (Recommended):**
+```python
+# ✅ GOOD: Shared setup via fixture
+@pytest.fixture
+def provider():
+    """Create provider once, use in all tests"""
+    settings = FinnhubSettings(api_key='test_key')
+    return FinnhubNewsProvider(settings, ['AAPL', 'MSFT'])
+
+class TestFinnhubNewsProvider:
+    def test_validates_connection(self, provider):
+        # provider is injected, no setup needed
+        assert provider.symbols == ['AAPL', 'MSFT']
+
+    def test_fetches_news(self, provider):
+        # Same provider instance (or fresh if fixture has default scope)
+        async def mock_get(path, params=None):
+            return [...]
+        provider.client.get = mock_get
+        # ... test logic
+
+# ❌ BAD: Repeating initialization
+class TestFinnhubNewsProvider:
+    def test_validates_connection(self):
+        settings = FinnhubSettings(api_key='test_key')  # Repeated!
+        provider = FinnhubNewsProvider(settings, ['AAPL', 'MSFT'])
+        assert provider.symbols == ['AAPL', 'MSFT']
+
+    def test_fetches_news(self):
+        settings = FinnhubSettings(api_key='test_key')  # Repeated!
+        provider = FinnhubNewsProvider(settings, ['AAPL', 'MSFT'])
+        # ... test logic
+```
+
+**Using class-level setup (Alternative):**
+```python
+# ✅ GOOD: Setup method runs before each test
+class TestFinnhubNewsProvider:
+    @pytest.fixture(autouse=True)
+    def setup(self):
+        """Runs automatically before each test"""
+        settings = FinnhubSettings(api_key='test_key')
+        self.provider = FinnhubNewsProvider(settings, ['AAPL'])
+
+    def test_validates_connection(self):
+        assert self.provider.symbols == ['AAPL']  # Use self.provider
+
+    def test_fetches_news(self):
+        self.provider.client.get = mock_get  # Use self.provider
+```
+
+**When to share vs duplicate:**
+- ✅ **Share**: Immutable setup (settings, constants, simple objects)
+- ✅ **Share**: Expensive creation (database connections, API clients)
+- ❌ **Don't share**: Mutable state that tests modify
+- ❌ **Don't share**: Test-specific configurations (use parametrize instead)
+
+**Fixture scope options:**
+```python
+@pytest.fixture(scope='function')  # Default: new instance per test
+@pytest.fixture(scope='class')     # One instance per test class
+@pytest.fixture(scope='module')    # One instance per test file
+@pytest.fixture(scope='session')   # One instance for entire test run
+```
+
+**Reference**: See `tests/conftest.py` for project-wide fixtures like `temp_db_path`
+
 ---
 
 # FILE SIZE & NAMING
@@ -443,6 +646,7 @@ Classes get 1:1, functions get feature grouping.
 
 ## Does it follow the pattern?
 - [ ] Classes? → 1:1 with TestClassName
+- [ ] Multiple similar classes? → Contract tests (Rule 6)
 - [ ] Functions? → Split by feature
 - [ ] Mixed? → Both patterns
 - [ ] ABC? → Contract tests
@@ -470,6 +674,10 @@ Classes get 1:1, functions get feature grouping.
 
 - **1:1 Class Mapping**: Source `data/providers/finnhub/client.py` → Test `tests/unit/data/providers/test_finnhub.py` has `TestFinnhubClient`
   - Copy for: Polygon providers, new data providers
+
+- **Contract Tests (Repeated Behavior)**: Multiple providers → Shared contract test parametrized by ProviderSpec
+  - When: FinnhubNewsProvider and PolygonNewsProvider share same behavior (skip missing headline, parse valid article)
+  - Use for: Avoiding duplicate tests across similar implementations
 
 - **Feature-Based Functions**: Source `data/storage/storage_crud.py` → Tests split into `test_storage_news.py`, `test_storage_prices.py`
   - Copy for: New storage operations, utility modules
