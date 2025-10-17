@@ -32,8 +32,8 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 ## v0.1 — LLM Foundation ✅
 **Goal**: Establish AI communication layer
 
-**Achieves**: 
-- LLM provider integrations (OpenAI GPT-5, Gemini 2.5 Flash)
+**Achieves**:
+- LLM provider integrations (OpenAI with reasoning support, Gemini 2.5 Flash)
 - Clean provider pattern with async implementation
 - SHA-256 validation tests
 
@@ -134,6 +134,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 **Notes**:
 - Provider pattern: Dual providers (news+price) or single-purpose
  - Price dedup: Compare to primary; log mismatches >= $0.01; store primary.
+ - Contract test harness: Unified tests for client/news/price providers ensuring consistent data quality validation across all sources (delivers on "Data quality validation" achievement)
  - Partial progress: Polygon news providers implemented; price dedup framework in place (single Finnhub provider currently; Polygon price endpoint requires paid plan). Reddit, SEC EDGAR, and RSS integrations remain planned.
 
 

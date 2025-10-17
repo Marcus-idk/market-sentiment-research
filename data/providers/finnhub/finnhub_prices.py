@@ -27,7 +27,7 @@ class FinnhubPriceProvider(PriceDataSource):
     async def validate_connection(self) -> bool:
         return await self.client.validate_connection()
 
-    async def fetch_incremental(self, since: datetime | None = None) -> list[PriceData]:
+    async def fetch_incremental(self) -> list[PriceData]:
         if not self.symbols:
             return []
 
@@ -56,16 +56,19 @@ class FinnhubPriceProvider(PriceDataSource):
         return price_data
 
     def _parse_quote(self, quote: dict[str, Any], symbol: str) -> PriceData | None:
-        current_price = quote.get("c", 0)
-        if current_price <= 0:
+        raw_price = quote.get("c")
+        if raw_price is None:
             return None
 
         try:
-            price = Decimal(str(current_price))
+            price = Decimal(str(raw_price))
         except (ValueError, TypeError, InvalidOperation) as exc:
             logger.debug(
-                f"Invalid quote price for {symbol}: {current_price!r} ({exc}) - skipping"
+                f"Invalid quote price for {symbol}: {raw_price!r} ({exc}) - skipping"
             )
+            return None
+
+        if price <= 0:
             return None
 
         quote_timestamp = quote.get("t", 0)

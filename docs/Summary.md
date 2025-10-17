@@ -176,8 +176,8 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `FinnhubPriceProvider` - Price quote fetching implementation
       - `__init__()` - Initialize with settings and symbols
       - `validate_connection()` - Delegates to client
-      - `fetch_incremental()` - Fetch current prices
-      - `_parse_quote()` - Convert API response to PriceData with ET-based session detection
+      - `fetch_incremental()` - Fetch current prices (drops `since` kwarg from base class signature; quotes are real-time snapshots; minor LSP inconsistency but runtime-safe)
+      - `_parse_quote()` - Convert API response to PriceData; skips missing/invalid/non-positive quotes; ET-based session detection
   - `data/providers/polygon/`
     - `PolygonClient` - HTTP client for Polygon.io API with retry logic
       - `__init__()` - Initialize with settings
@@ -268,7 +268,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `_fetch_all_data()` - Concurrently fetch news and prices; return company/macro news and per‑provider prices with errors
     - `_log_urgent_items()` - Log urgent news items to console
     - `_process_news()` - Store news, classify company items, detect urgency, update watermarks
-    - `_process_prices()` - Deduplicate per symbol using primary provider; log mismatches ≥ $0.01; store primary only
+    - `_process_prices()` - Deduplicate per symbol using primary provider; log mismatches ≥ $0.01; store primary only (framework complete; currently single provider: Finnhub)
     - `_read_watermarks()` - Read last_news_time and last_macro_min_id from database
     - `poll_once()` - One cycle: fetch, process, update watermarks, return stats
     - `run()` - Continuous polling loop with interval scheduling and graceful shutdown
@@ -284,7 +284,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `analysis/news_classifier.py` - News classification module
   - `classify(news_items)` - Classify news into Company/People/MarketWithMention (currently stub returning 'Company' for all)
 - `analysis/urgency_detector.py` - Urgency detection module
-  - `detect_urgency(news_items)` - Detect urgent news requiring immediate attention (currently stub returning empty list; LLM-based detection in v0.5)
+  - `detect_urgency(news_items)` - Detect urgent news requiring immediate attention (currently stub that logs cycle stats and returns empty list; LLM-based detection in v0.5)
 
 ### `ui/` — Web UI
 **Purpose**: Lightweight Streamlit interface for local DB inspection
@@ -330,11 +330,17 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `tests/unit/data/` - Data module tests
     - `tests/unit/data/test_base_contracts.py` - Abstract base class contracts
     - `tests/unit/data/test_models.py` - Dataclass validation tests
-  - `tests/unit/data/providers/test_finnhub_client.py` - Finnhub client behavior and validation
-  - `tests/unit/data/providers/test_finnhub_news.py` - Company news provider
-  - `tests/unit/data/providers/test_finnhub_macro.py` - Macro news provider
-  - `tests/unit/data/providers/test_finnhub_prices.py` - Price quotes provider
-  - `tests/unit/data/providers/test_finnhub_critical.py` - Critical error handling for providers
+  - `tests/unit/data/providers/` - Data provider tests
+    - `tests/unit/data/providers/conftest.py` - Provider test fixtures (CompanyProviderSpec, MacroProviderSpec, PriceProviderSpec, ClientSpec)
+    - `tests/unit/data/providers/contracts/` - Shared provider contract tests
+      - `tests/unit/data/providers/contracts/test_client_contract.py` - Client behavior contracts (URL building, auth injection, validation)
+      - `tests/unit/data/providers/contracts/test_news_company_contract.py` - Company news provider contracts (parsing, filtering, error isolation)
+      - `tests/unit/data/providers/contracts/test_news_macro_contract.py` - Macro news provider contracts (symbol extraction, filtering, pagination)
+      - `tests/unit/data/providers/contracts/test_prices_contract.py` - Price provider contracts (quote parsing, validation, session detection)
+    - `tests/unit/data/providers/test_finnhub_client.py` - Finnhub-specific client tests (custom base URL; shared behaviors in contracts)
+    - `tests/unit/data/providers/test_finnhub_news.py` - Finnhub company news tests (date window parameters; shared behaviors in contracts)
+    - `tests/unit/data/providers/test_finnhub_macro.py` - Finnhub macro news tests (minId parameter, ID tracking; shared behaviors in contracts)
+    - `tests/unit/data/providers/test_finnhub_prices.py` - Finnhub price tests (empty symbols handling; shared behaviors in contracts)
     - `tests/unit/data/schema/test_schema_confidence_and_json.py` - JSON fields and confidence constraints
     - `tests/unit/data/schema/test_schema_defaults_and_structure.py` - Default values and schema structure
     - `tests/unit/data/schema/test_schema_enums.py` - Enum value locking
