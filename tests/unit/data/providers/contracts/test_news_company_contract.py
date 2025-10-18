@@ -9,6 +9,7 @@ from unittest.mock import AsyncMock
 import pytest
 
 from data import DataSourceError, NewsItem
+from data.storage.storage_utils import _datetime_to_iso
 
 
 class TestNewsCompanyContract:
@@ -134,6 +135,91 @@ class TestNewsCompanyContract:
             datetime.fromtimestamp(buffer_epoch + 30, tz=timezone.utc),
             datetime.fromtimestamp(buffer_epoch + 600, tz=timezone.utc),
         ]
+
+    @pytest.mark.asyncio
+    async def test_date_window_params_with_since(self, provider_spec_company, monkeypatch):
+        provider = provider_spec_company.make_provider()
+        captured: list[tuple[str, dict[str, Any]]] = []
+        fixed_now = datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc)
+
+        class MockDatetime:
+            @staticmethod
+            def now(tz):
+                return fixed_now
+
+            @staticmethod
+            def fromtimestamp(ts, tz):
+                return datetime.fromtimestamp(ts, tz)
+
+        module_path = provider.__module__
+        monkeypatch.setattr(f"{module_path}.datetime", MockDatetime)
+        monkeypatch.setattr(f"{module_path}.timezone", timezone)
+        monkeypatch.setattr(f"{module_path}.timedelta", timedelta)
+
+        async def fake_get(path: str, params: dict[str, Any]):
+            captured.append((path, dict(params)))
+            return provider_spec_company.wrap_response([])
+
+        provider.client.get = fake_get
+
+        since = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+        await provider.fetch_incremental(since=since)
+
+        assert captured
+        path, params = captured[0]
+        assert path == provider_spec_company.endpoint
+
+        if provider_spec_company.name == "finnhub":
+            expected_from = (since - timedelta(minutes=2)).strftime("%Y-%m-%d")
+            assert params["from"] == expected_from
+            assert params["to"] == fixed_now.strftime("%Y-%m-%d")
+            assert params["symbol"] in provider_spec_company.default_symbols
+        else:
+            expected_gt = _datetime_to_iso(since - timedelta(minutes=2))
+            assert params["published_utc.gt"] == expected_gt
+            assert params["ticker"] in provider_spec_company.default_symbols
+
+    @pytest.mark.asyncio
+    async def test_date_window_params_without_since(self, provider_spec_company, monkeypatch):
+        provider = provider_spec_company.make_provider()
+        captured: list[tuple[str, dict[str, Any]]] = []
+        fixed_now = datetime(2024, 2, 1, 12, 0, tzinfo=timezone.utc)
+
+        class MockDatetime:
+            @staticmethod
+            def now(tz):
+                return fixed_now
+
+            @staticmethod
+            def fromtimestamp(ts, tz):
+                return datetime.fromtimestamp(ts, tz)
+
+        module_path = provider.__module__
+        monkeypatch.setattr(f"{module_path}.datetime", MockDatetime)
+        monkeypatch.setattr(f"{module_path}.timezone", timezone)
+        monkeypatch.setattr(f"{module_path}.timedelta", timedelta)
+
+        async def fake_get(path: str, params: dict[str, Any]):
+            captured.append((path, dict(params)))
+            return provider_spec_company.wrap_response([])
+
+        provider.client.get = fake_get
+
+        await provider.fetch_incremental(since=None)
+
+        assert captured
+        path, params = captured[0]
+        assert path == provider_spec_company.endpoint
+
+        if provider_spec_company.name == "finnhub":
+            expected_from = (fixed_now - timedelta(days=2)).strftime("%Y-%m-%d")
+            assert params["from"] == expected_from
+            assert params["to"] == fixed_now.strftime("%Y-%m-%d")
+            assert params["symbol"] in provider_spec_company.default_symbols
+        else:
+            expected_gt = _datetime_to_iso(fixed_now - timedelta(days=2))
+            assert params["published_utc.gt"] == expected_gt
+            assert params["ticker"] in provider_spec_company.default_symbols
 
     @pytest.mark.asyncio
     async def test_symbol_normalization_uppercases(self, provider_spec_company):
