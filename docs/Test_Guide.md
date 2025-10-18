@@ -31,7 +31,7 @@ Is it unit or integration test?
 
 ### Shared Multi-Provider Workflows (optional subfolder)
 When several providers share the same live workflow, keep files workflow-named and provider-parametrized. You may group them under a subfolder (e.g., `contracts/`) to signal “shared contract” intent, as long as:
-- Files remain workflow-named (e.g., `test_llm_web_search.py`)
+- Files remain workflow-anchored (e.g., `test_llm_web_search.py`), with an optional `_contract` suffix to denote shared behavior (e.g., `test_llm_web_search_contract.py`)
 - Module-level markers include `@pytest.mark.integration` (and `@pytest.mark.network` if networked)
 - `tests/integration/llm/conftest.py` exposes a provider spec fixture with ids for readable node IDs
 

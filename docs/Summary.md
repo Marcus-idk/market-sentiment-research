@@ -386,9 +386,12 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `tests/integration/data/providers/test_finnhub_live.py` - Live Finnhub API smoke (network-marked)
 
   - `tests/integration/llm/` - LLM integration tests
+    - `tests/integration/llm/conftest.py` - `ProviderSpec` dataclass and `provider_spec` fixture to parametrize LLM providers
+    - `tests/integration/llm/contracts/` - Shared workflow contract suites
+      - `tests/integration/llm/contracts/test_llm_code_tools_contract.py` - Validates code tool parity when tooling is toggled
+      - `tests/integration/llm/contracts/test_llm_connection_contract.py` - Confirms provider connectivity and baseline generation
+      - `tests/integration/llm/contracts/test_llm_web_search_contract.py` - Verifies web search tooling matches Wikipedia featured article lookup
     - `tests/integration/llm/helpers.py` - Shared helpers (`extract_hex64`, `fetch_featured_wiki`, etc.)
-    - `tests/integration/llm/test_openai_provider.py` - OpenAI live tests (network-marked)
-    - `tests/integration/llm/test_gemini_provider.py` - Gemini live tests (network-marked)
     - Notes: Requires API keys; uses Wikipedia with descriptive `User-Agent`; expect flaky network
 
 ## Database Schema
