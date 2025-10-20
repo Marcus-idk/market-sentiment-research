@@ -12,10 +12,9 @@ from decimal import Decimal
 from config.providers.finnhub import FinnhubSettings
 from data.providers.finnhub import FinnhubNewsProvider, FinnhubPriceProvider
 
-pytestmark = [pytest.mark.integration, pytest.mark.network]
+pytestmark = [pytest.mark.network, pytest.mark.asyncio]
 
 
-@pytest.mark.asyncio
 async def test_live_quote_fetch():
     """Test fetching real quote data from Finnhub API"""
     # Check if API key is available
@@ -50,7 +49,6 @@ async def test_live_quote_fetch():
     print(f"Live test: SPY price = ${spy_quote.price} at {spy_quote.timestamp}")
 
 
-@pytest.mark.asyncio
 async def test_live_news_fetch():
     """Test fetching real news data from Finnhub API"""
     # Check if API key is available
@@ -89,7 +87,6 @@ async def test_live_news_fetch():
         print("Live test: No recent news for AAPL (this is normal)")
 
 
-@pytest.mark.asyncio
 async def test_live_multiple_symbols():
     """Test fetching data for multiple symbols"""
     # Check if API key is available
@@ -123,7 +120,6 @@ async def test_live_multiple_symbols():
     print(f"Live test: Fetched quotes for {len(fetched_symbols)} symbols: {fetched_symbols}")
 
 
-@pytest.mark.asyncio
 async def test_live_error_handling():
     """Test error handling with invalid symbol"""
     # Check if API key is available

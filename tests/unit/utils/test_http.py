@@ -13,12 +13,13 @@ from data.base import DataSourceError
 from utils.http import get_json_with_retry
 from utils.retry import RetryableError, parse_retry_after
 
+pytestmark = pytest.mark.asyncio
+
 
 
 class TestGetJsonWithRetry:
     """Test get_json_with_retry function"""
     
-    @pytest.mark.asyncio
     async def test_200_ok_valid_json(self, mock_http_client):
         """Test 200 OK with valid JSON returns parsed object"""
         mock_response = Mock()
@@ -42,7 +43,6 @@ class TestGetJsonWithRetry:
         assert result == {"key": "value", "number": 42}
         assert call_count == 1  # No retries for success
     
-    @pytest.mark.asyncio
     async def test_200_ok_invalid_json(self, mock_http_client):
         """Test 200 OK with invalid JSON raises DataSourceError without retry"""
         mock_response = Mock()
@@ -67,7 +67,6 @@ class TestGetJsonWithRetry:
         assert "Invalid JSON response" in str(exc_info.value)
         assert call_count == 1  # No retries for data errors
     
-    @pytest.mark.asyncio
     async def test_204_no_content(self, mock_http_client):
         """Test 204 No Content returns None"""
         mock_response = Mock()
@@ -90,7 +89,6 @@ class TestGetJsonWithRetry:
         assert result is None
         assert call_count == 1  # No retries for success
     
-    @pytest.mark.asyncio
     @pytest.mark.parametrize("status_code", [401, 403])
     async def test_401_403_auth_errors(self, mock_http_client, status_code):
         """Test 401/403 auth errors raise DataSourceError without retry"""
@@ -115,7 +113,6 @@ class TestGetJsonWithRetry:
         assert "Authentication failed" in str(exc_info.value)
         assert call_count == 1  # No retries for auth errors
     
-    @pytest.mark.asyncio
     async def test_other_4xx_errors(self, mock_http_client):
         """Test other 4xx errors (e.g., 404) raise DataSourceError without retry"""
         mock_response = Mock()
@@ -139,7 +136,6 @@ class TestGetJsonWithRetry:
         assert "Client error (status 404)" in str(exc_info.value)
         assert call_count == 1  # No retries for client errors
     
-    @pytest.mark.asyncio
     async def test_429_numeric_retry_after(self, mock_http_client):
         """Test 429 with numeric Retry-After header"""
         responses = [
@@ -174,7 +170,6 @@ class TestGetJsonWithRetry:
             assert sleep_calls[0][0][0] == pytest.approx(0.01)
             assert sleep_calls[1][0][0] == pytest.approx(0.01)
     
-    @pytest.mark.asyncio
     async def test_429_http_date_retry_after(self, mock_http_client):
         """Test 429 with HTTP-date Retry-After header"""
         # Use 1.0 second future to distinguish from exponential backoff minimum (0.1s)
@@ -217,7 +212,6 @@ class TestGetJsonWithRetry:
             # Tight assertion: should be close to 1.0, definitely not 0.1 (exponential minimum)
             assert pytest.approx(expected, abs=0.2) == delay
     
-    @pytest.mark.asyncio
     async def test_5xx_server_errors(self, mock_http_client):
         """Test 5xx server errors trigger retries"""
         responses = [
@@ -257,7 +251,6 @@ class TestGetJsonWithRetry:
             second_delay = sleep_calls[1][0][0]
             assert first_delay < second_delay  # Increasing delays
     
-    @pytest.mark.asyncio
     async def test_5xx_max_retries_exhausted(self, mock_http_client):
         """Test that last RetryableError is raised after max attempts"""
         mock_response = Mock(status_code=503, headers={})
@@ -282,7 +275,6 @@ class TestGetJsonWithRetry:
             assert "Transient error (status 503)" in str(exc_info.value)
             assert call_count == 3  # Initial + 2 retries
     
-    @pytest.mark.asyncio
     async def test_timeout_exception(self, mock_http_client):
         """Test httpx.TimeoutException triggers retry"""
         exceptions = [
@@ -314,7 +306,6 @@ class TestGetJsonWithRetry:
             assert call_count == 3  # Initial + 2 retries
             assert mock_sleep.call_count == 2  # Two sleep calls between attempts
     
-    @pytest.mark.asyncio
     async def test_transport_error(self, mock_http_client):
         """Test httpx.TransportError triggers retry"""
         exceptions = [
@@ -345,7 +336,6 @@ class TestGetJsonWithRetry:
             assert call_count == 2  # Initial + 1 retry
             assert mock_sleep.call_count == 1
     
-    @pytest.mark.asyncio
     async def test_query_params_passed_through(self, mock_http_client):
         """Test that query params are passed through unchanged"""
         mock_response = Mock()
@@ -371,7 +361,6 @@ class TestGetJsonWithRetry:
         assert result == {"result": "ok"}
         assert captured_params == test_params  # Params passed unchanged
     
-    @pytest.mark.asyncio
     async def test_timeout_arg_is_forwarded(self, mock_http_client):
         """Test that timeout parameter is forwarded to AsyncClient"""
         mock_response = Mock()
@@ -393,7 +382,6 @@ class TestGetJsonWithRetry:
         
         assert captured["timeout"] == 7.5  # Verify our timeout was used
     
-    @pytest.mark.asyncio
     async def test_unexpected_status_raises(self, mock_http_client):
         """Test that unexpected status codes raise DataSourceError"""
         mock_response = Mock()

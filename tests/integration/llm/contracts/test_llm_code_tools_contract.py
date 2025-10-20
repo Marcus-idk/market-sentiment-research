@@ -6,10 +6,9 @@ import pytest
 
 from tests.integration.llm.helpers import extract_hex64, make_base64_blob
 
-pytestmark = [pytest.mark.network]
+pytestmark = [pytest.mark.network, pytest.mark.asyncio]
 
 
-@pytest.mark.asyncio
 async def test_code_tools_enabled_matches_expected_digest(provider_spec):
     provider = provider_spec.make_provider_for_code_tools(enabled=True)
     b64, expected_sha = make_base64_blob(4)
@@ -27,7 +26,6 @@ async def test_code_tools_enabled_matches_expected_digest(provider_spec):
     assert digest == expected_sha, f"expected {expected_sha}, got {digest}"
 
 
-@pytest.mark.asyncio
 async def test_code_tools_disabled_does_not_match_digest(provider_spec):
     provider = provider_spec.make_provider_for_code_tools(enabled=False)
     b64, expected_sha = make_base64_blob(4)

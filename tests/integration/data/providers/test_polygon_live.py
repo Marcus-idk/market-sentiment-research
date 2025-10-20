@@ -11,10 +11,9 @@ from config.providers.polygon import PolygonSettings
 from data.models import NewsItem
 from data.providers.polygon.polygon_news import PolygonNewsProvider
 
-pytestmark = [pytest.mark.integration, pytest.mark.network]
+pytestmark = [pytest.mark.network, pytest.mark.asyncio]
 
 
-@pytest.mark.asyncio
 async def test_live_news_fetch() -> None:
     """Fetch real company news for AAPL."""
     if not os.environ.get("POLYGON_API_KEY"):
@@ -47,7 +46,6 @@ async def test_live_news_fetch() -> None:
         print("Live test: No recent AAPL news (this is normal)")
 
 
-@pytest.mark.asyncio
 async def test_live_multiple_symbols() -> None:
     """Fetch company news for multiple symbols (at least one should have items)."""
     if not os.environ.get("POLYGON_API_KEY"):
@@ -77,7 +75,6 @@ async def test_live_multiple_symbols() -> None:
     print(f"Live test: Fetched news for {len(fetched_symbols)} symbols: {fetched_symbols}")
 
 
-@pytest.mark.asyncio
 async def test_live_error_handling() -> None:
     """Invalid symbol should be handled gracefully (empty or valid items)."""
     if not os.environ.get("POLYGON_API_KEY"):

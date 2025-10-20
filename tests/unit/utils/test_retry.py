@@ -9,6 +9,8 @@ from datetime import datetime, timezone, timedelta
 from unittest.mock import patch, AsyncMock
 from utils.retry import parse_retry_after, retry_and_call, RetryableError
 
+pytestmark = pytest.mark.asyncio
+
 
 class TestParseRetryAfter:
     """Test parse_retry_after function"""
@@ -88,7 +90,6 @@ class TestParseRetryAfter:
 class TestRetryAndCall:
     """Test retry_and_call function"""
     
-    @pytest.mark.asyncio
     async def test_retry_after_honored(self):
         """Test that Retry-After is honored over exponential backoff"""
         op = AsyncMock(side_effect=[
@@ -109,7 +110,6 @@ class TestRetryAndCall:
             assert sleep_calls[0][0][0] == pytest.approx(0.01)
             assert sleep_calls[1][0][0] == pytest.approx(0.01)
     
-    @pytest.mark.asyncio
     async def test_exponential_backoff(self):
         """Test exponential backoff when no retry_after"""
         op = AsyncMock(side_effect=[
@@ -148,7 +148,6 @@ class TestRetryAndCall:
             assert second_delay == pytest.approx(0.5, abs=0.01)
             assert third_delay == pytest.approx(1.0, abs=0.01)
     
-    @pytest.mark.asyncio
     async def test_exponential_backoff_with_jitter(self):
         """Test that jitter is applied to exponential backoff"""
         op = AsyncMock(side_effect=[
@@ -182,7 +181,6 @@ class TestRetryAndCall:
             # Second delay: 1.0 ± 0.1  
             assert 0.9 <= delays[1] <= 1.1
     
-    @pytest.mark.asyncio
     async def test_gives_up_and_surfaces_last_error(self):
         """Test that last exception is propagated after max attempts"""
         op = AsyncMock(side_effect=[
@@ -198,7 +196,6 @@ class TestRetryAndCall:
             assert str(exc_info.value) == "final error"
             assert op.call_count == 3
     
-    @pytest.mark.asyncio
     async def test_success_on_first_attempt(self):
         """Test immediate success without retries"""
         op = AsyncMock(return_value="immediate success")
@@ -210,7 +207,6 @@ class TestRetryAndCall:
             assert op.call_count == 1
             assert mock_sleep.call_count == 0
     
-    @pytest.mark.asyncio
     async def test_non_retryable_error_propagates(self):
         """Test that non-RetryableError exceptions are not retried"""
         op = AsyncMock(side_effect=ValueError("not retryable"))
@@ -223,7 +219,6 @@ class TestRetryAndCall:
             assert op.call_count == 1
             assert mock_sleep.call_count == 0  # No retry attempts
     
-    @pytest.mark.asyncio
     async def test_retryable_then_non_retryable_error(self):
         """Test retryable error followed by non-retryable error stops immediately"""
         op = AsyncMock(side_effect=[

@@ -11,10 +11,9 @@ from tests.integration.llm.helpers import (
     normalize_title,
 )
 
-pytestmark = [pytest.mark.network]
+pytestmark = [pytest.mark.network, pytest.mark.asyncio]
 
 
-@pytest.mark.asyncio
 async def test_web_search_enabled_returns_expected_title(provider_spec):
     provider = provider_spec.make_provider_for_search(enabled=True)
     yesterday_utc = (datetime.now(timezone.utc) - timedelta(days=1)).date()
@@ -31,7 +30,6 @@ async def test_web_search_enabled_returns_expected_title(provider_spec):
     assert normalized_expected in normalized_response
 
 
-@pytest.mark.asyncio
 async def test_web_search_disabled_does_not_find_title(provider_spec):
     provider = provider_spec.make_provider_for_search(enabled=False)
     yesterday_utc = (datetime.now(timezone.utc) - timedelta(days=1)).date()

@@ -12,6 +12,8 @@ from datetime import datetime, timezone
 from decimal import Decimal
 from unittest.mock import patch
 
+pytestmark = pytest.mark.asyncio
+
 from workflows.poller import DataPoller
 from data.base import NewsDataSource, PriceDataSource
 from data.models import NewsItem, PriceData, Session
@@ -89,7 +91,6 @@ class StubMacroNews(NewsDataSource):
 class TestDataPoller:
     """Tests for the DataPoller orchestrator."""
 
-    @pytest.mark.asyncio
     async def test_poll_once_stores_and_updates_watermark(self, temp_db):
         """Stores news/prices and sets watermark to max published."""
         t1 = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
@@ -115,7 +116,6 @@ class TestDataPoller:
         assert len(get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=timezone.utc))) == 1
         assert get_last_news_time(temp_db) == t2  # watermark = max published
 
-    @pytest.mark.asyncio
     async def test_poll_once_collects_errors(self, temp_db):
         """Aggregates errors from failing providers without aborting cycle."""
 
@@ -145,7 +145,6 @@ class TestDataPoller:
         assert stats["prices"] == 1
         assert stats["errors"] and any("ErrNews" in e for e in stats["errors"])  # provider name included
 
-    @pytest.mark.asyncio
     async def test_poll_once_no_data_no_watermark(self, temp_db):
         """No data returned → stats zero and watermark remains None."""
         assert get_last_news_time(temp_db) is None  # precondition
@@ -158,7 +157,6 @@ class TestDataPoller:
         assert stats["errors"] == []
         assert get_last_news_time(temp_db) is None  # unchanged
 
-    @pytest.mark.asyncio
     async def test_poller_quick_shutdown(self, temp_db):
         """Verify poller stops quickly when stop() is called during sleep."""
         poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
@@ -180,7 +178,6 @@ class TestDataPoller:
         elapsed = time.time() - start_time
         assert elapsed < 2.0, f"Shutdown took {elapsed:.1f}s, expected < 2s"
 
-    @pytest.mark.asyncio
     async def test_poller_custom_poll_interval(self, temp_db):
         """Verify poll interval is set correctly."""
         # Create poller with custom 60 second interval
@@ -199,7 +196,6 @@ class TestDataPoller:
         another_poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=120)
         assert another_poller.poll_interval == 120
 
-    @pytest.mark.asyncio
     async def test_macro_provider_receives_min_id_and_results_routed(self, temp_db, monkeypatch):
         """Test provider dispatch logic: both providers receive min_id; results routed by type"""
         t1 = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
@@ -246,7 +242,6 @@ class TestDataPoller:
         # Verify macro watermark was updated
         assert get_last_macro_min_id(temp_db) == 150
 
-    @pytest.mark.asyncio
     async def test_updates_news_since_iso_and_macro_min_id_independently(self, temp_db, monkeypatch):
         """Test dual watermark updates: datetime and integer advance independently"""
         t1 = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
@@ -288,7 +283,6 @@ class TestDataPoller:
         # Verify macro_news_min_id advanced independently to 150
         assert get_last_macro_min_id(temp_db) == 150
 
-    @pytest.mark.asyncio
     async def test_macro_news_skips_classification_company_only_called(self, temp_db, monkeypatch):
         """Test classification routing: company news classified, macro skipped"""
         t1 = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
