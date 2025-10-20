@@ -32,10 +32,6 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `POLL_INTERVAL` - Required for `run_poller.py`; polling frequency in seconds (e.g., 300 for 5 minutes)
 - `STREAMLIT_PORT` - Optional, defaults to 8501; port used when launching web UI with `-v`
 
-## Test Markers
-- `@pytest.mark.integration` - Integration tests requiring database/API setup
-- `@pytest.mark.network` - Tests requiring network connectivity
-
 ## Top-Level Files
 - `README.md` - Landing page that points developers to detailed documentation in `docs/`
 - `requirements.txt` - Runtime and test dependencies (OpenAI, Gemini, httpx, pytest, etc.)
