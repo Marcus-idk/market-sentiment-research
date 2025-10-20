@@ -92,19 +92,27 @@ What's in your source file?
 
 ## Rule 1: Classes Get 1:1 Mapping
 ```python
-# Source: data/providers/finnhub/client.py
+# Source: data/providers/finnhub/finnhub_client.py
 class FinnhubClient:
     ...
 class FinnhubNewsProvider:
     ...
 
-# Test: tests/unit/data/providers/test_finnhub.py
-class TestFinnhubClient:
+# Tests: split by concern
+# tests/unit/data/providers/contracts/test_client_contract.py
+class TestClientContract:
     ...
+# tests/unit/data/providers/test_finnhub_news.py
 class TestFinnhubNewsProvider:
     ...
+# tests/unit/data/providers/test_finnhub_prices.py
+class TestFinnhubPriceProvider:
+    ...
+# tests/unit/data/providers/test_finnhub_macro.py
+class TestFinnhubMacroProviderSpecific:
+    ...
 ```
-✅ Easy to find: "Where's test for FinnhubClient?" → TestFinnhubClient  
+✅ Easy to find: "Where's the Finnhub client test?" → TestClientContract  
 ❌ Bad: TestFinnhubStuff, TestNewsFeatures
 
 ## Rule 2: Functions Get Feature Groups
@@ -363,7 +371,7 @@ def test_finnhub_live():
 When writing tests for similar functionality, find and study the existing test implementation. Follow its structure, patterns, and conventions—including test naming, mock setup, assertion style, and organization—but don't blindly copy tests that don't apply to your use case.
 
 **Pattern:**
-1. Find similar test file (e.g., testing PolygonClient? → look at test_finnhub_client.py)
+1. Find similar test file (e.g., testing PolygonClient? → look at contracts/test_client_contract.py)
 2. Study its structure: class names, test method names, mock patterns, assertions
 3. Copy what applies: naming conventions, mock setup patterns, assertion patterns
 4. Adapt what doesn't: API differences, different behaviors, different error types
@@ -421,7 +429,7 @@ class TestPolygonNewsProvider:
 - ✅ Adding new test to existing file → Match that file's style
 
 **References:**
-- Provider tests: `test_finnhub_client.py`, `test_finnhub_news.py`, `test_finnhub_macro.py`
+- Provider tests: `tests/unit/data/providers/contracts/test_client_contract.py`, `tests/unit/data/providers/test_finnhub_prices.py`, `tests/unit/data/providers/test_finnhub_news.py`, `tests/unit/data/providers/test_finnhub_macro.py`
 - Storage tests: `test_storage_news.py`, `test_storage_prices.py`
 - LLM tests: `test_openai_provider.py`, `test_gemini_provider.py`
 
@@ -530,92 +538,29 @@ provider.client.get = mock_get
 monkeypatch.setattr("provider.client.get", mock_get)
 ```
 
-**Reference**: See `test_finnhub_client.py` (monkeypatch) vs `test_finnhub_news.py` (direct assignment)
+**Reference**: See `tests/unit/data/providers/test_polygon_macro_news.py` (monkeypatch) vs `tests/unit/data/providers/test_finnhub_news.py` (direct assignment)
 
-## Current Timestamps vs Mocked DateTime
-Choose the right timestamp approach based on what you're testing.
+## Current Timestamps vs Frozen Time
+Choose the right clock setup for each test.
 
-### Rule: Contract tests use real time, provider-specific tests use mocked time
-- **Current timestamps** = For shared behavior tests (contract tests)
-- **Mocked datetime** = For date-specific logic tests (provider-specific tests)
+### Rule: Default to real time for shared behavior; freeze for date math
+- **Current timestamps** → use in cross-provider contract tests when freshness is the only concern.
+- **Frozen time** → use when asserting date windows, buffer math, or max-id rollovers.
+- Prefer the shared `clock` fixture when available; otherwise monkeypatch the provider module’s `datetime`.
 
-### When to Use Current Timestamps
-Use current timestamps in **contract tests** that verify shared behavior across providers.
+### When to use current time
+Contract tests such as `tests/unit/data/providers/contracts/test_news_company_contract.py` keep `datetime.now()` so Polygon’s 2-day filter still returns the sample article. Nothing in that test asserts the exact timestamp.
 
-```python
-# tests/unit/data/providers/contracts/test_news_company_contract.py
-class TestNewsCompanyContract:
-    async def test_parses_valid_article(self, provider_spec_company):
-        """All providers parse valid articles - uses CURRENT time"""
-        provider = provider_spec_company.make_provider()
+### When to freeze time
+Provider-specific tests like `tests/unit/data/providers/test_finnhub_macro.py` or `tests/unit/data/providers/test_polygon_macro_news.py` freeze `datetime.now()` before calling the provider. That makes date math (e.g., buffer windows) deterministic.
 
-        # Use current timestamp so Polygon's 2-day filter doesn't drop it
-        now_epoch = int(datetime.now(timezone.utc).timestamp())
-        article = provider_spec_company.article_factory(
-            headline="Tesla soars",
-            url="https://example.com/tesla",
-            epoch=now_epoch,  # ← Current time
-            source="Reuters",
-        )
-
-        provider.client.get = AsyncMock(return_value=provider_spec_company.wrap_response([article]))
-        results = await provider.fetch_incremental()
-
-        assert len(results) == 1
-        assert results[0].headline == "Tesla soars"
-```
-
-**Why current timestamps?**
-- Polygon filters articles older than 2 days (bootstrap lookback)
-- Hardcoded old dates (e.g., Jan 2024) get filtered out → test fails
-- Current timestamps work for both Finnhub (no filtering) and Polygon (within window)
-
-### When to Mock DateTime
-Use mocked datetime in **provider-specific tests** that verify date logic.
-
-```python
-# tests/unit/data/providers/test_finnhub_news.py
-class TestFinnhubNewsProvider:
-    async def test_date_window_with_since(self, monkeypatch):
-        """Test Finnhub-specific date window calculation"""
-        provider = FinnhubNewsProvider(settings, ['AAPL'])
-
-        # Mock datetime.now() to freeze time at Jan 15, 2024
-        class MockDatetime:
-            @staticmethod
-            def now(tz):
-                return datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
-
-            @staticmethod
-            def fromtimestamp(ts, tz):
-                return datetime.fromtimestamp(ts, tz)
-
-        monkeypatch.setattr(f"{provider.__module__}.datetime", MockDatetime)
-
-        # Now we can test exact date calculations
-        since = datetime(2024, 1, 13, 5, 0, tzinfo=timezone.utc)
-        await provider.fetch_incremental(since=since)
-
-        # Verify Finnhub calculated correct from/to dates
-        assert captured_params['from'] == '2024-01-13'
-        assert captured_params['to'] == '2024-01-15'
-```
-
-**Why mock datetime?**
-- Tests specific date calculation logic (e.g., "2-day lookback from today")
-- Needs predictable "now" to verify exact date ranges
-- Provider-specific behavior, not shared across all providers
-
-### Quick Reference
+### Quick reference
 
 | Test Type | Timestamp Approach | Why |
 |-----------|-------------------|-----|
-| **Contract tests** (shared behavior) | Current timestamps (`datetime.now()`) | Avoids Polygon's 2-day filter, works for all providers |
-| **Provider-specific tests** (date logic) | Mocked datetime (frozen time) | Tests exact date calculations with predictable "now" |
-
-**Reference**:
-- Contract tests with current timestamps: `tests/unit/data/providers/contracts/test_news_company_contract.py`
-- Provider-specific tests with mocked datetime: `tests/unit/data/providers/test_finnhub_news.py` (lines 18-60)
+| **Contract tests** (shared behavior) | Real `datetime.now()` unless the test asserts window edges | Keeps articles inside provider freshness filters |
+| **Provider-specific tests** (date logic) | Frozen time via clock fixture/monkeypatch | Validates exact ranges, ids, and buffer math |
+| **Live/integration tests** | Real time | Exercises the real service end-to-end |
 
 ## Testing Best Practices
 - Prefer explicit clock helpers/fixture defaults over monkeypatching time/datetime

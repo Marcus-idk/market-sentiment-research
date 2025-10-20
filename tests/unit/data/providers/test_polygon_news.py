@@ -15,11 +15,27 @@ class TestPolygonNewsProvider:
     """Targeted Polygon-only behaviors not covered by contracts."""
 
     @pytest.mark.asyncio
-    async def test_fetch_incremental_handles_pagination(self):
+    async def test_fetch_incremental_handles_pagination(self, monkeypatch):
         settings = PolygonSettings(api_key="test_key")
         provider = PolygonNewsProvider(settings, ["AAPL"])
 
-        now_iso = _datetime_to_iso(datetime.now(timezone.utc))
+        fixed_now = datetime(2024, 1, 15, 12, 0, tzinfo=timezone.utc)
+
+        class MockDatetime:
+            @staticmethod
+            def now(tz):
+                return fixed_now
+
+            @staticmethod
+            def fromtimestamp(ts, tz):
+                return datetime.fromtimestamp(ts, tz)
+
+        monkeypatch.setattr(
+            "data.providers.polygon.polygon_news.datetime",
+            MockDatetime,
+        )
+
+        now_iso = _datetime_to_iso(fixed_now)
         page1 = {
             "results": [
                 {

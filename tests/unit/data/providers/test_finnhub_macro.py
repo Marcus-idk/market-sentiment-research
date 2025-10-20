@@ -37,8 +37,26 @@ class TestFinnhubMacroProviderSpecific:
         assert captured["params"] == {"category": "general", "minId": 123}
 
     @pytest.mark.asyncio
-    async def test_last_fetched_max_id_advances_only_on_newer_ids(self, macro_provider: FinnhubMacroNewsProvider):
-        now_epoch = int(datetime.now(timezone.utc).timestamp())
+    async def test_last_fetched_max_id_advances_only_on_newer_ids(
+        self,
+        macro_provider: FinnhubMacroNewsProvider,
+        monkeypatch,
+    ):
+        fixed_now = datetime(2024, 1, 15, 10, 0, tzinfo=timezone.utc)
+
+        class MockDatetime:
+            @staticmethod
+            def now(tz):
+                return fixed_now
+
+            @staticmethod
+            def fromtimestamp(ts, tz):
+                return datetime.fromtimestamp(ts, tz)
+
+        module_path = macro_provider.__module__
+        monkeypatch.setattr(f"{module_path}.datetime", MockDatetime)
+
+        now_epoch = int(fixed_now.timestamp())
         articles_new = [
             {"id": 200, "headline": "A", "url": "https://example.com/a", "datetime": now_epoch, "related": "AAPL"},
             {"id": 201, "headline": "B", "url": "https://example.com/b", "datetime": now_epoch, "related": "MSFT"},
