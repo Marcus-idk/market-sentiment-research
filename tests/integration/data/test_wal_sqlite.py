@@ -4,7 +4,6 @@ Tests Write-Ahead Logging mode functionality including concurrent operations
 and database performance under realistic trading bot access patterns.
 """
 
-import pytest
 import threading
 import time
 import concurrent.futures

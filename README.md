@@ -15,6 +15,9 @@ A lightweight US equities trading bot skeleton with strict data models, SQLite s
 - **Test Guide**: Where to write tests, naming conventions, and organizational patterns
   - [docs/Test_Guide.md](docs/Test_Guide.md)
   
+- **Test Catalog**: Complete test inventory with file paths and test names
+  - [docs/Test_Catalog.md](docs/Test_Catalog.md)
+  
 - **Writing Code**: Guidelines for code style, conventions, and best practices
   - [docs/Writing_Code.md](docs/Writing_Code.md)
   

@@ -4,7 +4,6 @@ Tests URL normalization and cross-provider deduplication functionality
 to ensure duplicate articles from different sources are properly handled.
 """
 
-import pytest
 from datetime import datetime, timezone
 
 from data.storage import store_news_items, get_news_since

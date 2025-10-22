@@ -1,5 +1,7 @@
 # Test Organization Guide - LLM-Optimized
 
+Note: For a complete inventory of all tests (files and test functions), see `docs/Test_Catalog.md`.
+
 ## 📝 HOW TO EXTEND THIS DOCUMENT
 - Add patterns to appropriate section
 - Format: `### PATTERN_NAME` → when to use → example
@@ -161,7 +163,7 @@ class DataSource(ABC):
     @abstractmethod
     def fetch(): ...
 
-# Test: tests/unit/data/test_base.py (or test_base_contracts.py)
+# Test: tests/unit/data/test_data_base.py
 class TestDataSourceContract:
     def test_all_implementations_have_fetch(): ...
     def test_fetch_returns_expected_type(): ...
@@ -316,8 +318,8 @@ class ProviderSpec:
 ✅ **Less duplication**: No copy-pasting identical tests
 
 ### References
-- ABC contracts: `tests/unit/data/test_base_contracts.py`
-- LLM contracts: `tests/unit/llm/test_llm_base.py`
+- Data ABC contracts: `tests/unit/data/test_data_base.py`
+- LLM ABC contracts: `tests/unit/llm/test_llm_base.py`
 - Provider contracts: `tests/unit/data/providers/contracts/` (when created)
 
 ---
@@ -723,6 +725,7 @@ Classes get 1:1, functions get feature grouping.
 - [ ] Mocking at correct level (not facades)?
 - [ ] Integration tests marked correctly?
 - [ ] Following similar test patterns? (studied existing tests first?)
+- [ ] Updated `docs/Test_Catalog.md` (added/removed files, tests listed with one-line descriptions)
 
 ## When in Doubt
 1. **Make it obvious** where to find/add tests

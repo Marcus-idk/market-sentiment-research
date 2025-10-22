@@ -10,7 +10,7 @@ When updating this file, follow this checklist:
 5. **Keep descriptions brief**: One-line purpose descriptions, focus on WHAT not HOW
 6. **Alphabetical order**: Keep functions/classes in alphabetical order within each file section
 7. **Include all public APIs**: Document all functions/classes that other modules import
-8. **Test updates**: When test structure changes, update the tests/ section
+8. **Test updates**: Keep the test inventory in `docs/Test_Catalog.md`; this file only links to it
 9. **Ignore tempFiles/**: Do not flag tempFiles/ directory for updates; it contains temporary planning notes only
 
 ---
@@ -296,102 +296,12 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `docs/LLM_Providers_Guide.md` - LLM provider configuration cheat sheet (OpenAI, Gemini)
 - `docs/Roadmap.md` - Milestones from v0.1 through v1.0 with status tracking
 - `docs/Summary.md` - This code index, kept in sync with repository structure
+- `docs/Test_Catalog.md` - Complete test inventory (files and test functions)
 - `docs/Test_Guide.md` - Testing structure, naming conventions, markers, and contract-testing rules
 - `docs/Writing_Code.md` - Coding standards, design principles, and review checklist
 
 ### `tests/` — Test suite
-**Purpose**: Unit and integration tests with shared fixtures
-
-**Files**:
-- `tests/__init__.py` - Package marker for pytest discovery
-- `tests/conftest.py` - Shared pytest fixtures
-  - `temp_db_path` - Temporary database path with cleanup
-  - `temp_db` - Initialized temporary database
-  - `mock_http_client` - Mock httpx client for HTTP tests
-  - `cleanup_sqlite_artifacts()` - Windows-safe SQLite cleanup utility
-
-**Subdirectories**:
-- `tests/unit/` - Unit tests (mirror source structure)
-  - `tests/unit/config/` - Configuration module tests
-    - `tests/unit/config/contracts/test_settings_contract.py` - Shared `from_env` contract for Finnhub, Polygon, OpenAI, Gemini (API keys, defaults, error text)
-    - `tests/unit/config/llm/test_gemini.py` - Reserved for Gemini-only settings behavior (core checks live in contracts)
-    - `tests/unit/config/llm/test_openai.py` - Reserved for OpenAI-only settings behavior (core checks live in contracts)
-    - `tests/unit/config/providers/test_finnhub_settings.py` - Reserved for Finnhub-only settings behavior (core checks live in contracts)
-    - `tests/unit/config/providers/test_polygon_settings.py` - Reserved for Polygon-only settings behavior (core checks live in contracts)
-    - `tests/unit/config/test_config_retry.py` - Retry configuration tests
-
-  - `tests/unit/llm/` - LLM module tests
-    - `tests/unit/llm/test_llm_base.py` - LLM provider base class contract tests
-
-  - `tests/unit/data/` - Data module tests
-    - `tests/unit/data/test_base_contracts.py` - Abstract base class contracts
-    - `tests/unit/data/test_models.py` - Dataclass validation tests
-    - `tests/unit/data/providers/` - Data provider tests
-      - `tests/unit/data/providers/conftest.py` - Provider test fixtures (CompanyProviderSpec, MacroProviderSpec, PriceProviderSpec, ClientSpec)
-      - `tests/unit/data/providers/contracts/` - Shared provider contract tests
-        - `tests/unit/data/providers/contracts/test_client_contract.py` - Client behavior contracts (URL building, auth injection, validation)
-        - `tests/unit/data/providers/contracts/test_news_company_contract.py` - Company news provider contracts (date-window params, parsing, filtering, error isolation)
-        - `tests/unit/data/providers/contracts/test_news_macro_contract.py` - Macro news provider contracts (symbol extraction, filtering, pagination)
-        - `tests/unit/data/providers/contracts/test_prices_contract.py` - Price provider contracts (quote parsing, validation, session detection)
-      - `tests/unit/data/providers/test_finnhub_news.py` - Finnhub company news tests (provider-specific only; shared behaviors in contracts)
-      - `tests/unit/data/providers/test_finnhub_macro.py` - Finnhub macro news tests (minId parameter, ID tracking; shared behaviors in contracts)
-      - `tests/unit/data/providers/test_finnhub_prices.py` - Finnhub price tests (empty symbols handling; shared behaviors in contracts)
-      - `tests/unit/data/providers/test_polygon_news.py` - Polygon company news tests (pagination via next_url; cursor parsing; provider-specific only)
-      - `tests/unit/data/providers/test_polygon_macro_news.py` - Polygon macro news tests (pagination via next_url; cursor parsing; provider-specific only)
-    - `tests/unit/data/schema/test_schema_confidence_and_json.py` - JSON fields and confidence constraints
-    - `tests/unit/data/schema/test_schema_defaults_and_structure.py` - Default values and schema structure
-    - `tests/unit/data/schema/test_schema_enums.py` - Enum value locking
-    - `tests/unit/data/schema/test_schema_last_seen_keys.py` - Watermark key presence/constraints
-    - `tests/unit/data/schema/test_schema_financial_values.py` - Decimal and numeric constraints
-    - `tests/unit/data/schema/test_schema_not_null.py` - NOT NULL coverage
-    - `tests/unit/data/schema/test_schema_primary_keys.py` - Primary key enforcement
-    - `tests/unit/data/storage/test_storage_analysis.py` - Analysis result storage
-    - `tests/unit/data/storage/test_storage_cutoff.py` - Time-based cutoff handling
-    - `tests/unit/data/storage/test_storage_db.py` - Low-level database helpers
-    - `tests/unit/data/storage/test_storage_db_context.py` - Database context manager tests
-    - `tests/unit/data/storage/test_storage_errors.py` - Error pathways
-    - `tests/unit/data/storage/test_storage_holdings.py` - Holdings persistence
-    - `tests/unit/data/storage/test_storage_last_seen.py` - Watermark storage
-    - `tests/unit/data/storage/test_storage_llm_batch.py` - LLM batch commit flow
-    - `tests/unit/data/storage/test_storage_news.py` - News storage and deduplication
-    - `tests/unit/data/storage/test_storage_prices.py` - Price storage validation
-    - `tests/unit/data/storage/test_storage_queries.py` - Query helpers
-    - `tests/unit/data/storage/test_storage_types.py` - Type conversions
-    - `tests/unit/data/storage/test_storage_url.py` - URL normalization
-    - `tests/unit/data/storage/test_storage_utils_parsing.py` - ISO/RFC3339 parsing and row mappers
-
-  - `tests/unit/utils/` - Utility module tests
-    - `tests/unit/utils/test_http.py` - HTTP retry helper tests
-    - `tests/unit/utils/test_market_sessions.py` - Market session classification tests
-    - `tests/unit/utils/test_retry.py` - Generic retry logic tests
-    - `tests/unit/utils/test_symbols.py` - SYMBOLS parsing/validation helpers
-
-  - `tests/unit/workflows/` - Workflow orchestration tests
-    - `tests/unit/workflows/test_poller.py` - DataPoller orchestration tests
-
-  - `tests/unit/analysis/` - Analysis module tests
-    - `tests/unit/analysis/test_news_classifier.py` - News classification tests
-    - `tests/unit/analysis/test_urgency_detector.py` - Urgency detection tests
-
-- `tests/integration/` - Integration tests (organized by workflow)
-  - `tests/integration/data/` - Data pipeline tests
-    - `tests/integration/data/test_roundtrip_e2e.py` - Full end-to-end pipeline
-    - `tests/integration/data/test_dedup_news.py` - Cross-provider deduplication
-    - `tests/integration/data/test_timezone_pipeline.py` - UTC conversion validation
-    - `tests/integration/data/test_decimal_precision.py` - Decimal handling through storage
-    - `tests/integration/data/test_schema_constraints.py` - Schema constraint enforcement
-    - `tests/integration/data/test_wal_sqlite.py` - WAL mode behavior
-    - `tests/integration/data/providers/test_finnhub_live.py` - Live Finnhub API smoke (network-marked)
-    - `tests/integration/data/providers/test_polygon_live.py` - Live Polygon API smoke (network-marked)
-
-  - `tests/integration/llm/` - LLM integration tests
-    - `tests/integration/llm/conftest.py` - `ProviderSpec` dataclass and `provider_spec` fixture to parametrize LLM providers
-    - `tests/integration/llm/contracts/` - Shared workflow contract suites
-      - `tests/integration/llm/contracts/test_llm_code_tools_contract.py` - Validates code tool parity when tooling is toggled
-      - `tests/integration/llm/contracts/test_llm_connection_contract.py` - Confirms provider connectivity and baseline generation
-      - `tests/integration/llm/contracts/test_llm_web_search_contract.py` - Verifies web search tooling matches Wikipedia featured article lookup
-    - `tests/integration/llm/helpers.py` - Shared helpers (`extract_hex64`, `fetch_featured_wiki`, etc.)
-    - Notes: Requires API keys; uses Wikipedia with descriptive `User-Agent`; expect flaky network
+See `docs/Test_Catalog.md` for the complete test inventory. This summary focuses on source modules and architecture.
 
 ## Database Schema
 Tables (WITHOUT ROWID):

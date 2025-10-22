@@ -21,7 +21,7 @@ async def test_web_search_enabled_returns_expected_title(provider_spec):
     normalized_expected = normalize_title(expected_title)
     prompt = (
         f"What was Wikipedia's featured article on {yesterday_utc.strftime('%B %d, %Y')}? "
-        "Return just the article title."
+        "Respond with only the exact article title—no explanation, punctuation, or extra text."
     )
 
     response = await provider.generate(prompt)

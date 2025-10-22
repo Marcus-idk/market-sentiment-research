@@ -4,7 +4,6 @@ Tests UTC timezone handling throughout the complete data pipeline,
 from model initialization through storage to retrieval.
 """
 
-import pytest
 from datetime import datetime, timezone, timedelta
 
 from data.storage import store_news_items, store_price_data, upsert_analysis_result, upsert_holdings, get_news_since, get_price_data_since, get_analysis_results, get_all_holdings
