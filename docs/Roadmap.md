@@ -3,8 +3,9 @@
 ## Instructions for Updating Roadmap
 - Read the WHOLE document before making any updates.
 - Keep the pattern exactly the same across sections:
-  - Required subsections (exactly these three): Goal, Achieves, Notes
-  - No other subsection headers allowed (e.g., Success, Environment, Flow, Pipeline, Roles, Strategy). Put that info under Notes.
+  - Required subsections: Goal, Achieves
+  - Optional subsection: Notes (add only when clarifications are needed)
+  - No other subsection headers allowed (e.g., Success, Environment, Flow, Pipeline, Roles, Strategy). Put that info under Notes if needed.
   - Indicate completion ONLY by adding a ✅ in the section title (e.g., `## v0.2 — Core Infrastructure ✅`).
   - Do NOT add separate lines like "Status: ..." anywhere.
   - For planned/future sections, keep the themed emoji in the title (☁️, 🧠, 🎯) without a ✅.

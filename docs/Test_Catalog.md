@@ -15,14 +15,14 @@ Keep it human-scannable and low-churn; do not duplicate this inventory in other 
 
 ## Tag Legend
 - [network] — Performs real HTTP calls; requires network and API keys.
-- [contract] — Shared behavior suite applied across implementations.
+- [shared] — Shared behavior suite applied across implementations.
 - [async] — Module-level asyncio usage in this file.
 
 ## Entry Template (Use for Each Test File)
 
 ### `tests/…/test_xxx.py`
 - Purpose: one-line description of what the file validates
-- Tags: [network?] [contract?] [async?]
+- Tags: [network?] [shared?] [async?]
 - Fixtures: key shared fixtures used (file-level), if any
 - Tests:
 
@@ -102,25 +102,25 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_wal_mode_functionality` - WAL mode enabled and functional
   - `test_concurrent_operations_with_wal` - Concurrent read/write behavior
 
-### `tests/integration/llm/contracts/test_llm_code_tools_contract.py`
+### `tests/integration/llm/shared/test_llm_code_tools_shared.py`
 - Purpose: LLM code tools parity across providers
-- Tags: [contract] [network] [async]
+- Tags: [shared] [network] [async]
 - Tests:
   - `test_code_tools_enabled_matches_expected_digest` - Digest matches when tools enabled
   - `test_code_tools_disabled_does_not_match_digest` - Digest does not match when disabled
 - Notes: Requires LLM API keys; network
 
-### `tests/integration/llm/contracts/test_llm_connection_contract.py`
+### `tests/integration/llm/shared/test_llm_connection_shared.py`
 - Purpose: LLM connectivity and basic generation
-- Tags: [contract] [network] [async]
+- Tags: [shared] [network] [async]
 - Tests:
   - `test_provider_validates_connection` - validate_connection passes
   - `test_provider_generates_basic_response` - Generates non-empty response
 - Notes: Requires LLM API keys; network
 
-### `tests/integration/llm/contracts/test_llm_web_search_contract.py`
+### `tests/integration/llm/shared/test_llm_web_search_shared.py`
 - Purpose: LLM web search tooling parity
-- Tags: [contract] [network] [async]
+- Tags: [shared] [network] [async]
 - Tests:
   - `test_web_search_enabled_returns_expected_title` - Finds expected title when enabled
   - `test_web_search_disabled_does_not_find_title` - Does not find title when disabled
@@ -139,10 +139,10 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_detect_urgency_handles_empty_list` - Handles empty input list
   - `test_detect_urgency_extracts_text_from_headline_and_content` - Extracts text safely from headline/content
 
-### `tests/unit/config/contracts/test_settings_contract.py`
+### `tests/unit/config/shared/test_settings_shared.py`
 - Purpose: Unified env loading/validation across Finnhub, Polygon, OpenAI, Gemini
 - Tests:
-  **TestSettingsContract**
+  **TestSettingsShared**
   - `test_from_env_success` - Loads when key set
   - `test_from_env_missing_key` - Raises on missing key
   - `test_from_env_empty_key` - Raises on empty key
@@ -151,28 +151,28 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_from_env_custom_env_dict` - Accepts custom env dict
 
 ### `tests/unit/config/llm/test_gemini.py`
-- Purpose: Gemini-specific settings (placeholder; covered by contracts)
+- Purpose: Gemini-specific settings (placeholder; covered by shared tests)
 - Tests:
   - (none)
-- Notes: Common checks live in contracts suite
+- Notes: Common checks live in shared test suite
 
 ### `tests/unit/config/llm/test_openai.py`
-- Purpose: OpenAI-specific settings (placeholder; covered by contracts)
+- Purpose: OpenAI-specific settings (placeholder; covered by shared tests)
 - Tests:
   - (none)
-- Notes: Common checks live in contracts suite
+- Notes: Common checks live in shared test suite
 
 ### `tests/unit/config/providers/test_finnhub_settings.py`
-- Purpose: Finnhub-specific settings (placeholder; covered by contracts)
+- Purpose: Finnhub-specific settings (placeholder; covered by shared tests)
 - Tests:
   - (none)
-- Notes: Common checks live in contracts suite
+- Notes: Common checks live in shared test suite
 
 ### `tests/unit/config/providers/test_polygon_settings.py`
-- Purpose: Polygon-specific settings (placeholder; covered by contracts)
+- Purpose: Polygon-specific settings (placeholder; covered by shared tests)
 - Tests:
   - (none)
-- Notes: Common checks live in contracts suite
+- Notes: Common checks live in shared test suite
 
 ### `tests/unit/config/test_config_retry.py`
 - Purpose: Retry configuration dataclasses and defaults
@@ -192,22 +192,22 @@ The detailed inventory starts below this line (to be populated and maintained).
   **TestRetryBusinessRules**
   - `test_different_timeouts` - LLM vs Data default timeout rule
 
-### `tests/unit/data/providers/contracts/test_client_contract.py`
+### `tests/unit/data/providers/shared/test_client_shared.py`
 - Purpose: Provider HTTP client shared behaviors
-- Tags: [contract] [async]
+- Tags: [shared] [async]
 - Tests:
-  **TestClientContract**
+  **TestClientShared**
   - `test_get_builds_url_and_injects_auth` - Builds URL and injects auth
   - `test_get_handles_none_params` - Handles None params
   - `test_validate_connection_success` - validate_connection returns True
   - `test_validate_connection_failure_returns_false` - validate_connection returns False on error
   - `test_get_respects_custom_base_url_override` - Honors custom base_url
 
-### `tests/unit/data/providers/contracts/test_news_company_contract.py`
+### `tests/unit/data/providers/shared/test_news_company_shared.py`
 - Purpose: Company news providers shared behaviors
-- Tags: [contract] [async]
+- Tags: [shared] [async]
 - Tests:
-  **TestNewsCompanyContract**
+  **TestNewsCompanyShared**
   - `test_validate_connection_success` - validate_connection returns True
   - `test_validate_connection_failure` - validate_connection raises on error
   - `test_parses_valid_article` - Parses valid article
@@ -223,11 +223,11 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_structural_error_raises` - Malformed response raises DataSourceError
   - `test_empty_response_returns_empty_list` - Empty response returns []
 
-### `tests/unit/data/providers/contracts/test_news_macro_contract.py`
+### `tests/unit/data/providers/shared/test_news_macro_shared.py`
 - Purpose: Macro news providers shared behaviors
-- Tags: [contract] [async]
+- Tags: [shared] [async]
 - Tests:
-  **TestNewsMacroContract**
+  **TestNewsMacroShared**
   - `test_validate_connection_success` - validate_connection returns True
   - `test_validate_connection_failure` - validate_connection raises on error
   - `test_maps_related_symbols` - Maps related symbols to watchlist
@@ -237,11 +237,11 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_structural_error_raises` - Raises on malformed response type
   - `test_empty_watchlist_falls_back_to_all` - Empty watchlist => ALL
 
-### `tests/unit/data/providers/contracts/test_prices_contract.py`
+### `tests/unit/data/providers/shared/test_prices_shared.py`
 - Purpose: Price providers shared behaviors
-- Tags: [contract] [async]
+- Tags: [shared] [async]
 - Tests:
-  **TestPricesContract**
+  **TestPricesShared**
   - `test_validate_connection_success` - validate_connection returns True
   - `test_validate_connection_failure` - validate_connection raises on error
   - `test_decimal_conversion` - Converts price to Decimal
@@ -256,14 +256,14 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_non_dict_quote_skipped` - Skips non-dict quotes
 
 ### `tests/unit/data/providers/test_finnhub_news.py`
-- Purpose: Finnhub company news specifics (beyond contracts)
+- Purpose: Finnhub company news specifics (beyond shared tests)
 - Tags: [async]
 - Tests:
   **TestFinnhubNewsProviderSpecific**
   - `test_fetch_incremental_with_no_symbols_returns_empty_list` - Empty symbols => empty list
 
 ### `tests/unit/data/providers/test_finnhub_macro.py`
-- Purpose: Finnhub macro news specifics (beyond contracts)
+- Purpose: Finnhub macro news specifics (beyond shared tests)
 - Tags: [async]
 - Fixtures: macro_provider
 - Tests:
@@ -272,13 +272,14 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_last_fetched_max_id_advances_only_on_newer_ids` - Tracks and resets last_fetched_max_id
 
 ### `tests/unit/data/providers/test_finnhub_prices.py`
-- Purpose: Finnhub price specifics (beyond contracts)
+- Purpose: Finnhub price specifics (beyond shared tests)
 - Tags: [async]
 - Tests:
+  **TestFinnhubPriceProviderSpecific**
   - `test_fetch_incremental_with_no_symbols_returns_empty_list` - Empty symbols => empty list
 
 ### `tests/unit/data/providers/test_polygon_news.py`
-- Purpose: Polygon company news specifics (beyond contracts)
+- Purpose: Polygon company news specifics (beyond shared tests)
 - Tags: [async]
 - Tests:
   **TestPolygonNewsProvider**
@@ -286,7 +287,7 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_extract_cursor_from_next_url` - Extracts cursor from next_url
 
 ### `tests/unit/data/providers/test_polygon_macro_news.py`
-- Purpose: Polygon macro news specifics (beyond contracts)
+- Purpose: Polygon macro news specifics (beyond shared tests)
 - Tags: [async]
 - Tests:
   **TestPolygonMacroNewsProvider**
@@ -513,19 +514,20 @@ The detailed inventory starts below this line (to be populated and maintained).
 ### `tests/unit/data/test_data_base.py`
 - Purpose: Data provider base classes and exceptions
 - Tests:
-  **TestDataSourceInitialization**
-  - `test_datasource_source_name_none` - Rejects None
-  - `test_datasource_source_name_not_string` - Rejects non-string types
-  - `test_datasource_source_name_empty` - Rejects empty/whitespace
-  - `test_datasource_source_name_too_long` - Rejects >100 chars
-  - `test_datasource_source_name_valid` - Accepts valid name
-  - `test_datasource_source_name_trimmed` - Trims whitespace
-  **TestAbstractMethodEnforcement**
-  - `test_datasource_cannot_instantiate` - Cannot instantiate ABC
-  - `test_newsdata_source_requires_fetch_incremental` - News requires fetch_incremental
-  - `test_pricedata_source_requires_fetch_incremental` - Price requires fetch_incremental
-  - `test_concrete_implementation_works` - Concrete subclasses work
-  **TestExceptionHierarchy**
+  **TestDataSourceContract**
+  - `test_source_name_none_raises` - Rejects None source name
+  - `test_source_name_must_be_string` - Rejects non-string types
+  - `test_source_name_cannot_be_empty` - Rejects empty/whitespace
+  - `test_source_name_length_limit` - Rejects >100 chars
+  - `test_source_name_normalization` - Trims and preserves valid names
+  - `test_datasource_is_abstract` - Cannot instantiate ABC directly
+  **TestNewsDataSourceContract**
+  - `test_requires_fetch_incremental` - Enforces fetch_incremental implementation
+  - `test_concrete_implementation_satisfies_contract` - Concrete subclass works
+  **TestPriceDataSourceContract**
+  - `test_requires_fetch_incremental` - Enforces fetch_incremental implementation
+  - `test_concrete_implementation_satisfies_contract` - Concrete subclass works
+  **TestDataSourceErrorContract**
   - `test_exception_inheritance` - DataSourceError hierarchy
 
 ### `tests/unit/data/test_models.py`

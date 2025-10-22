@@ -1,4 +1,4 @@
-"""Finnhub-specific price provider tests (shared behaviors covered by contracts)."""
+"""Finnhub-specific price provider tests (shared behaviors covered by shared tests)."""
 
 from __future__ import annotations
 
@@ -11,10 +11,21 @@ from data.providers.finnhub import FinnhubPriceProvider
 pytestmark = pytest.mark.asyncio
 
 
-async def test_fetch_incremental_with_no_symbols_returns_empty_list():
-    provider = FinnhubPriceProvider(FinnhubSettings(api_key="test_key"), [])
+@pytest.fixture
+def price_provider() -> FinnhubPriceProvider:
+    """Create a FinnhubPriceProvider with no symbols for focused tests."""
 
-    result = await provider.fetch_incremental()
+    settings = FinnhubSettings(api_key="test_key")
+    return FinnhubPriceProvider(settings, [])
 
-    assert result == []
+
+class TestFinnhubPriceProviderSpecific:
+    """Finnhub-only behaviors not exercised by the shared price contract tests."""
+
+    async def test_fetch_incremental_with_no_symbols_returns_empty_list(
+        self, price_provider: FinnhubPriceProvider
+    ) -> None:
+        result = await price_provider.fetch_incremental()
+
+        assert result == []
 

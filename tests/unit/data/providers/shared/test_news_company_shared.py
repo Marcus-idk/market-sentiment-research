@@ -1,4 +1,4 @@
-"""Contract tests for company news providers."""
+"""Shared behavior tests for company news providers."""
 
 from __future__ import annotations
 
@@ -14,7 +14,7 @@ from data.storage.storage_utils import _datetime_to_iso
 pytestmark = pytest.mark.asyncio
 
 
-class TestNewsCompanyContract:
+class TestNewsCompanyShared:
     """Shared behavior tests for company news providers."""
 
     async def test_validate_connection_success(self, provider_spec_company):

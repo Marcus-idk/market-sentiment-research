@@ -32,8 +32,8 @@ Is it unit or integration test?
 ```
 
 ### Shared Multi-Provider Workflows (optional subfolder)
-When several providers share the same live workflow, keep files workflow-named and provider-parametrized. You may group them under a subfolder (e.g., `contracts/`) to signal “shared contract” intent, as long as:
-- Files remain workflow-anchored (e.g., `test_llm_web_search.py`), with an optional `_contract` suffix to denote shared behavior (e.g., `test_llm_web_search_contract.py`)
+When several providers share the same live workflow, keep files workflow-named and provider-parametrized. You may group them under a subfolder (e.g., `shared/`) to signal shared behavior intent, as long as:
+- Files remain workflow-anchored (e.g., `test_llm_web_search.py`), with an optional `_shared` suffix to denote shared behavior (e.g., `test_llm_web_search_shared.py`)
 - Module-level markers include `@pytest.mark.integration` (and `@pytest.mark.network` if networked)
 - `tests/integration/llm/conftest.py` exposes a provider spec fixture with ids for readable node IDs
 
@@ -53,7 +53,7 @@ When several providers share the same live workflow, keep files workflow-named a
   - Keep `pytest.mark.network` only on modules that really hit the network.
 
 - Async-heavy tests: mark the module.
-  - Put this at the top of async-heavy files (e.g., provider contracts):
+  - Put this at the top of async-heavy files (e.g., provider shared tests):
     ```python
     import pytest
     pytestmark = pytest.mark.asyncio
@@ -62,13 +62,13 @@ When several providers share the same live workflow, keep files workflow-named a
 
 - Advanced (optional): directory-wide asyncio via a conftest hook.
   - Use only if an entire folder is async and you want zero per-file marks.
-  - tests/unit/data/providers/contracts/conftest.py
+  - tests/unit/data/providers/shared/conftest.py
     ```python
     import pytest
 
     def pytest_collection_modifyitems(config, items):
         for item in items:
-            if 'tests/unit/data/providers/contracts' in str(item.fspath):
+            if 'tests/unit/data/providers/shared' in str(item.fspath):
                 item.add_marker(pytest.mark.asyncio)
     ```
   - Note: a plain `pytestmark = pytest.mark.asyncio` inside a conftest.py does not auto-apply to other modules; use the hook above if you need folder-wide behavior.
@@ -78,14 +78,14 @@ When several providers share the same live workflow, keep files workflow-named a
 
 - Examples in repo:
   - Package integration mark: `tests/integration/conftest.py`
-  - Module asyncio mark: `tests/unit/data/providers/contracts/test_prices_contract.py`
-  - Network modules: `tests/integration/llm/contracts/test_llm_connection_contract.py`# UNIT TEST ORGANIZATION RULES
+  - Module asyncio mark: `tests/unit/data/providers/shared/test_prices_shared.py`
+  - Network modules: `tests/integration/llm/shared/test_llm_connection_shared.py`# UNIT TEST ORGANIZATION RULES
 
 ## Decision Tree for Unit Tests
 ```
 What's in your source file?
 ├── CLASSES ONLY → Rule 1: Test<ClassName> for each class
-│   └── Multiple similar classes with same behavior? → Rule 6: Contract tests
+│   └── Multiple similar classes with same behavior? → Rule 6: Shared behavior tests
 ├── FUNCTIONS ONLY → Rule 2: Split by feature into test_<module>_<feature>.py
 ├── BOTH → Rule 3: Test<ClassName> + test_<module>_functions.py
 ├── ABSTRACT BASE CLASSES → Rule 4: Test<ClassName>Contract
@@ -101,8 +101,8 @@ class FinnhubNewsProvider:
     ...
 
 # Tests: split by concern
-# tests/unit/data/providers/contracts/test_client_contract.py
-class TestClientContract:
+# tests/unit/data/providers/shared/test_client_shared.py
+class TestClientShared:
     ...
 # tests/unit/data/providers/test_finnhub_news.py
 class TestFinnhubNewsProvider:
@@ -114,7 +114,7 @@ class TestFinnhubPriceProvider:
 class TestFinnhubMacroProviderSpecific:
     ...
 ```
-✅ Easy to find: "Where's the Finnhub client test?" → TestClientContract  
+✅ Easy to find: "Where's the Finnhub client test?" → TestClientShared  
 ❌ Bad: TestFinnhubStuff, TestNewsFeatures
 
 ## Rule 2: Functions Get Feature Groups
@@ -190,10 +190,10 @@ def test_enum_values_unchanged():
 ```
 ✅ Prevents someone changing "REG" to "REGULAR" and breaking DB
 
-## Rule 6: Repeated Behavior Uses Contract Tests
-When multiple similar classes share identical behavior, use contract tests instead of copying tests.
+## Rule 6: Repeated Behavior Uses Shared Behavior Tests
+When multiple similar classes share identical behavior, use shared behavior tests instead of copying tests.
 
-### When to Use Contract Tests
+### When to Use Shared Behavior Tests
 - ✅ **Same behavior, different data format**: Finnhub vs Polygon news parsing
 - ✅ **Multiple implementations of same interface**: Different provider implementations
 - ✅ **Shared validation logic**: All providers validate connections the same way
@@ -242,8 +242,8 @@ def provider_specs():
         )
     ]
 
-# tests/unit/data/providers/contracts/test_news_company_contract.py
-class TestNewsCompanyContract:
+# tests/unit/data/providers/shared/test_news_company_shared.py
+class TestNewsCompanyShared:
     """Shared behavior tests for all company news providers"""
 
     @pytest.mark.asyncio
@@ -282,7 +282,7 @@ class TestNewsCompanyContract:
 
 ### What Goes Where
 
-**Shared contracts** → `tests/unit/data/providers/contracts/test_*.py`
+**Shared behavior** → `tests/unit/data/providers/shared/test_*.py`
 - Skips missing headlines (same logic, different data format)
 - Filters old articles with 2-minute buffer
 - Validation success/failure
@@ -298,7 +298,7 @@ class TestNewsCompanyContract:
 ```python
 @dataclass
 class ProviderSpec:
-    """Specification for parametrizing provider contract tests"""
+    """Specification for parametrizing provider shared behavior tests"""
     name: str                           # 'finnhub', 'polygon'
     provider_cls: type                  # FinnhubNewsProvider
     settings: Any                       # FinnhubSettings instance
@@ -318,9 +318,9 @@ class ProviderSpec:
 ✅ **Less duplication**: No copy-pasting identical tests
 
 ### References
-- Data ABC contracts: `tests/unit/data/test_data_base.py`
-- LLM ABC contracts: `tests/unit/llm/test_llm_base.py`
-- Provider contracts: `tests/unit/data/providers/contracts/` (when created)
+- Data ABC contract tests: `tests/unit/data/test_data_base.py`
+- LLM ABC contract tests: `tests/unit/llm/test_llm_base.py`
+- Provider shared tests: `tests/unit/data/providers/shared/`
 
 ---
 
@@ -373,7 +373,7 @@ def test_finnhub_live():
 When writing tests for similar functionality, find and study the existing test implementation. Follow its structure, patterns, and conventions—including test naming, mock setup, assertion style, and organization—but don't blindly copy tests that don't apply to your use case.
 
 **Pattern:**
-1. Find similar test file (e.g., testing PolygonClient? → look at contracts/test_client_contract.py)
+1. Find similar test file (e.g., testing PolygonClient? → look at shared/test_client_shared.py)
 2. Study its structure: class names, test method names, mock patterns, assertions
 3. Copy what applies: naming conventions, mock setup patterns, assertion patterns
 4. Adapt what doesn't: API differences, different behaviors, different error types
@@ -431,7 +431,7 @@ class TestPolygonNewsProvider:
 - ✅ Adding new test to existing file → Match that file's style
 
 **References:**
-- Provider tests: `tests/unit/data/providers/contracts/test_client_contract.py`, `tests/unit/data/providers/test_finnhub_prices.py`, `tests/unit/data/providers/test_finnhub_news.py`, `tests/unit/data/providers/test_finnhub_macro.py`
+- Provider tests: `tests/unit/data/providers/shared/test_client_shared.py`, `tests/unit/data/providers/test_finnhub_prices.py`, `tests/unit/data/providers/test_finnhub_news.py`, `tests/unit/data/providers/test_finnhub_macro.py`
 - Storage tests: `test_storage_news.py`, `test_storage_prices.py`
 - LLM tests: `test_openai_provider.py`, `test_gemini_provider.py`
 
@@ -546,12 +546,12 @@ monkeypatch.setattr("provider.client.get", mock_get)
 Choose the right clock setup for each test.
 
 ### Rule: Default to real time for shared behavior; freeze for date math
-- **Current timestamps** → use in cross-provider contract tests when freshness is the only concern.
+- **Current timestamps** → use in cross-provider shared behavior tests when freshness is the only concern.
 - **Frozen time** → use when asserting date windows, buffer math, or max-id rollovers.
-- Prefer the shared `clock` fixture when available; otherwise monkeypatch the provider module’s `datetime`.
+- Prefer the shared `clock` fixture when available; otherwise monkeypatch the provider module's `datetime`.
 
 ### When to use current time
-Contract tests such as `tests/unit/data/providers/contracts/test_news_company_contract.py` keep `datetime.now()` so Polygon’s 2-day filter still returns the sample article. Nothing in that test asserts the exact timestamp.
+Shared behavior tests such as `tests/unit/data/providers/shared/test_news_company_shared.py` keep `datetime.now()` so Polygon's 2-day filter still returns the sample article. Nothing in that test asserts the exact timestamp.
 
 ### When to freeze time
 Provider-specific tests like `tests/unit/data/providers/test_finnhub_macro.py` or `tests/unit/data/providers/test_polygon_macro_news.py` freeze `datetime.now()` before calling the provider. That makes date math (e.g., buffer windows) deterministic.
@@ -560,7 +560,7 @@ Provider-specific tests like `tests/unit/data/providers/test_finnhub_macro.py` o
 
 | Test Type | Timestamp Approach | Why |
 |-----------|-------------------|-----|
-| **Contract tests** (shared behavior) | Real `datetime.now()` unless the test asserts window edges | Keeps articles inside provider freshness filters |
+| **Shared behavior tests** | Real `datetime.now()` unless the test asserts window edges | Keeps articles inside provider freshness filters |
 | **Provider-specific tests** (date logic) | Frozen time via clock fixture/monkeypatch | Validates exact ranges, ids, and buffer math |
 | **Live/integration tests** | Real time | Exercises the real service end-to-end |
 
@@ -712,10 +712,10 @@ Classes get 1:1, functions get feature grouping.
 
 ## Does it follow the pattern?
 - [ ] Classes? → 1:1 with TestClassName
-- [ ] Multiple similar classes? → Contract tests (Rule 6)
+- [ ] Multiple similar classes? → Shared behavior tests (Rule 6)
 - [ ] Functions? → Split by feature
 - [ ] Mixed? → Both patterns
-- [ ] ABC? → Contract tests
+- [ ] ABC? → Contract tests (Rule 4)
 - [ ] Enum? → Value lock tests
 
 ## Quality checks
@@ -742,7 +742,7 @@ Classes get 1:1, functions get feature grouping.
 - **1:1 Class Mapping**: Source `data/providers/finnhub/client.py` → Test `tests/unit/data/providers/test_finnhub.py` has `TestFinnhubClient`
   - Copy for: Polygon providers, new data providers
 
-- **Contract Tests (Repeated Behavior)**: Multiple providers → Shared contract test parametrized by ProviderSpec
+- **Shared Behavior Tests (Repeated Behavior)**: Multiple providers → Shared behavior test parametrized by ProviderSpec
   - When: FinnhubNewsProvider and PolygonNewsProvider share same behavior (skip missing headline, parse valid article)
   - Use for: Avoiding duplicate tests across similar implementations
 

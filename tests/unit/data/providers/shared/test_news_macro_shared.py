@@ -1,4 +1,4 @@
-"""Contract tests for macro news providers."""
+"""Shared behavior tests for macro news providers."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from data import DataSourceError
 pytestmark = pytest.mark.asyncio
 
 
-class TestNewsMacroContract:
+class TestNewsMacroShared:
     """Shared behavior tests for macro news providers."""
 
     async def test_validate_connection_success(self, provider_spec_macro):

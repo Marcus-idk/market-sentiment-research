@@ -1,4 +1,4 @@
-"""Contract tests for price data providers."""
+"""Shared behavior tests for price data providers."""
 
 from __future__ import annotations
 
@@ -13,7 +13,7 @@ from data import DataSourceError, PriceData
 
 pytestmark = pytest.mark.asyncio
 
-class TestPricesContract:
+class TestPricesShared:
     """Shared behavior tests for price providers."""
 
     async def test_validate_connection_success(self, provider_spec_prices):

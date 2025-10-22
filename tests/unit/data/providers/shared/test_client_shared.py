@@ -1,4 +1,4 @@
-"""Contract tests for provider API clients."""
+"""Shared behavior tests for provider API clients."""
 
 from __future__ import annotations
 
@@ -12,7 +12,7 @@ from data import DataSourceError
 pytestmark = pytest.mark.asyncio
 
 
-class TestClientContract:
+class TestClientShared:
     """Shared behavior tests for provider clients."""
 
     async def test_get_builds_url_and_injects_auth(self, client_spec, monkeypatch):

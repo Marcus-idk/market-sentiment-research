@@ -1,5 +1,5 @@
 """
-Unified contract tests for all settings classes (data providers + LLM providers).
+Unified shared behavior tests for all settings classes (data providers + LLM providers).
 
 These tests verify that all settings (Finnhub, Polygon, OpenAI, Gemini)
 follow the same environment loading and validation behavior.
@@ -47,8 +47,8 @@ def settings_spec(request):
     }
 
 
-class TestSettingsContract:
-    """Unified contract tests for all settings classes"""
+class TestSettingsShared:
+    """Unified shared behavior tests for all settings classes"""
 
     def test_from_env_success(self, settings_spec, monkeypatch):
         """Test successful loading when API key is set"""

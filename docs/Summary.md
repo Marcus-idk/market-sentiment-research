@@ -8,10 +8,9 @@ When updating this file, follow this checklist:
 3. **Function/Class changes**: When functions or classes are added/modified/removed, update their entries
 4. **Enum changes**: Always document enums with their values as they're database-critical
 5. **Keep descriptions brief**: One-line purpose descriptions, focus on WHAT not HOW
-6. **Alphabetical order**: Keep functions/classes in alphabetical order within each file section
-7. **Include all public APIs**: Document all functions/classes that other modules import
-8. **Test updates**: Keep the test inventory in `docs/Test_Catalog.md`; this file only links to it
-9. **Ignore tempFiles/**: Do not flag tempFiles/ directory for updates; it contains temporary planning notes only
+6. **Include all public APIs**: Document all functions/classes that other modules import
+7. **Test updates**: Keep the test inventory in `docs/Test_Catalog.md`; this file only links to it
+8. **Ignore tempFiles/**: Do not flag tempFiles/ directory for updates; it contains temporary planning notes only
 
 ---
 
@@ -160,14 +159,14 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `FinnhubNewsProvider` - Company news fetching implementation
       - `__init__()` - Initialize with settings and symbols
       - `validate_connection()` - Delegates to client
-      - `fetch_incremental(since=..., min_id=None)` - Date-based; applies 2‑min buffer; ignores `min_id`
+      - `fetch_incremental(*, since=...)` - Date-based; applies 2‑min buffer
       - `_parse_article()` - Convert API response to NewsItem
     - `FinnhubMacroNewsProvider` - Market-wide macro news fetching implementation
       - `__init__()` - Initialize with settings and symbols (watchlist for filtering)
       - `validate_connection()` - Delegates to client
-      - `fetch_incremental(since=None, min_id=...)` - ID-based; uses Finnhub `minId`; ignores `since`; tracks `last_fetched_max_id`
+      - `fetch_incremental(*, min_id=...)` - ID-based; uses Finnhub `minId`; tracks `last_fetched_max_id`
       - `_parse_article()` - Convert API response to NewsItem list per watchlist symbol, defaulting to 'ALL' when none match
-    - `_extract_symbols_from_related()` - Filter `related` field against watchlist; if nothing survives, fallback to ['ALL'] for market-wide coverage
+      - `_extract_symbols_from_related()` - Filter `related` field against watchlist; if nothing survives, fallback to ['ALL'] for market-wide coverage
       - `last_fetched_max_id` - Stores latest article ID for watermark updates
     - `FinnhubPriceProvider` - Price quote fetching implementation
       - `__init__()` - Initialize with settings and symbols
@@ -273,7 +272,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `PollStats` (TypedDict) - Per-cycle stats with `news`, `prices`, `errors`
 
 ### `analysis/` — Business logic and classification
-**Purpose**: News classification, sentiment analysis, and trading decisions
+**Purpose**: News classification and urgency detection (stubs for now; full LLM analysis in v0.5)
 
 **Files**:
 - `analysis/__init__.py` - Public facade (re-exports news_classifier, urgency_detector submodules)
