@@ -422,12 +422,16 @@ The detailed inventory starts below this line (to be populated and maintained).
 - Purpose: Watermark storage behavior
 - Tests:
   **TestLastSeenState**
-  - `test_set_and_get_last_seen_roundtrip` - Roundtrip get/set
-  - `test_set_last_seen_updates_existing_key` - Overwrites existing key
-  - `test_get_last_seen_missing_returns_none` - Missing key returns None
+  - `test_basic_roundtrip_set_get` - Basic set/get functionality
+  - `test_replace_existing_key` - INSERT OR REPLACE overwrites existing keys
+  - `test_unknown_key_returns_none` - Non-existent keys return None
+  - `test_unicode_safety` - Unicode handling in values
+  - `test_key_constraint_enforcement` - CHECK constraint rejects invalid keys
   **TestLastNewsTime**
-  - `test_roundtrip_datetime` - Datetime roundtrip
-  - `test_missing_returns_none` - Missing value returns None
+  - `test_roundtrip_aware_timestamp` - UTC-aware datetime roundtrip
+  - `test_naive_timestamp_treated_as_utc` - Naive datetime treated as UTC
+  - `test_overwrite_behavior` - Last write wins, no monotonic enforcement
+  - `test_missing_key_returns_none` - Missing news_since_iso key returns None
   **TestLastMacroMinId**
   - `test_macro_min_id_roundtrip_int` - Integer roundtrip
   - `test_macro_min_id_missing_returns_none` - Missing returns None
