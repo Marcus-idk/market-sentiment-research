@@ -1,4 +1,4 @@
-# Test Organization Guide - LLM-Optimized
+# Test Organization Guide
 
 Note: For a complete inventory of all tests (files and test functions), see `docs/Test_Catalog.md`.
 

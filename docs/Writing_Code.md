@@ -1,4 +1,4 @@
-# Writing Code Guidelines - LLM-Optimized
+# Writing Code Guidelines
 
 ## 📝 HOW TO EXTEND THIS DOCUMENT
 - Add rules under appropriate section (MUST/SHOULD)
