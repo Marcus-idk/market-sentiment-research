@@ -27,3 +27,26 @@ A lightweight US equities trading bot skeleton with strict data models, SQLite s
 - **LLM Providers Guide**: OpenAI and Gemini provider parameters, tools, and usage examples
   - [docs/LLM_Providers_Guide.md](docs/LLM_Providers_Guide.md)
 
+## Development Setup
+
+**1. Install runtime dependencies:**
+```bash
+pip install -r requirements.txt
+```
+
+**2. Install dev tools (formatters, linters, test runners):**
+```bash
+pip install -r requirements-dev.txt
+```
+
+**3. Activate pre-commit hooks (auto-format and lint before commits):**
+```bash
+pre-commit install
+```
+
+**4. (Optional) Install VS Code extensions:**
+- VS Code will prompt: "This workspace has extension recommendations"
+- Click "Install All" to install Ruff + Python extensions
+- Or manually: Extensions (Ctrl+Shift+X) → Install recommendations from `.vscode/extensions.json`
+- Format-on-save is already configured in `.vscode/settings.json`
+

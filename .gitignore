@@ -209,8 +209,10 @@ __marimo__/
 # Claude Code
 .claude/
 
-# Visual Studio Code
-.vscode
+# Visual Studio Code (commit settings.json and extensions.json, ignore everything else)
+.vscode/*
+!.vscode/settings.json
+!.vscode/extensions.json
 
 tempFiles/
 
