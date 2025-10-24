@@ -50,3 +50,26 @@ pre-commit install
 - Or manually: Extensions (Ctrl+Shift+X) → Install recommendations from `.vscode/extensions.json`
 - Format-on-save is already configured in `.vscode/settings.json`
 
+## Code Quality
+
+**Run Ruff (linter + formatter):**
+```bash
+# Lint with auto-fix (runs first)
+ruff check --fix .
+
+# Format code (runs second)
+ruff format .
+```
+
+**Run Pylint (duplicate code detection):**
+```bash
+# Scan entire codebase for duplicates (uses all CPU cores)
+pylint . -j 0
+
+# Or scan specific areas
+pylint tests/ -j 0
+pylint data/providers/ -j 0
+```
+
+**Note**: Pre-commit hooks automatically run `ruff check --fix` and `ruff format` before each commit. Run Pylint manually for periodic cleanup (weekly/monthly).
+

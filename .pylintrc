@@ -1,0 +1,31 @@
+[MAIN]
+ignore-paths =
+    .venv,
+    .ruff_cache,
+    .pytest_cache,
+    .vscode,
+    .claude,
+    tempfiles,
+    docs,
+    build,
+    dist,
+    .mypy_cache,
+    .hypothesis,
+    .*\.egg-info
+
+ignore-patterns =
+    __pycache__,
+    .*\.pyc$,
+    .*\.pyo$
+
+[MESSAGES CONTROL]
+disable = all
+enable =
+    duplicate-code,
+    cyclic-import
+
+[SIMILARITIES]
+min-similarity-lines = 8
+ignore-comments = yes
+ignore-docstrings = yes
+ignore-imports = yes
