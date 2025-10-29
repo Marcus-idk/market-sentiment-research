@@ -260,26 +260,31 @@ class DataPoller:
                 logger.exception(f"Urgency detection failed: {exc}")
 
         # Update watermark with latest timestamp from all news
-        max_time = max(n.published for n in all_news)
-        await asyncio.to_thread(
-            set_last_news_time,
-            self.db_path,
-            max_time,
-        )
+        if all_news:
+            max_time = max(n.published for n in all_news)
+            await asyncio.to_thread(
+                set_last_news_time,
+                self.db_path,
+                max_time,
+            )
 
-        # Persist minId watermark for macro news providers
-        for provider in self._macro_providers:
-            if provider.last_fetched_max_id:
-                await asyncio.to_thread(
-                    set_last_macro_min_id, self.db_path, provider.last_fetched_max_id
-                )
-                logger.info(f"Updated macro news minId watermark to {provider.last_fetched_max_id}")
+            # Persist minId watermark for macro news providers
+            for provider in self._macro_providers:
+                if provider.last_fetched_max_id:
+                    await asyncio.to_thread(
+                        set_last_macro_min_id, self.db_path, provider.last_fetched_max_id
+                    )
+                    logger.info(
+                        f"Updated macro news minId watermark to {provider.last_fetched_max_id}"
+                    )
 
-        logger.info(
-            f"Stored {len(all_news)} news items "
-            f"({len(company_news)} company, {len(macro_news)} macro), "
-            f"watermark updated to {max_time.isoformat()}"
-        )
+            logger.info(
+                f"Stored {len(all_news)} news items "
+                f"({len(company_news)} company, {len(macro_news)} macro), "
+                f"watermark updated to {max_time.isoformat()}"
+            )
+        else:
+            logger.info("No news items to process")
 
         return len(all_news)
 
