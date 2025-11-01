@@ -1,12 +1,4 @@
-"""
-Phase 4: Base Class Validation Tests
-
-Tests for abstract base classes and their contracts:
-- DataSource abstract base class
-- NewsDataSource and PriceDataSource subclasses
-- Exception hierarchy (DataSourceError)
-- Abstract method enforcement
-"""
+"""Contract tests for data provider ABCs and exceptions."""
 
 from datetime import datetime
 

@@ -1,8 +1,4 @@
-"""
-WAL mode SQLite functionality tests.
-Tests Write-Ahead Logging mode functionality including concurrent operations
-and database performance under realistic trading bot access patterns.
-"""
+"""Validate SQLite WAL mode and concurrent operations under realistic load."""
 
 import concurrent.futures
 import threading
@@ -33,7 +29,7 @@ from data.storage.db_context import _cursor_context
 
 
 class TestWALSqlite:
-    """Test WAL mode functionality and concurrent operations"""
+    """WAL mode functionality and concurrent operations"""
 
     @staticmethod
     def _make_news_entry(
@@ -57,15 +53,12 @@ class TestWALSqlite:
         return NewsEntry(article=article, symbol=symbol, is_important=None)
 
     def test_wal_mode_functionality(self, temp_db):
-        """
-        Test that WAL mode is properly enabled and functional with file-backed database.
-        This test verifies concurrent access patterns that require WAL mode.
-        """
+        """WAL mode is enabled and functional with file-backed DB."""
         # Verify WAL mode is enabled
         with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("PRAGMA journal_mode")
             mode = cursor.fetchone()[0]
-            assert mode.lower() == "wal", f"Expected WAL mode, got {mode}"
+            assert mode.lower() == "wal"
 
         # Test that WAL files are created during operations
         # Store some data to trigger WAL file creation
@@ -87,30 +80,13 @@ class TestWALSqlite:
         assert results[0].headline == "WAL Test"
 
     def test_concurrent_operations_with_wal(self, temp_db):
-        """
-        Test that WAL mode allows concurrent read/write operations
-        without "database locked" errors.
-
-        This test validates realistic trading bot scenarios:
-        1. Multiple data source polling (concurrent writes)
-        2. LLM analysis during data ingestion (read during write)
-        3. Multiple LLM agents accessing data (concurrent reads)
-        4. Mixed read/write operations under load
-
-        Critical aspects tested:
-        - No "database locked" or "database busy" errors
-        - Data consistency despite concurrent access
-        - Performance benefits of WAL mode
-        - Real-world trading bot access patterns
-        """
+        """WAL allows concurrent read/write without lock errors and maintains consistency."""
 
         # VERIFY WAL MODE IS ENABLED
         with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("PRAGMA journal_mode")
             mode = cursor.fetchone()[0]
-            assert mode.lower() == "wal", (
-                f"Expected WAL mode, got {mode}. WAL required for concurrent operations."
-            )
+            assert mode.lower() == "wal"
 
         # PREPARE TEST DATA
         base_time = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
@@ -266,17 +242,13 @@ class TestWALSqlite:
                     thread_errors.append(f"Thread operation failed: {exc}")
 
         # FAIL THE TEST if any threads failed
-        assert len(thread_errors) == 0, f"Thread failures occurred: {thread_errors}"
+        assert len(thread_errors) == 0
 
         # VALIDATE RESULTS
 
         # 1. Verify no database locking errors occurred
-        assert len(operation_results["write_errors"]) == 0, (
-            f"Write errors occurred: {operation_results['write_errors']}"
-        )
-        assert len(operation_results["read_errors"]) == 0, (
-            f"Read errors occurred: {operation_results['read_errors']}"
-        )
+        assert len(operation_results["write_errors"]) == 0
+        assert len(operation_results["read_errors"]) == 0
 
         # 2. Verify all operations completed successfully
         writes_per_batch = sum(len(batch) for batch in symbol_batches)
@@ -284,12 +256,8 @@ class TestWALSqlite:
         read_iterations = 3  # Each reader performs three queries
         expected_reads = len(read_types) * read_iterations
 
-        assert operation_results["write_count"] == expected_writes, (
-            f"Expected {expected_writes} writes, got {operation_results['write_count']}"
-        )
-        assert operation_results["read_count"] == expected_reads, (
-            f"Expected {expected_reads} reads, got {operation_results['read_count']}"
-        )
+        assert operation_results["write_count"] == expected_writes
+        assert operation_results["read_count"] == expected_reads
 
         # 3. Verify data consistency - check that data written is actually stored
         final_news = get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
@@ -302,24 +270,18 @@ class TestWALSqlite:
         analysis_symbols = {item.symbol for item in final_analysis}
 
         expected_symbol_set = set(symbols)
-        assert news_symbols == expected_symbol_set, (
-            f"Expected news for symbols {expected_symbol_set}, got {news_symbols}"
-        )
-        assert price_symbols == expected_symbol_set, (
-            f"Expected price data for symbols {expected_symbol_set}, got {price_symbols}"
-        )
-        assert analysis_symbols == expected_symbol_set, (
-            f"Expected analysis for symbols {expected_symbol_set}, got {analysis_symbols}"
-        )
+        assert news_symbols == expected_symbol_set
+        assert price_symbols == expected_symbol_set
+        assert analysis_symbols == expected_symbol_set
 
         # 4. Test specific data integrity for one symbol
         aapl_news = [item for item in final_news if item.symbol == "AAPL"]
         aapl_prices = [item for item in final_prices if item.symbol == "AAPL"]
         aapl_analysis = [item for item in final_analysis if item.symbol == "AAPL"]
 
-        assert len(aapl_news) > 0, "AAPL news should be stored"
-        assert len(aapl_prices) > 0, "AAPL price data should be stored"
-        assert len(aapl_analysis) > 0, "AAPL analysis should be stored"
+        assert len(aapl_news) > 0
+        assert len(aapl_prices) > 0
+        assert len(aapl_analysis) > 0
 
         # Verify specific AAPL data integrity
         aapl_price = aapl_prices[0]

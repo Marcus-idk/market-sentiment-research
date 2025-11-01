@@ -27,9 +27,7 @@ class TestDatabaseInitialization:
             tables = {row[0] for row in cursor.fetchall()}
 
             required_tables = {"analysis_results", "holdings", "news_items", "price_data"}
-            assert required_tables.issubset(tables), (
-                f"Required tables {required_tables} not found. Got: {tables}"
-            )
+            assert required_tables.issubset(tables)
 
     def test_schema_file_not_found_raises_error(self, temp_db_path, monkeypatch):
         """Test error when schema.sql resource is missing"""
@@ -57,7 +55,7 @@ class TestDatabaseInitialization:
         with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("PRAGMA journal_mode")
             mode = cursor.fetchone()[0]
-            assert mode.lower() == "wal", f"Expected WAL mode, got {mode}"
+            assert mode.lower() == "wal"
 
     def test_foreign_keys_enabled_by_default(self, temp_db):
         """Canary: every test connection should enforce FK constraints."""

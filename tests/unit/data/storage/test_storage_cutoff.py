@@ -57,7 +57,7 @@ class TestCutoffQueries:
         # Query news before cutoff (should get first 2 items)
         results = get_news_before(temp_db, cutoff)
 
-        assert len(results) == 2, f"Expected 2 results, got {len(results)}"
+        assert len(results) == 2
 
         # Verify ordering by created_at ASC, then symbol ASC
         assert results[0].headline == "Old News"
@@ -90,22 +90,22 @@ class TestCutoffQueries:
         # Test 1: Cutoff before all items (should get nothing)
         past_cutoff = datetime(2020, 1, 1, tzinfo=UTC)
         results = get_news_before(temp_db, past_cutoff)
-        assert len(results) == 0, f"Expected 0 results for past cutoff, got {len(results)}"
+        assert len(results) == 0
 
         # Test 2: Cutoff between items (should get first item only)
         results = get_news_before(temp_db, between_cutoff)
-        assert len(results) == 1, f"Expected 1 result for between cutoff, got {len(results)}"
+        assert len(results) == 1
         assert results[0].headline == "First News"
 
         # Test 3: Cutoff well after all items (should get both)
         future_cutoff = datetime(2030, 1, 1, tzinfo=UTC)
         results = get_news_before(temp_db, future_cutoff)
-        assert len(results) == 2, f"Expected 2 results for future cutoff, got {len(results)}"
+        assert len(results) == 2
 
         # Test 4: Exact timestamp match with current time (should get both items)
         exact_cutoff = datetime.now(UTC)
         results = get_news_before(temp_db, exact_cutoff)
-        assert len(results) == 2, f"Expected 2 results for exact match, got {len(results)}"
+        assert len(results) == 2
 
     def test_get_prices_before_cutoff_filtering(self, temp_db):
         """Test price data retrieval with created_at cutoff filtering for LLM batch processing"""
@@ -144,7 +144,7 @@ class TestCutoffQueries:
         # Query prices before cutoff (should get first 2 items)
         results = get_prices_before(temp_db, cutoff)
 
-        assert len(results) == 2, f"Expected 2 results, got {len(results)}"
+        assert len(results) == 2
 
         # Verify ordering by created_at ASC, then symbol ASC
         assert results[0].price == Decimal("150.00")
@@ -190,20 +190,20 @@ class TestCutoffQueries:
         # Test 1: Cutoff before all items (should get nothing)
         past_cutoff = datetime(2020, 1, 1, tzinfo=UTC)
         results = get_prices_before(temp_db, past_cutoff)
-        assert len(results) == 0, f"Expected 0 results for past cutoff, got {len(results)}"
+        assert len(results) == 0
 
         # Test 2: Cutoff between items (should get first item only)
         results = get_prices_before(temp_db, between_cutoff)
-        assert len(results) == 1, f"Expected 1 result for between cutoff, got {len(results)}"
+        assert len(results) == 1
         assert results[0].price == Decimal("150.00")
         assert results[0].symbol == "AAPL"
 
         # Test 3: Cutoff well after all items (should get both)
         future_cutoff = datetime(2030, 1, 1, tzinfo=UTC)
         results = get_prices_before(temp_db, future_cutoff)
-        assert len(results) == 2, f"Expected 2 results for future cutoff, got {len(results)}"
+        assert len(results) == 2
 
         # Test 4: Exact timestamp match with current time (should get both items)
         exact_cutoff = datetime.now(UTC)
         results = get_prices_before(temp_db, exact_cutoff)
-        assert len(results) == 2, f"Expected 2 results for exact match, got {len(results)}"
+        assert len(results) == 2

@@ -1,6 +1,4 @@
-"""
-Tests confidence score range and JSON validation constraints.
-"""
+"""Tests confidence score range and JSON validation constraints."""
 
 import sqlite3
 

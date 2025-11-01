@@ -47,7 +47,7 @@ class TestLastSeenState:
         with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("SELECT COUNT(*) FROM last_seen WHERE key = 'llm_last_run_iso'")
             count = cursor.fetchone()[0]
-            assert count == 1, "Should have exactly one record after replacement"
+            assert count == 1
 
     def test_unknown_key_returns_none(self, temp_db):
         """Test that non-existent keys return None"""

@@ -1,8 +1,4 @@
-"""
-Timezone consistency pipeline tests.
-Tests UTC timezone handling throughout the complete data pipeline,
-from model initialization through storage to retrieval.
-"""
+"""Validate UTC timezone handling end-to-end across the data pipeline."""
 
 from datetime import UTC, datetime, timedelta, timezone
 from decimal import Decimal
@@ -31,7 +27,7 @@ from data.storage.db_context import _cursor_context
 
 
 class TestTimezonePipeline:
-    """Test UTC timezone consistency throughout the entire data pipeline"""
+    """UTC timezone consistency across the data pipeline"""
 
     @staticmethod
     def _make_entry(
@@ -55,18 +51,7 @@ class TestTimezonePipeline:
         return NewsEntry(article=article, symbol=symbol, is_important=None)
 
     def test_timezone_consistency(self, temp_db):
-        """
-        Test UTC timezone consistency throughout the entire pipeline.
-
-        Validates:
-        1. Model __post_init__ normalization converts all datetime inputs to UTC
-        2. Storage _datetime_to_iso function formats as ISO string with 'Z'
-        3. Retrieved datetime strings represent correct UTC time
-        4. Cross-model consistency with same timestamp
-        5. Various timezone scenarios: naive, UTC-aware, non-UTC aware, current time
-
-        Tests all models with datetime fields: NewsItem, PriceData, AnalysisResult, Holdings
-        """
+        """UTC normalization in models, storage ISO 'Z', retrieval, and cross-model consistency."""
 
         # TIMEZONE SCENARIOS TO TEST
         base_dt = datetime(2024, 1, 15, 14, 30, 45)  # Base datetime for testing
@@ -119,16 +104,13 @@ class TestTimezonePipeline:
         )
 
         # Verify all NewsItem published times are normalized to UTC
-        assert news_naive.published.tzinfo == UTC, "Naive datetime should be converted to UTC"
-        assert news_utc.published.tzinfo == UTC, "UTC datetime should remain UTC"
-        assert news_eastern.published.tzinfo == UTC, "Eastern datetime should be converted to UTC"
+        assert news_naive.published.tzinfo == UTC
+        assert news_utc.published.tzinfo == UTC
+        assert news_eastern.published.tzinfo == UTC
 
         # Verify the actual UTC time is correct for timezone-aware inputs
         expected_eastern_utc = eastern_dt.astimezone(UTC)
-        assert news_eastern.published == expected_eastern_utc, (
-            "Eastern time conversion incorrect: expected "
-            f"{expected_eastern_utc}, got {news_eastern.published}"
-        )
+        assert news_eastern.published == expected_eastern_utc
 
         # Test PriceData normalization
         price_naive = PriceData(symbol="TEST1", timestamp=naive_dt, price=Decimal("100.00"))
@@ -269,13 +251,9 @@ class TestTimezonePipeline:
                 ORDER BY ns.symbol
                 """
             )
-            for symbol, published_iso in cursor.fetchall():
-                assert published_iso.endswith("Z"), (
-                    f"News item {symbol} published_iso should end with 'Z': {published_iso}"
-                )
-                assert "T" in published_iso, (
-                    f"News item {symbol} published_iso should contain 'T': {published_iso}"
-                )
+            for _symbol, published_iso in cursor.fetchall():
+                assert published_iso.endswith("Z")
+                assert "T" in published_iso
 
             # Check price_data table
             cursor.execute(
@@ -283,13 +261,9 @@ class TestTimezonePipeline:
                 "WHERE symbol LIKE 'TZ%' ORDER BY symbol"
             )
             price_rows = cursor.fetchall()
-            for symbol, timestamp_iso in price_rows:
-                assert timestamp_iso.endswith("Z"), (
-                    f"Price data {symbol} timestamp_iso should end with 'Z': {timestamp_iso}"
-                )
-                assert "T" in timestamp_iso, (
-                    f"Price data {symbol} timestamp_iso should contain 'T': {timestamp_iso}"
-                )
+            for _symbol, timestamp_iso in price_rows:
+                assert timestamp_iso.endswith("Z")
+                assert "T" in timestamp_iso
 
             # Check analysis_results table
             cursor.execute(
@@ -297,13 +271,9 @@ class TestTimezonePipeline:
                 "WHERE symbol LIKE 'TZ%' ORDER BY symbol"
             )
             analysis_rows = cursor.fetchall()
-            for symbol, last_updated_iso, created_at_iso in analysis_rows:
-                assert last_updated_iso.endswith("Z"), (
-                    f"Analysis {symbol} last_updated_iso should end with 'Z': {last_updated_iso}"
-                )
-                assert created_at_iso.endswith("Z"), (
-                    f"Analysis {symbol} created_at_iso should end with 'Z': {created_at_iso}"
-                )
+            for _symbol, last_updated_iso, created_at_iso in analysis_rows:
+                assert last_updated_iso.endswith("Z")
+                assert created_at_iso.endswith("Z")
 
             # Check holdings table
             cursor.execute(
@@ -311,13 +281,9 @@ class TestTimezonePipeline:
                 "WHERE symbol LIKE 'TZ%' ORDER BY symbol"
             )
             holdings_rows = cursor.fetchall()
-            for symbol, created_at_iso, updated_at_iso in holdings_rows:
-                assert created_at_iso.endswith("Z"), (
-                    f"Holdings {symbol} created_at_iso should end with 'Z': {created_at_iso}"
-                )
-                assert updated_at_iso.endswith("Z"), (
-                    f"Holdings {symbol} updated_at_iso should end with 'Z': {updated_at_iso}"
-                )
+            for _symbol, created_at_iso, updated_at_iso in holdings_rows:
+                assert created_at_iso.endswith("Z")
+                assert updated_at_iso.endswith("Z")
 
         # PHASE 4: TEST QUERY FUNCTIONS RETURN UTC-CONSISTENT DATA
 
@@ -335,30 +301,18 @@ class TestTimezonePipeline:
 
         # Verify all retrieved timestamps are properly formatted ISO with 'Z'
         for item in tz_news:
-            assert isinstance(item.published, datetime) and item.published.tzinfo == UTC, (
-                f"Retrieved news published_iso should end with 'Z': {item.published}"
-            )
+            assert isinstance(item.published, datetime) and item.published.tzinfo == UTC
 
         for item in tz_prices:
-            assert isinstance(item.timestamp, datetime) and item.timestamp.tzinfo == UTC, (
-                f"Retrieved price timestamp_iso should end with 'Z': {item.timestamp}"
-            )
+            assert isinstance(item.timestamp, datetime) and item.timestamp.tzinfo == UTC
 
         for item in tz_analysis:
-            assert isinstance(item.last_updated, datetime) and item.last_updated.tzinfo == UTC, (
-                f"Retrieved analysis last_updated_iso should end with 'Z': {item.last_updated}"
-            )
-            assert isinstance(item.created_at, datetime) and item.created_at.tzinfo == UTC, (
-                f"Retrieved analysis created_at_iso should end with 'Z': {item.created_at}"
-            )
+            assert isinstance(item.last_updated, datetime) and item.last_updated.tzinfo == UTC
+            assert isinstance(item.created_at, datetime) and item.created_at.tzinfo == UTC
 
         for item in tz_holdings:
-            assert isinstance(item.created_at, datetime) and item.created_at.tzinfo == UTC, (
-                f"Retrieved holdings created_at_iso should end with 'Z': {item.created_at}"
-            )
-            assert isinstance(item.updated_at, datetime) and item.updated_at.tzinfo == UTC, (
-                f"Retrieved holdings updated_at_iso should end with 'Z': {item.updated_at}"
-            )
+            assert isinstance(item.created_at, datetime) and item.created_at.tzinfo == UTC
+            assert isinstance(item.updated_at, datetime) and item.updated_at.tzinfo == UTC
 
         # PHASE 5: TEST CROSS-MODEL CONSISTENCY WITH SAME TIMESTAMP
 
@@ -463,8 +417,5 @@ class TestTimezonePipeline:
         ]
 
         assert len(boundary_result) == 1
-        # Timezone conversion should be properly handled and stored as UTC
-        assert (
-            isinstance(boundary_result[0].published, datetime)
-            and boundary_result[0].published.tzinfo == UTC
-        )
+        assert isinstance(boundary_result[0].published, datetime)
+        assert boundary_result[0].published.tzinfo == UTC

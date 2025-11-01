@@ -55,15 +55,13 @@ class TestHoldingsUpsert:
             """)
             count, qty, price, cost, notes, created, updated = cursor.fetchone()
 
-            assert count == 1, f"Expected 1 record, got {count}"
-            assert qty == "150", "quantity should be updated"
-            assert price == "148.00", "break_even_price should be updated"
-            assert cost == "22200.00", "total_cost should be updated"
-            assert notes == "Added more shares", "notes should be updated"
-            assert created == "2024-01-15T09:00:00Z", (
-                "created_at should be preserved from first insert"
-            )
-            assert updated == "2024-01-15T12:00:00Z", "updated_at should be from update"
+            assert count == 1
+            assert qty == "150"
+            assert price == "148.00"
+            assert cost == "22200.00"
+            assert notes == "Added more shares"
+            assert created == "2024-01-15T09:00:00Z", "upsert should preserve created_at"
+            assert updated == "2024-01-15T12:00:00Z", "upsert should update updated_at"
 
     def test_upsert_holdings_auto_timestamps(self, temp_db):
         """Test automatic timestamp generation when not provided"""
@@ -95,4 +93,4 @@ class TestHoldingsUpsert:
             assert "T" in created and "T" in updated
             assert created.endswith("Z") and updated.endswith("Z")
             # Should be approximately the same time
-            assert created == updated
+            assert created == updated, "auto-set timestamps should match on insert"

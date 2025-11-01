@@ -1,6 +1,4 @@
-"""
-Tests primary key uniqueness constraints for all database tables.
-"""
+"""Tests primary key uniqueness constraints for all database tables."""
 
 import sqlite3
 

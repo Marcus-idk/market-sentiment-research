@@ -1,7 +1,4 @@
-"""
-Market hours classification tests.
-Tests US equity market session detection based on Eastern Time.
-"""
+"""US market session detection based on Eastern Time (ET)."""
 
 import logging
 from datetime import UTC, datetime

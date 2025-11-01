@@ -1,11 +1,4 @@
-"""
-Unified shared behavior tests for all settings classes (data providers + LLM providers).
-
-These tests verify that all settings (Finnhub, Polygon, OpenAI, Gemini)
-follow the same environment loading and validation behavior.
-
-To add a new provider: add its spec to the settings_spec fixture params below.
-"""
+"""Shared env loading/validation across Finnhub, Polygon, OpenAI, Gemini."""
 
 import pytest
 
@@ -95,38 +88,37 @@ class TestSettingsShared:
             assert getattr(settings, field_name) == expected_value
 
     def test_from_env_missing_key(self, settings_spec, monkeypatch):
-        """Test raises ValueError when API key is not set"""
+        """Raises ValueError when API key is not set"""
         monkeypatch.delenv(settings_spec["env_var_name"], raising=False)
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(
+            ValueError,
+            match=f"{settings_spec['env_var_name']} environment variable not found or empty",
+        ):
             settings_spec["settings_cls"].from_env()
-
-        assert f"{settings_spec['env_var_name']} environment variable not found or empty" in str(
-            exc_info.value
-        )
 
     def test_from_env_empty_key(self, settings_spec, monkeypatch):
-        """Test raises ValueError when API key is empty string"""
+        """Raises ValueError when API key is empty string"""
         monkeypatch.setenv(settings_spec["env_var_name"], "")
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(
+            ValueError,
+            match=f"{settings_spec['env_var_name']} environment variable not found or empty",
+        ):
             settings_spec["settings_cls"].from_env()
-
-        assert f"{settings_spec['env_var_name']} environment variable not found or empty" in str(
-            exc_info.value
-        )
 
     def test_from_env_whitespace_key(self, settings_spec, monkeypatch):
-        """Test raises ValueError when API key is only whitespace"""
+        """Raises ValueError when API key is only whitespace"""
         monkeypatch.setenv(settings_spec["env_var_name"], "   ")
 
-        with pytest.raises(ValueError) as exc_info:
+        with pytest.raises(
+            ValueError,
+            match=(
+                f"{settings_spec['env_var_name']} environment variable "
+                f"{settings_spec['whitespace_err']}"
+            ),
+        ):
             settings_spec["settings_cls"].from_env()
-
-        assert (
-            f"{settings_spec['env_var_name']} environment variable "
-            f"{settings_spec['whitespace_err']}" in str(exc_info.value)
-        )
 
     def test_from_env_strips_whitespace(self, settings_spec, monkeypatch):
         """Test that whitespace is stripped from API key"""

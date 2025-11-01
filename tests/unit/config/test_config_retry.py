@@ -1,7 +1,4 @@
-"""
-Tests for retry configuration classes.
-Tests default values, immutability, and custom instantiation.
-"""
+"""Retry config tests: defaults, immutability, custom values."""
 
 from dataclasses import FrozenInstanceError
 

@@ -1,7 +1,4 @@
-"""
-Tests for utils.retry module.
-Focus on behaviors we rely on in v0.3.1.
-"""
+"""Retry utilities behaviors we rely on in v0.3.1."""
 
 import logging
 from datetime import UTC, datetime, timedelta

@@ -1,6 +1,4 @@
-"""
-Tests NOT NULL constraints for required database fields.
-"""
+"""Tests NOT NULL constraints for required database fields."""
 
 import sqlite3
 

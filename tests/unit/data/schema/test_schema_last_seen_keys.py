@@ -1,7 +1,4 @@
-"""
-Tests for last_seen table key constraint.
-Verifies CHECK constraint allows only specific watermark keys.
-"""
+"""Tests last_seen key CHECK constraint allows only specific watermark keys."""
 
 import sqlite3
 

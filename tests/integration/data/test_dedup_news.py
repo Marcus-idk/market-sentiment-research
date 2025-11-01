@@ -1,8 +1,4 @@
-"""
-News deduplication tests.
-Tests URL normalization and cross-provider deduplication functionality
-to ensure duplicate articles from different sources are properly handled.
-"""
+"""Validate URL normalization and cross-provider news deduplication."""
 
 from datetime import UTC, datetime
 
@@ -11,18 +7,10 @@ from data.storage import get_news_since, store_news_items
 
 
 class TestNewsDeduplication:
-    """Test news article deduplication across different data sources"""
+    """News article deduplication across data sources"""
 
     def test_cross_provider_deduplication(self, temp_db):
-        """
-        Test that URL normalization enables cross-provider deduplication.
-
-        This test validates that different data sources providing the same article
-        with different tracking parameters are properly deduplicated through:
-        1. URL normalization removing tracking parameters
-        2. INSERT OR IGNORE constraint on (symbol, url) primary key
-        3. Only one record stored regardless of source
-        """
+        """URL normalization enables deduplication across provider variants."""
         test_timestamp = datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
         symbol = "AAPL"
         base_url = "https://news.example.com/apple-quarterly-results"
@@ -93,9 +81,7 @@ class TestNewsDeduplication:
 
         # Verify first article is stored
         initial_results = get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
-        assert len(initial_results) == 1, (
-            f"Expected 1 article after first insert, got {len(initial_results)}"
-        )
+        assert len(initial_results) == 1
 
         stored_article = initial_results[0]
         assert stored_article.symbol == symbol
@@ -103,9 +89,7 @@ class TestNewsDeduplication:
 
         # Verify URL normalization - tracking parameters should be removed
         expected_normalized_url = base_url  # Clean URL without any tracking parameters
-        assert stored_article.url == expected_normalized_url, (
-            f"Expected normalized URL '{expected_normalized_url}', got '{stored_article.url}'"
-        )
+        assert stored_article.url == expected_normalized_url
 
         # Store second article from Polygon (should be ignored due to duplicate normalized URL)
         store_news_items(temp_db, [polygon_article])
@@ -117,25 +101,17 @@ class TestNewsDeduplication:
         final_results = get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
 
         # CRITICAL ASSERTION: Only ONE record should exist despite storing three articles
-        assert len(final_results) == 1, (
-            "Expected exactly 1 deduplicated article, got "
-            f"{len(final_results)} articles. Deduplication failed!"
-        )
+        assert len(final_results) == 1, "cross-provider dedup must result in one article"
 
         final_article = final_results[0]
 
         # Verify the stored article maintains the original source (first one stored)
         assert final_article.symbol == symbol
-        assert final_article.source == "Finnhub API", (
-            "The first stored article's source should be preserved"
-        )
+        assert final_article.source == "Finnhub API"
         assert final_article.headline == "Apple Reports Strong Q4 Earnings Beat Expectations"
 
         # Verify the URL has ALL tracking parameters removed (case-insensitive)
-        assert final_article.url == expected_normalized_url, (
-            "Final stored URL should be normalized: "
-            f"'{expected_normalized_url}', got '{final_article.url}'"
-        )
+        assert final_article.url == expected_normalized_url
 
         # Verify published timestamp is preserved correctly
         assert final_article.published == datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
@@ -159,15 +135,12 @@ class TestNewsDeduplication:
 
         # Query all articles - should now have 2 total (1 AAPL, 1 TSLA)
         all_results = get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
-        assert len(all_results) == 2, f"Expected 2 articles (1 per symbol), got {len(all_results)}"
+        assert len(all_results) == 2
 
         # Verify both symbols are present
         symbols = {article.symbol for article in all_results}
-        assert symbols == {"AAPL", "TSLA"}, f"Expected symbols AAPL and TSLA, got {symbols}"
+        assert symbols == {"AAPL", "TSLA"}
 
         # Verify TSLA article has normalized URL
         tesla_result = next(article for article in all_results if article.symbol == "TSLA")
-        assert tesla_result.url == expected_normalized_url, (
-            "TSLA article should also have normalized URL: "
-            f"'{expected_normalized_url}', got '{tesla_result.url}'"
-        )
+        assert tesla_result.url == expected_normalized_url

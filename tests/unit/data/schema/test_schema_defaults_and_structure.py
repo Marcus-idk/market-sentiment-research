@@ -1,6 +1,4 @@
-"""
-Tests database table structure, default values, and schema creation.
-"""
+"""Tests database table structure, default values, and schema creation."""
 
 from data.storage.db_context import _cursor_context
 
@@ -108,8 +106,8 @@ class TestTableStructure:
 
             names = {name for name, _ in tables}
             missing = required - names
-            assert not missing, f"Missing tables: {sorted(missing)}; found: {sorted(names)}"
+            assert not missing
 
             # Verify each table uses WITHOUT ROWID
-            for name, sql in tables:
-                assert "WITHOUT ROWID" in sql.upper(), f"Table {name} missing WITHOUT ROWID"
+            for _name, sql in tables:
+                assert "WITHOUT ROWID" in sql.upper()

@@ -1,6 +1,4 @@
-"""
-Tests enum value constraints and locks critical enum values against changes.
-"""
+"""Tests enum value constraints and locks critical enum values against changes."""
 
 import sqlite3
 

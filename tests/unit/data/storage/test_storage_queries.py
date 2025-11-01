@@ -76,7 +76,7 @@ class TestQueryOperations:
         since = datetime(2024, 1, 12, 0, 0, tzinfo=UTC)
         results = get_news_since(temp_db, since)
 
-        assert len(results) == 2, f"Expected 2 results, got {len(results)}"
+        assert len(results) == 2
 
         # Verify results are ordered by published time
         assert results[0].headline == "Recent News"
@@ -119,7 +119,7 @@ class TestQueryOperations:
         since = datetime(2024, 1, 15, 0, 0, tzinfo=UTC)
         results = get_price_data_since(temp_db, since)
 
-        assert len(results) == 3, f"Expected 3 results, got {len(results)}"
+        assert len(results) == 3
 
         # Verify chronological ordering
         assert results[0].timestamp == datetime(2024, 1, 15, 9, 0, tzinfo=UTC)
@@ -164,11 +164,11 @@ class TestQueryOperations:
         # Query all holdings
         results = get_all_holdings(temp_db)
 
-        assert len(results) == 3, f"Expected 3 results, got {len(results)}"
+        assert len(results) == 3
 
         # Verify alphabetical symbol ordering
         symbols = [result.symbol for result in results]
-        assert symbols == ["AAPL", "MSFT", "TSLA"], f"Expected alphabetical order, got {symbols}"
+        assert symbols == ["AAPL", "MSFT", "TSLA"]
 
         # Verify all fields present
         for result in results:
@@ -218,7 +218,7 @@ class TestQueryOperations:
 
         # Test filtering by symbol
         aapl_results = get_analysis_results(temp_db, symbol="AAPL")
-        assert len(aapl_results) == 2, f"Expected 2 AAPL results, got {len(aapl_results)}"
+        assert len(aapl_results) == 2
 
         # Verify correct symbol filtering
         for result in aapl_results:
@@ -226,7 +226,7 @@ class TestQueryOperations:
 
         # Test getting all results (no filter)
         all_results = get_analysis_results(temp_db)
-        assert len(all_results) == 3, f"Expected 3 total results, got {len(all_results)}"
+        assert len(all_results) == 3
 
         # Verify ordering (symbol ASC, analysis_type ASC)
         symbols_and_types = [(r.symbol, r.analysis_type.value) for r in all_results]
@@ -235,4 +235,4 @@ class TestQueryOperations:
             ("AAPL", "sentiment_analysis"),
             ("TSLA", "news_analysis"),
         ]
-        assert symbols_and_types == expected, f"Expected {expected}, got {symbols_and_types}"
+        assert symbols_and_types == expected

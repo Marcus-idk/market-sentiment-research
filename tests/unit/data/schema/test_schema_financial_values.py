@@ -1,6 +1,4 @@
-"""
-Tests financial value constraints for prices and decimal storage.
-"""
+"""Tests financial value constraints for prices and decimal storage."""
 
 import sqlite3
 

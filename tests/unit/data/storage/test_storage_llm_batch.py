@@ -44,7 +44,7 @@ def _get_created_at(temp_db: str, url: str) -> datetime:
     with _cursor_context(temp_db, commit=False) as cursor:
         cursor.execute("SELECT created_at_iso FROM news_items WHERE url = ?", (normalized_url,))
         row = cursor.fetchone()
-        assert row is not None, f"No news_items row for {normalized_url}"
+        assert row is not None
         return _iso_to_datetime(row[0])
 
 

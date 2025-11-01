@@ -75,5 +75,5 @@ class TestPriceDataStorage:
             """)
             count, price = cursor.fetchone()
 
-            assert count == 1, f"Expected 1 record, got {count}"
-            assert price == "150.00", "First record should be kept"
+            assert count == 1, "INSERT OR IGNORE must dedupe duplicate price row"
+            assert price == "150.00", "first record should be kept"

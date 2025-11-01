@@ -1,9 +1,4 @@
-"""
-Unit tests for DataPoller orchestrator.
-
-Covers one-cycle behavior: storing items, watermark update, and
-error aggregation. Uses stub providers and the temp_db fixture.
-"""
+"""DataPoller orchestrator: one-cycle behavior and watermarks."""
 
 import asyncio
 import time

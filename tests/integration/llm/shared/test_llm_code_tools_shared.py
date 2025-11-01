@@ -23,7 +23,7 @@ async def test_code_tools_enabled_matches_expected_digest(provider_spec):
     response = await provider.generate(prompt)
     digest = extract_hex64(response)
 
-    assert digest == expected_sha, f"expected {expected_sha}, got {digest}"
+    assert digest == expected_sha
 
 
 async def test_code_tools_disabled_does_not_match_digest(provider_spec):
@@ -40,4 +40,4 @@ async def test_code_tools_disabled_does_not_match_digest(provider_spec):
     response = await provider.generate(prompt)
     digest = extract_hex64(response)
 
-    assert digest != expected_sha, "digest unexpectedly matched when tools disabled"
+    assert digest != expected_sha

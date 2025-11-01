@@ -1,8 +1,4 @@
-"""
-Database schema constraint validation tests.
-Tests that database CHECK constraints properly validate data integrity
-and ensure transaction rollback on constraint violations.
-"""
+"""Validate schema CHECK constraints and transaction rollback behavior."""
 
 import sqlite3
 from datetime import UTC, datetime
@@ -23,27 +19,10 @@ from data.storage.db_context import _cursor_context
 
 
 class TestSchemaConstraints:
-    """Test database constraint validation and transaction rollback behavior"""
+    """Database constraint validation and rollback behavior"""
 
     def test_transaction_rollback_on_constraint_violation(self, temp_db):
-        """
-        Test that database constraint violations cause transaction rollback
-        without corrupting the database.
-
-        This test validates:
-        1. Valid data is stored successfully (baseline)
-        2. Invalid data violating CHECK constraints raises IntegrityError
-        3. Database state remains unchanged after failed operations (rollback occurred)
-        4. Subsequent valid operations work correctly (database integrity maintained)
-
-        CONSTRAINT VIOLATIONS TESTED:
-        - Negative prices in PriceData (CHECK price > 0)
-        - Negative volume in PriceData (CHECK volume >= 0)
-        - Invalid confidence_score in AnalysisResult (CHECK 0.0 <= confidence_score <= 1.0)
-        - Invalid enum values (session, stance, analysis_type)
-        - Negative financial values in Holdings
-        - Invalid JSON format in AnalysisResult
-        """
+        """Constraint violations raise and do not corrupt DB; valid ops succeed."""
         test_timestamp = datetime(2024, 1, 15, 12, 0, tzinfo=UTC)
 
         # ========================================
@@ -90,13 +69,9 @@ class TestSchemaConstraints:
         analysis_results = get_analysis_results(temp_db, "AAPL")
         holdings_results = get_all_holdings(temp_db)
 
-        assert len(price_results) == 1, f"Expected 1 price record, got {len(price_results)}"
-        assert len(analysis_results) == 1, (
-            f"Expected 1 analysis record, got {len(analysis_results)}"
-        )
-        assert len(holdings_results) == 1, (
-            f"Expected 1 holdings record, got {len(holdings_results)}"
-        )
+        assert len(price_results) == 1
+        assert len(analysis_results) == 1
+        assert len(holdings_results) == 1
 
         baseline_price = price_results[0]
         baseline_analysis = analysis_results[0]
@@ -107,7 +82,7 @@ class TestSchemaConstraints:
         # ========================================
 
         # Test 2a: Negative price violation (CHECK price > 0)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -117,12 +92,8 @@ class TestSchemaConstraints:
                     ("TSLA", "2024-01-15T13:00:00Z", "-50.00", 1000, "REG"),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for negative price, got: {exc_info.value}"
-        )
-
         # Test 2b: Negative volume violation (CHECK volume >= 0)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -132,12 +103,8 @@ class TestSchemaConstraints:
                     ("MSFT", "2024-01-15T13:00:00Z", "100.00", -1000, "REG"),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for negative volume, got: {exc_info.value}"
-        )
-
         # Test 2c: Invalid session enum violation
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -147,16 +114,12 @@ class TestSchemaConstraints:
                     ("GOOGL", "2024-01-15T13:00:00Z", "100.00", 1000, "INVALID_SESSION"),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for invalid session, got: {exc_info.value}"
-        )
-
         # ========================================
         # STEP 3: TEST ANALYSIS_RESULTS CONSTRAINTS
         # ========================================
 
         # Test 3a: confidence_score below 0 (CHECK confidence_score BETWEEN 0 AND 1)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -182,12 +145,8 @@ class TestSchemaConstraints:
                     ),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for confidence_score < 0, got: {exc_info.value}"
-        )
-
         # Test 3b: confidence_score above 1 (CHECK confidence_score BETWEEN 0 AND 1)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -213,12 +172,8 @@ class TestSchemaConstraints:
                     ),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for confidence_score > 1, got: {exc_info.value}"
-        )
-
         # Test 3c: Invalid stance enum
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -244,12 +199,8 @@ class TestSchemaConstraints:
                     ),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for invalid stance, got: {exc_info.value}"
-        )
-
         # Test 3d: Invalid analysis_type enum
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -275,12 +226,8 @@ class TestSchemaConstraints:
                     ),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for invalid analysis_type, got: {exc_info.value}"
-        )
-
         # Test 3e: Invalid JSON format (not valid JSON)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -306,12 +253,8 @@ class TestSchemaConstraints:
                     ),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for invalid JSON, got: {exc_info.value}"
-        )
-
         # Test 3f: JSON array instead of object (must be object)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -337,17 +280,12 @@ class TestSchemaConstraints:
                     ),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            "Expected CHECK constraint failure for JSON array instead of object, got: "
-            f"{exc_info.value}"
-        )
-
         # ========================================
         # STEP 4: TEST HOLDINGS CONSTRAINTS
         # ========================================
 
         # Test 4a: Negative quantity (CHECK quantity > 0)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -357,12 +295,8 @@ class TestSchemaConstraints:
                     ("TSLA", "-100.0", "200.00", "20000.00"),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for negative quantity, got: {exc_info.value}"
-        )
-
         # Test 4b: Zero break_even_price (CHECK break_even_price > 0)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -372,12 +306,8 @@ class TestSchemaConstraints:
                     ("MSFT", "50.0", "0.0", "5000.00"),
                 )
 
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for zero break_even_price, got: {exc_info.value}"
-        )
-
         # Test 4c: Negative total_cost (CHECK total_cost > 0)
-        with pytest.raises(sqlite3.IntegrityError) as exc_info:
+        with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
             with _cursor_context(temp_db) as cursor:
                 cursor.execute(
                     """
@@ -386,10 +316,6 @@ class TestSchemaConstraints:
                 """,
                     ("GOOGL", "25.0", "100.00", "-2500.00"),
                 )
-
-        assert "CHECK constraint failed" in str(exc_info.value), (
-            f"Expected CHECK constraint failure for negative total_cost, got: {exc_info.value}"
-        )
 
         # ========================================
         # STEP 5: VERIFY DATABASE STATE UNCHANGED (ROLLBACK OCCURRED)
@@ -401,26 +327,14 @@ class TestSchemaConstraints:
         final_holdings_results = get_all_holdings(temp_db)
 
         # Verify original data still exists and unchanged
-        assert len(final_price_results) == 1, (
-            f"Expected 1 price record after violations, got {len(final_price_results)}"
-        )
-        assert len(final_analysis_results) == 1, (
-            f"Expected 1 analysis record after violations, got {len(final_analysis_results)}"
-        )
-        assert len(final_holdings_results) == 1, (
-            f"Expected 1 holdings record after violations, got {len(final_holdings_results)}"
-        )
+        assert len(final_price_results) == 1
+        assert len(final_analysis_results) == 1
+        assert len(final_holdings_results) == 1
 
         # Verify all baseline data is identical (no corruption)
-        assert final_price_results[0] == baseline_price, (
-            "Price data changed after constraint violations - rollback failed!"
-        )
-        assert final_analysis_results[0] == baseline_analysis, (
-            "Analysis data changed after constraint violations - rollback failed!"
-        )
-        assert final_holdings_results[0] == baseline_holdings, (
-            "Holdings data changed after constraint violations - rollback failed!"
-        )
+        assert final_price_results[0] == baseline_price
+        assert final_analysis_results[0] == baseline_analysis
+        assert final_holdings_results[0] == baseline_holdings
 
         # ========================================
         # STEP 6: VERIFY SUBSEQUENT VALID OPERATIONS WORK (DATABASE INTEGRITY MAINTAINED)
@@ -466,57 +380,33 @@ class TestSchemaConstraints:
         updated_holdings_results = get_all_holdings(temp_db)
 
         # Should now have 2 records each (original + new)
-        assert len(updated_price_results) == 2, (
-            f"Expected 2 price records after new insert, got {len(updated_price_results)}"
-        )
-        assert len(updated_analysis_results) == 2, (
-            f"Expected 2 analysis records after new insert, got {len(updated_analysis_results)}"
-        )
-        assert len(updated_holdings_results) == 2, (
-            f"Expected 2 holdings records after new insert, got {len(updated_holdings_results)}"
-        )
+        assert len(updated_price_results) == 2
+        assert len(updated_analysis_results) == 2
+        assert len(updated_holdings_results) == 2
 
         # Verify new TSLA price data was stored correctly
         tsla_price = next((p for p in updated_price_results if p.symbol == "TSLA"), None)
-        assert tsla_price is not None, "New TSLA price data was not stored"
-        assert tsla_price.price == Decimal("200.00"), (
-            f"Expected TSLA price 200.00, got {tsla_price.price}"
-        )
-        assert tsla_price.session == Session.POST, (
-            f"Expected TSLA session POST, got {tsla_price.session}"
-        )
+        assert tsla_price is not None
+        assert tsla_price.price == Decimal("200.00")
+        assert tsla_price.session == Session.POST
 
         # Verify new TSLA analysis was stored correctly
         tsla_analysis = next((a for a in updated_analysis_results if a.symbol == "TSLA"), None)
-        assert tsla_analysis is not None, "New TSLA analysis was not stored"
-        assert tsla_analysis.stance == Stance.NEUTRAL, (
-            f"Expected TSLA stance NEUTRAL, got {tsla_analysis.stance}"
-        )
-        assert tsla_analysis.confidence_score == 0.75, (
-            f"Expected TSLA confidence 0.75, got {tsla_analysis.confidence_score}"
-        )
+        assert tsla_analysis is not None
+        assert tsla_analysis.stance == Stance.NEUTRAL
+        assert tsla_analysis.confidence_score == 0.75
 
         # Verify new MSFT holdings was stored correctly
         msft_holdings = next((h for h in updated_holdings_results if h.symbol == "MSFT"), None)
-        assert msft_holdings is not None, "New MSFT holdings was not stored"
-        assert msft_holdings.quantity == Decimal("75"), (
-            f"Expected MSFT quantity 75, got {msft_holdings.quantity}"
-        )
-        assert msft_holdings.notes == "New position after constraint test", (
-            f"Expected specific note, got {msft_holdings.notes}"
-        )
+        assert msft_holdings is not None
+        assert msft_holdings.quantity == Decimal("75")
+        assert msft_holdings.notes == "New position after constraint test"
 
         # Final verification: Original AAPL data still intact
         aapl_price = next((p for p in updated_price_results if p.symbol == "AAPL"), None)
         aapl_analysis = next((a for a in updated_analysis_results if a.symbol == "AAPL"), None)
         aapl_holdings = next((h for h in updated_holdings_results if h.symbol == "AAPL"), None)
 
-        assert aapl_price == baseline_price, (
-            "Original AAPL price data corrupted during subsequent operations"
-        )
-        assert aapl_analysis == baseline_analysis, (
-            "Original AAPL analysis data corrupted during subsequent operations"
-        )
-        assert aapl_holdings == baseline_holdings, (
-            "Original AAPL holdings data corrupted during subsequent operations"
-        )
+        assert aapl_price == baseline_price
+        assert aapl_analysis == baseline_analysis
+        assert aapl_holdings == baseline_holdings

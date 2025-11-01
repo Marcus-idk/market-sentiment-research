@@ -35,7 +35,7 @@ class TestURLNormalization:
 
         for original, expected in test_cases:
             result = _normalize_url(original)
-            assert result == expected, f"Failed for {original}: expected {expected}, got {result}"
+            assert result == expected
 
     def test_normalize_url_preserves_essential_parameters(self):
         """Test non-tracking parameters are preserved"""
@@ -50,7 +50,7 @@ class TestURLNormalization:
 
         for original, expected in test_cases:
             result = _normalize_url(original)
-            assert result == expected, f"Failed for {original}: expected {expected}, got {result}"
+            assert result == expected
 
     def test_normalize_url_canonical_ordering(self):
         """Test consistent parameter ordering"""
@@ -82,4 +82,4 @@ class TestURLNormalization:
 
         for original, expected in test_cases:
             result = _normalize_url(original)
-            assert result == expected, f"Failed for {original}: expected {expected}, got {result}"
+            assert result == expected

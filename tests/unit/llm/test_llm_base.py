@@ -1,11 +1,4 @@
-"""
-Tests for LLM provider abstract base classes and their contracts.
-
-Tests:
-- LLMProvider abstract base class
-- Abstract method enforcement
-- Exception hierarchy (LLMError)
-"""
+"""LLM provider base class contracts and exceptions."""
 
 import pytest
 

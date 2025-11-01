@@ -1,7 +1,4 @@
-"""
-Data model validation tests.
-Tests all __post_init__ validation logic (pure Python, no database).
-"""
+"""Data model validation tests (pure Python; no database)."""
 
 from datetime import UTC, datetime
 from decimal import Decimal

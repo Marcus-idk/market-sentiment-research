@@ -1,7 +1,4 @@
-"""
-Tests for utils.symbols module.
-Focus on parse_symbols() helper for ticker parsing and filtering.
-"""
+"""Symbols parsing and filtering via parse_symbols()."""
 
 import logging
 

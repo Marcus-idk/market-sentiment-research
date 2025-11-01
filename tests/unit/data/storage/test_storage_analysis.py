@@ -56,15 +56,13 @@ class TestAnalysisResultUpsert:
             """)
             count, model, stance, confidence, updated, json_result, created = cursor.fetchone()
 
-            assert count == 1, f"Expected 1 record, got {count}"
-            assert model == "gpt-4o", "model_name should be updated"
-            assert stance == "NEUTRAL", "stance should be updated"
-            assert confidence == 0.75, "confidence should be updated"
-            assert updated == "2024-01-15T11:00:00Z", "last_updated should be updated"
-            assert json_result == '{"sentiment": "neutral"}', "result_json should be updated"
-            assert created == "2024-01-15T09:00:00Z", (
-                "created_at should be preserved from first insert"
-            )
+            assert count == 1, "should not duplicate row on conflict"
+            assert model == "gpt-4o"
+            assert stance == "NEUTRAL"
+            assert confidence == 0.75
+            assert updated == "2024-01-15T11:00:00Z", "upsert should update last_updated"
+            assert json_result == '{"sentiment": "neutral"}'
+            assert created == "2024-01-15T09:00:00Z", "upsert should preserve created_at"
 
     def test_upsert_analysis_auto_created_at(self, temp_db):
         """Test automatic created_at when not provided"""

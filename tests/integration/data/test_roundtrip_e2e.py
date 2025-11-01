@@ -432,19 +432,17 @@ class TestDataRoundtrip:
         updated_stored = holdings_results[0]
         # created_at should be PRESERVED (not changed to update_time)
         assert updated_stored.created_at == datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC), (
-            "created_at should be preserved during upsert"
+            "upsert should preserve created_at"
         )
         # updated_at should be ADVANCED (changed to update_time)
         assert updated_stored.updated_at == datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC), (
-            "updated_at should advance during upsert"
+            "upsert should advance updated_at"
         )
         # Other fields should be updated
-        assert updated_stored.quantity == Decimal("150"), "quantity should be updated"
-        assert updated_stored.break_even_price == Decimal("45.00"), (
-            "break_even_price should be updated"
-        )
-        assert updated_stored.total_cost == Decimal("6750.00"), "total_cost should be updated"
-        assert updated_stored.notes == "Updated position", "notes should be updated"
+        assert updated_stored.quantity == Decimal("150")
+        assert updated_stored.break_even_price == Decimal("45.00")
+        assert updated_stored.total_cost == Decimal("6750.00")
+        assert updated_stored.notes == "Updated position"
 
         # TEST ANALYSIS RESULT UPSERT BEHAVIOR
 
@@ -491,19 +489,17 @@ class TestDataRoundtrip:
         updated_analysis_stored = analysis_results[0]
         # created_at should be PRESERVED (not changed to update_time)
         assert updated_analysis_stored.created_at == datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC), (
-            "created_at should be preserved during upsert"
+            "upsert should preserve created_at"
         )
         # last_updated should be ADVANCED (changed to update_time)
         assert updated_analysis_stored.last_updated == datetime(
             2024, 1, 15, 11, 0, 0, tzinfo=UTC
-        ), "last_updated should advance during upsert"
+        ), "upsert should advance last_updated"
         # Other fields should be updated
-        assert updated_analysis_stored.model_name == "updated-model", "model_name should be updated"
-        assert updated_analysis_stored.stance == Stance.BEAR, "stance should be updated"
-        assert updated_analysis_stored.confidence_score == 0.6, "confidence_score should be updated"
-        assert updated_analysis_stored.result_json == '{"updated": "analysis"}', (
-            "result_json should be updated"
-        )
+        assert updated_analysis_stored.model_name == "updated-model"
+        assert updated_analysis_stored.stance == Stance.BEAR
+        assert updated_analysis_stored.confidence_score == 0.6
+        assert updated_analysis_stored.result_json == '{"updated": "analysis"}'
 
     def test_duplicate_price_prevention(self, temp_db):
         """Verify INSERT OR IGNORE prevents duplicate price data (same symbol + timestamp)."""
@@ -528,7 +524,7 @@ class TestDataRoundtrip:
             for p in get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
             if p.symbol == "DUP_TEST"
         ]
-        assert len(price_results) == 1
+        assert len(price_results) == 1, "duplicate price (symbol+timestamp) must not insert"
         stored_price = price_results[0]
         assert stored_price.price == Decimal("100.00")
         assert stored_price.volume == 1000
@@ -556,18 +552,10 @@ class TestDataRoundtrip:
 
         preserved_price = price_results[0]
         # Original values should be preserved (duplicate ignored)
-        assert preserved_price.price == Decimal("100.00"), (
-            "Original price should be preserved (duplicate ignored)"
-        )
-        assert preserved_price.volume == 1000, (
-            "Original volume should be preserved (duplicate ignored)"
-        )
-        assert preserved_price.session.value == "REG", (
-            "Original session should be preserved (duplicate ignored)"
-        )
-        assert preserved_price.timestamp == datetime(2024, 1, 15, 14, 30, 0, tzinfo=UTC), (
-            "Original timestamp should be preserved"
-        )
+        assert preserved_price.price == Decimal("100.00")
+        assert preserved_price.volume == 1000
+        assert preserved_price.session.value == "REG"
+        assert preserved_price.timestamp == datetime(2024, 1, 15, 14, 30, 0, tzinfo=UTC)
 
         # 4. Verify different timestamp for same symbol IS stored normally
         different_time_price = [
