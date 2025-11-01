@@ -1,8 +1,4 @@
-"""
-End-to-end data roundtrip tests.
-Tests complete data flow through storage and retrieval for all models,
-validating field preservation, timezone handling, and cross-model consistency.
-"""
+"""End-to-end data roundtrip tests validating storage, retrieval, and field preservation."""
 
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -34,13 +30,7 @@ class TestDataRoundtrip:
     """Test complete end-to-end data roundtrip scenarios across all models"""
 
     def test_complete_data_roundtrip(self, temp_db):
-        """
-        Test complete data roundtrip for all models:
-        1. Create instances of all data models with realistic test data
-        2. Store them using storage functions
-        3. Query them back using get functions
-        4. Validate all field values are preserved exactly (especially Decimal precision)
-        """
+        """Store and retrieve all models, validating field preservation and timezone conversion."""
         # 1. CREATE REALISTIC TEST DATA
         test_timestamp = datetime(2024, 1, 15, 10, 30, 45, tzinfo=UTC)
         naive_timestamp = datetime(2024, 1, 15, 14, 45, 30)  # Will be converted to UTC
@@ -195,7 +185,7 @@ class TestDataRoundtrip:
         # 4. VALIDATE ALL FIELD VALUES ARE PRESERVED EXACTLY
 
         # Verify NewsItems
-        assert len(retrieved_news) == 3, f"Expected 3 news items, got {len(retrieved_news)}"
+        assert len(retrieved_news) == 3
 
         # Find AAPL news item
         aapl_news = next(item for item in retrieved_news if item.symbol == "AAPL")
@@ -227,9 +217,7 @@ class TestDataRoundtrip:
         assert spy_news.is_important is False
 
         # Verify PriceData with Decimal precision
-        assert len(retrieved_prices) == 3, (
-            f"Expected 3 price data items, got {len(retrieved_prices)}"
-        )
+        assert len(retrieved_prices) == 3
 
         # Find AAPL price data
         aapl_price = next(item for item in retrieved_prices if item.symbol == "AAPL")
@@ -254,9 +242,7 @@ class TestDataRoundtrip:
         assert spy_price.session.value == "POST"
 
         # Verify AnalysisResults
-        assert len(retrieved_analysis) == 3, (
-            f"Expected 3 analysis results, got {len(retrieved_analysis)}"
-        )
+        assert len(retrieved_analysis) == 3
 
         # Find AAPL analysis
         aapl_analysis = next(item for item in retrieved_analysis if item.symbol == "AAPL")
@@ -286,7 +272,7 @@ class TestDataRoundtrip:
         assert spy_analysis.stance.value == "BEAR"
 
         # Verify Holdings with Decimal precision
-        assert len(retrieved_holdings) == 3, f"Expected 3 holdings, got {len(retrieved_holdings)}"
+        assert len(retrieved_holdings) == 3
 
         # Find AAPL holdings
         aapl_holdings = next(item for item in retrieved_holdings if item.symbol == "AAPL")
@@ -324,10 +310,7 @@ class TestDataRoundtrip:
         assert isinstance(spy_holdings.updated_at, datetime)
 
     def test_cross_model_data_consistency(self, temp_db):
-        """
-        Test data consistency across models for the same symbols.
-        Verify that data stored for the same symbol maintains consistency.
-        """
+        """Verify data consistency when the same symbol appears across all models."""
         # Store data for AAPL across all models
         symbol = "AAPL"
         test_time = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
@@ -402,13 +385,7 @@ class TestDataRoundtrip:
         assert holdings_results[0].quantity == Decimal("100")
 
     def test_upsert_invariants(self, temp_db):
-        """
-        Test that upsert operations preserve created_at but update other timestamps.
-
-        This test validates:
-        1. Holdings upsert preserves created_at, advances updated_at
-        2. AnalysisResult upsert preserves created_at, advances last_updated
-        """
+        """Verify upsert operations preserve created_at while advancing update timestamps."""
         # Set up initial timestamps
         initial_time = datetime(2024, 1, 15, 10, 0, 0, tzinfo=UTC)
         update_time = datetime(2024, 1, 15, 11, 0, 0, tzinfo=UTC)
@@ -450,7 +427,7 @@ class TestDataRoundtrip:
 
         # 3. Verify upsert behavior
         holdings_results = [h for h in get_all_holdings(temp_db) if h.symbol == "TEST"]
-        assert len(holdings_results) == 1, "Should still be only one record after upsert"
+        assert len(holdings_results) == 1
 
         updated_stored = holdings_results[0]
         # created_at should be PRESERVED (not changed to update_time)
@@ -509,7 +486,7 @@ class TestDataRoundtrip:
 
         # 3. Verify upsert behavior
         analysis_results = get_analysis_results(temp_db, "TEST")
-        assert len(analysis_results) == 1, "Should still be only one record after upsert"
+        assert len(analysis_results) == 1
 
         updated_analysis_stored = analysis_results[0]
         # created_at should be PRESERVED (not changed to update_time)
@@ -529,15 +506,7 @@ class TestDataRoundtrip:
         )
 
     def test_duplicate_price_prevention(self, temp_db):
-        """
-        Test that duplicate price data (same symbol + timestamp) is prevented by INSERT OR IGNORE.
-
-        This test validates:
-        1. First price data is stored successfully
-        2. Second price data with same symbol+timestamp is ignored
-        3. Only the first price data is preserved
-        4. Different timestamps for same symbol are stored normally
-        """
+        """Verify INSERT OR IGNORE prevents duplicate price data (same symbol + timestamp)."""
         test_timestamp = datetime(2024, 1, 15, 14, 30, 0, tzinfo=UTC)
         different_timestamp = datetime(2024, 1, 15, 14, 31, 0, tzinfo=UTC)
 
@@ -559,13 +528,11 @@ class TestDataRoundtrip:
             for p in get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
             if p.symbol == "DUP_TEST"
         ]
-        assert len(price_results) == 1, "First price should be stored"
+        assert len(price_results) == 1
         stored_price = price_results[0]
-        assert stored_price.price == Decimal("100.00"), "First price should be 100.00"
-        assert stored_price.volume == 1000, "First volume should be 1000"
-        assert stored_price.timestamp == datetime(2024, 1, 15, 14, 30, tzinfo=UTC), (
-            "Timestamp should match"
-        )
+        assert stored_price.price == Decimal("100.00")
+        assert stored_price.volume == 1000
+        assert stored_price.timestamp == datetime(2024, 1, 15, 14, 30, tzinfo=UTC)
 
         # 2. Attempt to store duplicate price data (same symbol + timestamp, different values)
         duplicate_price = [
@@ -585,9 +552,7 @@ class TestDataRoundtrip:
             for p in get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
             if p.symbol == "DUP_TEST"
         ]
-        assert len(price_results) == 1, (
-            "Should still be only one price record after duplicate attempt"
-        )
+        assert len(price_results) == 1
 
         preserved_price = price_results[0]
         # Original values should be preserved (duplicate ignored)
@@ -622,7 +587,7 @@ class TestDataRoundtrip:
             for p in get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
             if p.symbol == "DUP_TEST"
         ]
-        assert len(price_results) == 2, "Should now have 2 price records for different timestamps"
+        assert len(price_results) == 2
 
         # Sort by timestamp to verify both records
         price_results.sort(key=lambda x: x.timestamp)
@@ -656,8 +621,8 @@ class TestDataRoundtrip:
         dup_test_results = [p for p in all_price_results if p.symbol == "DUP_TEST"]
         different_symbol_results = [p for p in all_price_results if p.symbol == "DIFFERENT_SYMBOL"]
 
-        assert len(dup_test_results) == 2, "Should still have 2 records for DUP_TEST"
-        assert len(different_symbol_results) == 1, "Should have 1 record for DIFFERENT_SYMBOL"
+        assert len(dup_test_results) == 2
+        assert len(different_symbol_results) == 1
 
         # Verify the different symbol record was stored correctly
         diff_symbol_record = different_symbol_results[0]

@@ -2,7 +2,21 @@
 
 Note: For a complete inventory of all tests (files and test functions), see `docs/Test_Catalog.md`.
 
-## 📝 HOW TO EXTEND THIS DOCUMENT
+---
+
+## REFERENCE FILES (REQUIRED)
+
+These files demonstrate all style rules below. When writing or cleaning up tests, match their patterns:
+
+- **Unit - With DB**: `tests/unit/data/storage/test_storage_news.py`
+- **Unit - Contract Tests**: `tests/unit/data/providers/shared/test_news_company_shared.py`
+- **Unit - Pure Logic**: `tests/unit/data/test_models.py`
+- **Integration - E2E Workflow**: `tests/integration/data/test_roundtrip_e2e.py`
+- **Integration - Live Network**: `tests/integration/data/providers/test_polygon_live.py`
+
+---
+
+## HOW TO EXTEND THIS DOCUMENT
 - Add patterns to appropriate section
 - Format: `### PATTERN_NAME` → when to use → example
 - Keep decision trees updated
@@ -16,14 +30,19 @@ Use these rules across all tests to keep the suite readable and uniform.
 
 - Assertions
   - ✅ Prefer plain `assert` without custom failure strings — pytest shows values/diffs.
-  - ❌ Do not add messages to simple assertions; reserve for non-obvious, multi-step checks.
-  - ➕ For complex context, a brief message is OK.
+  - ❌ Remove: `assert len(items) == 2, "Expected 2 items"` (pytest shows this)
+  - ✅ Keep: `assert created_at == original, "upsert should preserve created_at"` (business rule)
 
 - Exceptions
   - Use `pytest.raises(ExpectedError, match=...)` when asserting both type and message.
 
 - Comments and docstrings
-  - Keep intent-focused one-liners; avoid banners and numbered narratives that restate obvious code.
+  - ✅ One-liner: `"""Store and retrieve news items."""`
+  - ❌ Avoid: Multi-line narratives, numbered steps, banners that restate code.
+
+- Setup and builders
+  - ✅ Extract repeated construction into helpers: `def _make_entry(...)` at top of file
+  - ❌ Avoid: Inline object construction repeated across multiple tests
 
 ---
 
