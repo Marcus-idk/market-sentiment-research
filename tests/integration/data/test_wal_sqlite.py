@@ -6,16 +6,7 @@ import time
 from datetime import UTC, datetime
 from decimal import Decimal
 
-from data.models import (
-    AnalysisResult,
-    AnalysisType,
-    NewsEntry,
-    NewsItem,
-    NewsType,
-    PriceData,
-    Session,
-    Stance,
-)
+from data.models import AnalysisType, NewsEntry, NewsType, Session, Stance
 from data.storage import (
     connect,
     get_analysis_results,
@@ -26,6 +17,7 @@ from data.storage import (
     upsert_analysis_result,
 )
 from data.storage.db_context import _cursor_context
+from tests.factories import make_analysis_result, make_news_entry, make_price_data
 
 
 class TestWALSqlite:
@@ -42,15 +34,15 @@ class TestWALSqlite:
         content: str | None = None,
         news_type: NewsType = NewsType.COMPANY_SPECIFIC,
     ) -> NewsEntry:
-        article = NewsItem(
+        return make_news_entry(
+            symbol=symbol,
             url=url,
             headline=headline,
-            content=content,
-            published=published,
             source=source,
+            published=published,
+            content=content,
             news_type=news_type,
         )
-        return NewsEntry(article=article, symbol=symbol, is_important=None)
 
     def test_wal_mode_functionality(self, temp_db):
         """WAL mode is enabled and functional with file-backed DB."""
@@ -148,7 +140,7 @@ class TestWALSqlite:
             """Simulate price data polling from different exchanges"""
             for i, symbol in enumerate(symbol_batch):
                 price_data = [
-                    PriceData(
+                    make_price_data(
                         symbol=symbol,
                         timestamp=base_time,
                         price=Decimal(f"{100 + thread_id + i}.{thread_id:02d}"),
@@ -165,13 +157,14 @@ class TestWALSqlite:
         def write_analysis_data(thread_id, symbol_batch):
             """Simulate analysis results from different models"""
             for i, symbol in enumerate(symbol_batch):
-                analysis = AnalysisResult(
+                analysis = make_analysis_result(
                     symbol=symbol,
                     analysis_type=AnalysisType.NEWS_ANALYSIS,
                     model_name=f"model-{thread_id}",
                     stance=Stance.BULL if (thread_id + i) % 2 == 0 else Stance.BEAR,
                     confidence_score=0.5 + (thread_id * 0.1) + (i * 0.05),
                     last_updated=base_time,
+                    created_at=base_time,
                     result_json=(
                         f'{{"thread": {thread_id}, "symbol": "{symbol}", '
                         f'"analysis": "concurrent_test"}}'
@@ -212,7 +205,6 @@ class TestWALSqlite:
                 time.sleep(0.01)  # Simulate analysis processing time
 
         # EXECUTE CONCURRENT OPERATIONS
-        thread_errors = []  # Collect thread failures
 
         # Create thread pool for concurrent operations
         with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
@@ -234,15 +226,9 @@ class TestWALSqlite:
             for thread_id, query_type in enumerate(read_types):
                 futures.append(executor.submit(read_for_analysis, thread_id, query_type))
 
-            # Wait for all operations to complete and collect any failures
+            # Wait for all operations to complete; let exceptions fail the test directly
             for future in concurrent.futures.as_completed(futures):
-                try:
-                    future.result()
-                except Exception as exc:
-                    thread_errors.append(f"Thread operation failed: {exc}")
-
-        # FAIL THE TEST if any threads failed
-        assert len(thread_errors) == 0
+                future.result()
 
         # VALIDATE RESULTS
 

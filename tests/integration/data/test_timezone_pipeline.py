@@ -24,6 +24,7 @@ from data.storage import (
     upsert_holdings,
 )
 from data.storage.db_context import _cursor_context
+from tests.factories import make_analysis_result, make_holdings, make_news_entry, make_price_data
 
 
 class TestTimezonePipeline:
@@ -40,7 +41,8 @@ class TestTimezonePipeline:
         content: str | None = None,
         news_type: NewsType = NewsType.COMPANY_SPECIFIC,
     ) -> NewsEntry:
-        article = NewsItem(
+        return make_news_entry(
+            symbol=symbol,
             url=url,
             headline=headline,
             source=source,
@@ -48,7 +50,6 @@ class TestTimezonePipeline:
             news_type=news_type,
             content=content,
         )
-        return NewsEntry(article=article, symbol=symbol, is_important=None)
 
     def test_timezone_consistency(self, temp_db):
         """UTC normalization in models, storage ISO 'Z', retrieval, and cross-model consistency."""
@@ -183,13 +184,13 @@ class TestTimezonePipeline:
         ]
 
         test_prices = [
-            PriceData(symbol="TZ1", timestamp=naive_dt, price=Decimal("100.00")),
-            PriceData(symbol="TZ2", timestamp=pacific_dt, price=Decimal("200.00")),
-            PriceData(symbol="TZ3", timestamp=current_naive, price=Decimal("300.00")),
+            make_price_data(symbol="TZ1", timestamp=naive_dt, price=Decimal("100.00")),
+            make_price_data(symbol="TZ2", timestamp=pacific_dt, price=Decimal("200.00")),
+            make_price_data(symbol="TZ3", timestamp=current_naive, price=Decimal("300.00")),
         ]
 
         test_analysis = [
-            AnalysisResult(
+            make_analysis_result(
                 symbol="TZ1",
                 analysis_type=AnalysisType.NEWS_ANALYSIS,
                 model_name="test-model",
@@ -199,7 +200,7 @@ class TestTimezonePipeline:
                 created_at=naive_dt,
                 result_json='{"test": "data1"}',
             ),
-            AnalysisResult(
+            make_analysis_result(
                 symbol="TZ2",
                 analysis_type=AnalysisType.SENTIMENT_ANALYSIS,
                 model_name="test-model",
@@ -212,7 +213,7 @@ class TestTimezonePipeline:
         ]
 
         test_holdings = [
-            Holdings(
+            make_holdings(
                 symbol="TZ1",
                 quantity=Decimal("100"),
                 break_even_price=Decimal("150.00"),
@@ -220,7 +221,7 @@ class TestTimezonePipeline:
                 created_at=pacific_dt,
                 updated_at=naive_dt,
             ),
-            Holdings(
+            make_holdings(
                 symbol="TZ2",
                 quantity=Decimal("200"),
                 break_even_price=Decimal("250.00"),
@@ -329,14 +330,14 @@ class TestTimezonePipeline:
             published=consistency_timestamp,
         )
 
-        consistency_price = PriceData(
+        consistency_price = make_price_data(
             symbol=consistency_symbol,
             timestamp=consistency_timestamp,
             price=Decimal("500.00"),
             volume=1000,
         )
 
-        consistency_analysis = AnalysisResult(
+        consistency_analysis = make_analysis_result(
             symbol=consistency_symbol,
             analysis_type=AnalysisType.HEAD_TRADER,
             model_name="consistency-model",
@@ -347,7 +348,7 @@ class TestTimezonePipeline:
             result_json='{"consistency": "test"}',
         )
 
-        consistency_holdings = Holdings(
+        consistency_holdings = make_holdings(
             symbol=consistency_symbol,
             quantity=Decimal("50"),
             break_even_price=Decimal("500.00"),

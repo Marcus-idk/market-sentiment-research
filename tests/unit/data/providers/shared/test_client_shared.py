@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+from dataclasses import replace
 from typing import Any
 from unittest.mock import AsyncMock
 
@@ -99,7 +100,6 @@ class TestClientShared:
         Ensure clients honor a non-default base_url from settings
         without provider branching.
         """
-        from dataclasses import replace
 
         captured_url: dict[str, str] = {}
 

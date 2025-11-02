@@ -2,33 +2,11 @@
 Tests news item storage operations and symbol link persistence.
 """
 
-from datetime import UTC, datetime
-
-from data.models import NewsEntry, NewsItem, NewsType
+from data.models import NewsType
 from data.storage import get_news_symbols, store_news_items
 from data.storage.db_context import _cursor_context
 from data.storage.storage_utils import _normalize_url
-
-
-def _make_entry(
-    *,
-    symbol: str,
-    url: str,
-    is_important: bool | None,
-    headline: str,
-    published: datetime | None = None,
-    news_type: NewsType = NewsType.COMPANY_SPECIFIC,
-) -> NewsEntry:
-    published_at = published or datetime(2024, 1, 15, 12, 0, tzinfo=UTC)
-    article = NewsItem(
-        url=url,
-        headline=headline,
-        content=None,
-        published=published_at,
-        source="UnitTest",
-        news_type=news_type,
-    )
-    return NewsEntry(article=article, symbol=symbol, is_important=is_important)
+from tests.factories import make_news_entry
 
 
 class TestNewsItemStorage:
@@ -36,13 +14,13 @@ class TestNewsItemStorage:
 
     def test_store_news_deduplication_insert_or_ignore(self, temp_db):
         """News entries sharing a normalized URL deduplicate into one article row."""
-        entry_primary = _make_entry(
+        entry_primary = make_news_entry(
             symbol="AAPL",
             url="https://example.com/news/1?utm_source=google",
             is_important=True,
             headline="Apple News",
         )
-        entry_secondary = _make_entry(
+        entry_secondary = make_news_entry(
             symbol="MSFT",
             url="https://example.com/news/1?ref=twitter",
             is_important=False,
@@ -105,19 +83,19 @@ class TestNewsSymbolsStorage:
     def test_store_and_get_news_symbols(self, temp_db):
         """Persist entries with varying importance flags and round-trip via facade."""
         entries = [
-            _make_entry(
+            make_news_entry(
                 symbol="AAPL",
                 url="https://example.com/news/a",
                 is_important=True,
                 headline="AAPL Headline",
             ),
-            _make_entry(
+            make_news_entry(
                 symbol="MSFT",
                 url="https://example.com/news/a",
                 is_important=False,
                 headline="MSFT Headline",
             ),
-            _make_entry(
+            make_news_entry(
                 symbol="TSLA",
                 url="https://example.com/news/b",
                 is_important=None,
@@ -138,13 +116,13 @@ class TestNewsSymbolsStorage:
     def test_get_news_symbols_filters_by_symbol(self, temp_db):
         """Filtering by symbol returns only matching links."""
         entries = [
-            _make_entry(
+            make_news_entry(
                 symbol="AAPL",
                 url="https://example.com/news/a",
                 is_important=True,
                 headline="AAPL Headline",
             ),
-            _make_entry(
+            make_news_entry(
                 symbol="TSLA",
                 url="https://example.com/news/b",
                 is_important=None,
@@ -163,9 +141,9 @@ class TestNewsSymbolsStorage:
         """Deleting a news_items row cascades to news_symbols."""
         article_url = "https://example.com/news/cascade?utm_campaign=test"
         entries = [
-            _make_entry(symbol="AAPL", url=article_url, is_important=True, headline="Shared"),
-            _make_entry(symbol="MSFT", url=article_url, is_important=None, headline="Shared"),
-            _make_entry(
+            make_news_entry(symbol="AAPL", url=article_url, is_important=True, headline="Shared"),
+            make_news_entry(symbol="MSFT", url=article_url, is_important=None, headline="Shared"),
+            make_news_entry(
                 symbol="TSLA",
                 url="https://example.com/news/keep",
                 is_important=False,
@@ -190,7 +168,7 @@ class TestNewsSymbolsStorage:
         """Conflict updates mutate importance flags without duplicating rows."""
         url = "https://example.com/news/priority"
         symbol = "AAPL"
-        initial_entry = _make_entry(
+        initial_entry = make_news_entry(
             symbol=symbol,
             url=url,
             is_important=True,
@@ -215,7 +193,7 @@ class TestNewsSymbolsStorage:
             assert row["symbol"] == symbol
             assert row["is_important"] == 1
 
-        updated_entry = _make_entry(
+        updated_entry = make_news_entry(
             symbol=symbol,
             url="https://example.com/news/priority?utm_source=ignored",
             is_important=False,
@@ -238,7 +216,7 @@ class TestNewsSymbolsStorage:
             assert row["symbol"] == symbol
             assert row["is_important"] == 0
 
-        cleared_entry = _make_entry(
+        cleared_entry = make_news_entry(
             symbol=symbol,
             url=url,
             is_important=None,

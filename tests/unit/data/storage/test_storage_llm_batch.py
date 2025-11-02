@@ -6,7 +6,7 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from data.models import NewsEntry, NewsItem, NewsType, PriceData, Session
+from data.models import Session
 from data.storage import (
     commit_llm_batch,
     get_last_seen,
@@ -18,25 +18,7 @@ from data.storage import (
 )
 from data.storage.db_context import _cursor_context
 from data.storage.storage_utils import _datetime_to_iso, _iso_to_datetime, _normalize_url
-
-
-def _make_entry(
-    *,
-    symbol: str,
-    url_suffix: str,
-    headline: str,
-    is_important: bool | None,
-    news_type: NewsType = NewsType.COMPANY_SPECIFIC,
-) -> NewsEntry:
-    article = NewsItem(
-        url=f"https://example.com/news{url_suffix}",
-        headline=headline,
-        source="Source",
-        published=datetime(2024, 1, 15, 10, 0, tzinfo=UTC),
-        news_type=news_type,
-        content=None,
-    )
-    return NewsEntry(article=article, symbol=symbol, is_important=is_important)
+from tests.factories import make_news_entry, make_price_data
 
 
 def _get_created_at(temp_db: str, url: str) -> datetime:
@@ -55,17 +37,19 @@ class TestBatchOperations:
         """commit_llm_batch prunes rows <= cutoff and returns counts."""
         base_time = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
 
-        entry1 = _make_entry(
+        entry1 = make_news_entry(
             symbol="AAPL",
-            url_suffix="1",
+            url="https://example.com/news1",
             headline="News 1",
             is_important=True,
+            source="Source",
+            published=base_time,
         )
         store_news_items(temp_db, [entry1])
         store_price_data(
             temp_db,
             [
-                PriceData(
+                make_price_data(
                     symbol="AAPL",
                     timestamp=base_time,
                     price=Decimal("150.00"),
@@ -75,17 +59,19 @@ class TestBatchOperations:
         )
         time.sleep(1)
 
-        entry2 = _make_entry(
+        entry2 = make_news_entry(
             symbol="TSLA",
-            url_suffix="2",
+            url="https://example.com/news2",
             headline="News 2",
             is_important=False,
+            source="Source",
+            published=base_time,
         )
         store_news_items(temp_db, [entry2])
         store_price_data(
             temp_db,
             [
-                PriceData(
+                make_price_data(
                     symbol="TSLA",
                     timestamp=base_time,
                     price=Decimal("200.00"),
@@ -97,17 +83,19 @@ class TestBatchOperations:
         cutoff = datetime.now(UTC)
         time.sleep(1)
 
-        entry3 = _make_entry(
+        entry3 = make_news_entry(
             symbol="GOOGL",
-            url_suffix="3",
+            url="https://example.com/news3",
             headline="News 3",
             is_important=None,
+            source="Source",
+            published=base_time,
         )
         store_news_items(temp_db, [entry3])
         store_price_data(
             temp_db,
             [
-                PriceData(
+                make_price_data(
                     symbol="GOOGL",
                     timestamp=base_time,
                     price=Decimal("100.00"),
@@ -148,20 +136,22 @@ class TestBatchOperations:
 
     def test_commit_llm_batch_boundary_conditions(self, temp_db):
         """Rows with created_at <= cutoff are deleted (inclusive boundary)."""
-        entry1 = _make_entry(
+        entry1 = make_news_entry(
             symbol="AAPL",
-            url_suffix="1",
+            url="https://example.com/news1",
             headline="News 1",
             is_important=True,
+            source="Source",
         )
         store_news_items(temp_db, [entry1])
         time.sleep(1)
 
-        entry2 = _make_entry(
+        entry2 = make_news_entry(
             symbol="TSLA",
-            url_suffix="2",
+            url="https://example.com/news2",
             headline="News 2",
             is_important=False,
+            source="Source",
         )
         store_news_items(temp_db, [entry2])
 
@@ -176,11 +166,12 @@ class TestBatchOperations:
 
     def test_commit_llm_batch_idempotency(self, temp_db):
         """Repeated calls with same cutoff delete only once."""
-        entry = _make_entry(
+        entry = make_news_entry(
             symbol="AAPL",
-            url_suffix="1",
+            url="https://example.com/news1",
             headline="Test News",
             is_important=True,
+            source="Source",
         )
         store_news_items(temp_db, [entry])
 

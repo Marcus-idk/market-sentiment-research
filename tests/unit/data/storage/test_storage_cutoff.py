@@ -6,26 +6,9 @@ import time
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
 
-from data.models import NewsEntry, NewsItem, NewsType, PriceData, Session
+from data.models import Session
 from data.storage import get_news_before, get_prices_before, store_news_items, store_price_data
-
-
-def _make_entry(
-    *,
-    symbol: str,
-    url_suffix: str,
-    headline: str,
-    news_type: NewsType = NewsType.COMPANY_SPECIFIC,
-) -> NewsEntry:
-    article = NewsItem(
-        url=f"https://example.com/{url_suffix}",
-        headline=headline,
-        source="Source",
-        published=datetime(2024, 1, 15, 10, 0, tzinfo=UTC),
-        news_type=news_type,
-        content=None,
-    )
-    return NewsEntry(article=article, symbol=symbol, is_important=None)
+from tests.factories import make_news_entry, make_price_data
 
 
 class TestCutoffQueries:
@@ -38,12 +21,24 @@ class TestCutoffQueries:
         base_time = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
 
         # First item - oldest
-        entry1 = _make_entry(symbol="AAPL", url_suffix="old", headline="Old News")
+        entry1 = make_news_entry(
+            symbol="AAPL",
+            url="https://example.com/old",
+            headline="Old News",
+            source="Source",
+            published=base_time,
+        )
         store_news_items(temp_db, [entry1])
         time.sleep(1)  # 1 second delay to ensure different created_at
 
         # Second item - middle
-        entry2 = _make_entry(symbol="TSLA", url_suffix="middle", headline="Middle News")
+        entry2 = make_news_entry(
+            symbol="TSLA",
+            url="https://example.com/middle",
+            headline="Middle News",
+            source="Source",
+            published=base_time,
+        )
         store_news_items(temp_db, [entry2])
 
         # Record cutoff time right after second item
@@ -51,7 +46,13 @@ class TestCutoffQueries:
         time.sleep(1)  # 1 second delay before third item
 
         # Third item - newest
-        entry3 = _make_entry(symbol="AAPL", url_suffix="new", headline="New News")
+        entry3 = make_news_entry(
+            symbol="AAPL",
+            url="https://example.com/new",
+            headline="New News",
+            source="Source",
+            published=base_time,
+        )
         store_news_items(temp_db, [entry3])
 
         # Query news before cutoff (should get first 2 items)
@@ -73,9 +74,16 @@ class TestCutoffQueries:
 
     def test_get_news_before_boundary_conditions(self, temp_db):
         """Test get_news_before with boundary conditions using spaced items"""
+        base_time = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
 
         # Store first news item
-        entry1 = _make_entry(symbol="AAPL", url_suffix="item1", headline="First News")
+        entry1 = make_news_entry(
+            symbol="AAPL",
+            url="https://example.com/item1",
+            headline="First News",
+            source="Source",
+            published=base_time,
+        )
         store_news_items(temp_db, [entry1])
         time.sleep(1)  # 1 second delay
 
@@ -84,7 +92,13 @@ class TestCutoffQueries:
         time.sleep(1)  # 1 second delay
 
         # Store second news item
-        entry2 = _make_entry(symbol="TSLA", url_suffix="item2", headline="Second News")
+        entry2 = make_news_entry(
+            symbol="TSLA",
+            url="https://example.com/item2",
+            headline="Second News",
+            source="Source",
+            published=base_time,
+        )
         store_news_items(temp_db, [entry2])
 
         # Test 1: Cutoff before all items (should get nothing)
@@ -113,14 +127,17 @@ class TestCutoffQueries:
         base_time = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
 
         # First price - oldest
-        price1 = PriceData(
-            symbol="AAPL", timestamp=base_time, price=Decimal("150.00"), session=Session.REG
+        price1 = make_price_data(
+            symbol="AAPL",
+            timestamp=base_time,
+            price=Decimal("150.00"),
+            session=Session.REG,
         )
         store_price_data(temp_db, [price1])
         time.sleep(1)  # 1 second delay
 
         # Second price - middle
-        price2 = PriceData(
+        price2 = make_price_data(
             symbol="TSLA",
             timestamp=base_time + timedelta(hours=1),
             price=Decimal("200.00"),
@@ -133,7 +150,7 @@ class TestCutoffQueries:
         time.sleep(1)  # 1 second delay before third item
 
         # Third price - newest
-        price3 = PriceData(
+        price3 = make_price_data(
             symbol="AAPL",
             timestamp=base_time + timedelta(hours=2),
             price=Decimal("151.00"),
@@ -163,7 +180,7 @@ class TestCutoffQueries:
         base_time = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
 
         # Store first price data point
-        price1 = PriceData(
+        price1 = make_price_data(
             symbol="AAPL",
             timestamp=base_time,
             price=Decimal("150.00"),
@@ -178,7 +195,7 @@ class TestCutoffQueries:
         time.sleep(1)  # 1 second delay
 
         # Store second price data point
-        price2 = PriceData(
+        price2 = make_price_data(
             symbol="TSLA",
             timestamp=base_time + timedelta(hours=1),
             price=Decimal("200.00"),

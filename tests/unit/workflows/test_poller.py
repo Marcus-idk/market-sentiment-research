@@ -8,7 +8,7 @@ from decimal import Decimal
 import pytest
 
 from data.base import NewsDataSource, PriceDataSource
-from data.models import NewsEntry, NewsItem, NewsType, PriceData, Session
+from data.models import NewsEntry, NewsType, PriceData, Session
 from data.storage import (
     get_last_macro_min_id,
     get_last_news_time,
@@ -16,28 +16,10 @@ from data.storage import (
     get_price_data_since,
     set_last_macro_min_id,
 )
+from tests.factories import make_news_entry, make_price_data
 from workflows.poller import DataPoller
 
 pytestmark = pytest.mark.asyncio
-
-
-def _make_entry(
-    *,
-    symbol: str,
-    url_suffix: str,
-    headline: str,
-    published: datetime,
-    news_type: NewsType,
-) -> NewsEntry:
-    article = NewsItem(
-        url=f"https://example.com/{url_suffix}",
-        headline=headline,
-        source="StubSource",
-        published=published,
-        news_type=news_type,
-        content=None,
-    )
-    return NewsEntry(article=article, symbol=symbol, is_important=None)
 
 
 class StubNews(NewsDataSource):
@@ -111,23 +93,30 @@ class TestDataPoller:
         t2 = datetime(2024, 1, 15, 10, 5, tzinfo=UTC)
 
         news = [
-            _make_entry(
+            make_news_entry(
                 symbol="AAPL",
-                url_suffix="n1",
+                url="https://example.com/n1",
                 headline="h1",
+                source="StubSource",
                 published=t1,
                 news_type=NewsType.COMPANY_SPECIFIC,
             ),
-            _make_entry(
+            make_news_entry(
                 symbol="AAPL",
-                url_suffix="n2",
+                url="https://example.com/n2",
                 headline="h2",
+                source="StubSource",
                 published=t2,
                 news_type=NewsType.COMPANY_SPECIFIC,
             ),
         ]
         prices = [
-            PriceData("AAPL", t2, Decimal("123.45"), session=Session.REG),
+            make_price_data(
+                symbol="AAPL",
+                timestamp=t2,
+                price=Decimal("123.45"),
+                session=Session.REG,
+            ),
         ]
 
         poller = DataPoller(temp_db, [StubNews(news)], [StubPrice(prices)], poll_interval=300)
@@ -161,7 +150,11 @@ class TestDataPoller:
                 raise RuntimeError("boom")
 
         ok_prices = [
-            PriceData("AAPL", datetime(2024, 1, 15, 10, 0, tzinfo=UTC), Decimal("1.00")),
+            make_price_data(
+                symbol="AAPL",
+                timestamp=datetime(2024, 1, 15, 10, 0, tzinfo=UTC),
+                price=Decimal("1.00"),
+            ),
         ]
 
         poller = DataPoller(temp_db, [ErrNews()], [StubPrice(ok_prices)], poll_interval=300)
@@ -233,19 +226,21 @@ class TestDataPoller:
 
         # Create distinct news items for each provider
         company_news = [
-            _make_entry(
+            make_news_entry(
                 symbol="AAPL",
-                url_suffix="company",
+                url="https://example.com/company",
                 headline="Company news",
+                source="StubSource",
                 published=t1,
                 news_type=NewsType.COMPANY_SPECIFIC,
             ),
         ]
         macro_news = [
-            _make_entry(
+            make_news_entry(
                 symbol="MARKET",
-                url_suffix="macro",
+                url="https://example.com/macro",
                 headline="Macro news",
+                source="StubSource",
                 published=t1,
                 news_type=NewsType.MACRO,
             ),
@@ -292,26 +287,29 @@ class TestDataPoller:
 
         # Create news with different timestamps
         company_news = [
-            _make_entry(
+            make_news_entry(
                 symbol="AAPL",
-                url_suffix="c1",
+                url="https://example.com/c1",
                 headline="Company 1",
+                source="StubSource",
                 published=t1,
                 news_type=NewsType.COMPANY_SPECIFIC,
             ),
-            _make_entry(
+            make_news_entry(
                 symbol="AAPL",
-                url_suffix="c2",
+                url="https://example.com/c2",
                 headline="Company 2",
+                source="StubSource",
                 published=t2,
                 news_type=NewsType.COMPANY_SPECIFIC,
             ),  # Latest timestamp
         ]
         macro_news = [
-            _make_entry(
+            make_news_entry(
                 symbol="MARKET",
-                url_suffix="m1",
+                url="https://example.com/m1",
                 headline="Macro 1",
+                source="StubSource",
                 published=t1,
                 news_type=NewsType.MACRO,
             ),

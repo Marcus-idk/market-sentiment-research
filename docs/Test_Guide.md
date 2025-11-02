@@ -41,7 +41,7 @@ Use these rules across all tests to keep the suite readable and uniform.
   - ❌ Avoid: Multi-line narratives, numbered steps, banners that restate code.
 
 - Setup and builders
-  - ✅ Extract repeated construction into helpers: `def _make_entry(...)` at top of file
+  - ✅ Prefer shared factories from `tests/factories/models.py` for common data model shapes; wrap them locally only when the scenario needs extra behaviour or defaults.
   - ❌ Avoid: Inline object construction repeated across multiple tests
 
 ---

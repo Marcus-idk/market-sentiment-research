@@ -139,7 +139,7 @@ def initialize_database(db_path: str) -> bool:
         logger.info(f"Database initialized at {db_path}")
         return True
     except (RuntimeError, sqlite3.Error, OSError) as exc:
-        logger.error(f"Failed to initialize database: {exc}")
+        logger.exception(f"Failed to initialize database: {exc}")
         return False
 
 
@@ -227,7 +227,7 @@ async def create_and_validate_providers(
             logger.info(f"{name} API connection validated successfully")
 
     except (DataSourceError, RetryableError, RuntimeError) as exc:
-        logger.error(f"Connection validation failed: {exc}")
+        logger.exception(f"Connection validation failed: {exc}")
         raise ValueError(f"Provider validation failed: {exc}") from exc
 
     return news_providers, price_providers
@@ -264,7 +264,7 @@ async def main(with_viewer: bool = False) -> int:
     try:
         config = build_config(with_viewer)
     except ValueError as e:
-        logger.error(str(e))
+        logger.exception(str(e))
         return 1
 
     # Initialize database
@@ -327,7 +327,7 @@ async def main(with_viewer: bool = False) -> int:
             cleanup_ui_process(ui_process)
             logger.info("Shutdown complete")
         except Exception as cleanup_exc:
-            logger.error(f"Error during cleanup: {cleanup_exc}")
+            logger.exception(f"Error during cleanup: {cleanup_exc}")
 
 
 if __name__ == "__main__":
