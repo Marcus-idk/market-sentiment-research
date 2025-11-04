@@ -54,7 +54,7 @@ def classify_us_session(ts_utc: datetime) -> Session:
 
     Note:
         Uses NYSE calendar to detect holidays and early close days.
-        Falls back to time-only logic if exchange_calendars is not installed.
+        Requires `exchange_calendars`; if not installed, an ImportError is raised at import time.
     """
     # Ensure timestamp is UTC-aware
     if ts_utc.tzinfo is None:

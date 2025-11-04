@@ -586,6 +586,46 @@ The detailed inventory starts below this line (to be populated and maintained).
   **TestExceptionHierarchy**
   - `test_llm_error_inheritance` - Exception inheritance
 
+### `tests/unit/llm/providers/test_openai_provider.py`
+- Purpose: Unit coverage for OpenAI provider argument passing and error mapping
+- Tags: [async]
+- Fixtures: `monkeypatch`
+- Tests:
+  **TestOpenAIProvider**
+  - `test_generate_passes_expected_args` - Forwards args (model, input, temp, reasoning, tools, tool_choice)
+  - `test_generate_respects_custom_reasoning` - Uses custom reasoning; omits temperature when None
+  - `test_classify_rate_limit_with_retry_after` - Rate limit uses Retry-After header
+  - `test_classify_rate_limit_without_retry_after` - Rate limit without Retry-After
+  - `test_classify_retryable_errors` - Timeout/connection/conflict mapped retryable
+  - `test_classify_api_status_retryable` - 5xx mapped retryable
+  - `test_classify_api_status_rate_limit` - 429 mapped retryable with Retry-After
+  - `test_classify_api_status_non_retryable` - 400 mapped non-retryable with code
+  - `test_classify_non_retryable_openai_errors` - Auth/perm/bad request/not found/422 mapped non-retryable
+  - `test_classify_falls_back_to_llm_error` - Unexpected exceptions map to LLMError
+  - `test_validate_connection_failure` - Returns False on models.list failure
+
+### `tests/unit/llm/providers/test_gemini_provider.py`
+- Purpose: Unit coverage for Gemini provider tool config, thinking config, and error mapping
+- Tags: [async]
+- Fixtures: `monkeypatch`
+- Tests:
+  **TestGeminiProvider**
+  - `test_generate_maps_tool_choice` - Maps tool_choice to NONE/AUTO/ANY modes
+  - `test_generate_requires_tools_for_any` - Enforces tools when tool_choice="any"
+  - `test_generate_uses_default_thinking` - Applies default thinking budget
+  - `test_generate_uses_custom_thinking` - Applies custom thinking config
+  - `test_generate_raises_when_no_candidates` - Raises when response has no candidates
+  - `test_generate_combines_text_and_code_outputs` - Concatenates text and code outputs
+  - `test_generate_handles_none_code_output` - Treats None code output as empty
+  - `test_validate_connection_failure` - Returns False on models.list failure
+  - `test_classify_server_error` - ServerError mapped retryable
+  - `test_classify_api_error_codes` - APIError codes mapped retryable/non-retryable
+  - `test_classify_api_error_rate_limit_uses_retry_after` - Honors Retry-After on 429
+  - `test_classify_client_error` - ClientError mapped non-retryable
+  - `test_classify_timeout_message` - Timeout message mapped retryable
+  - `test_classify_connection_message` - Connection message mapped retryable
+  - `test_classify_unexpected_error` - Fallback maps to LLMError
+
 ### `tests/unit/utils/test_http.py`
 - Purpose: HTTP retry helper behaviors
 - Tags: [async]

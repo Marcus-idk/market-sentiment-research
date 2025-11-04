@@ -94,51 +94,67 @@ class OpenAIProvider(LLMProvider):
 
     def _classify_openai_exception(self, e: Exception) -> Exception:
         """Map OpenAI SDK exceptions to RetryableError or LLMError."""
-        # Retryable errors: rate limits, timeouts, server errors
+        # Retryable: rate limits with retry-after handling
         if isinstance(e, RateLimitError):
-            # Extract and parse retry-after if available from headers
             retry_after = None
             if hasattr(e, "response") and hasattr(e.response, "headers"):
                 retry_after_header = e.response.headers.get("retry-after")
                 retry_after = parse_retry_after(retry_after_header)
             return RetryableError(f"Rate limited: {str(e)}", retry_after=retry_after)
 
-        elif isinstance(e, APITimeoutError):
+        # Retryable: transient network issues
+        if isinstance(e, APITimeoutError):
             return RetryableError(f"Request timeout: {str(e)}")
 
-        elif isinstance(e, APIConnectionError):
+        if isinstance(e, APIConnectionError):
             return RetryableError(f"Connection failed: {str(e)}")
 
-        elif isinstance(e, ConflictError):
-            # 409 Conflict - SDK retries this by default, we should too
+        # Retryable: conflicts (409)
+        if isinstance(e, ConflictError):
             return RetryableError(f"Conflict error: {str(e)}")
 
-        elif isinstance(e, APIStatusError):
-            # Check for 5xx server errors
-            if hasattr(e, "status_code") and e.status_code >= 500:
-                return RetryableError(f"Server error ({e.status_code}): {str(e)}")
-            # Other status errors are not retryable
-            return LLMError(f"API error ({e.status_code}): {str(e)}")
+        # HTTP errors: classify by status code
+        if isinstance(e, APIStatusError):
+            code = getattr(e, "status_code", None)
 
-        # Non-retryable errors: auth failures, bad requests, etc.
-        elif isinstance(e, AuthenticationError):
-            return LLMError(f"Authentication failed: {str(e)}")
+            # 429 may surface as APIStatusError during streaming/Azure flows.
+            if isinstance(code, int) and code == 429:
+                retry_after = None
+                response = getattr(e, "response", None)
+                headers = getattr(response, "headers", None)
+                if headers:
+                    retry_after_header = headers.get("retry-after")
+                    retry_after = parse_retry_after(retry_after_header)
+                message = (
+                    f"Rate limited ({code}): {str(e)}"
+                    if code is not None
+                    else f"Rate limited: {str(e)}"
+                )
+                return RetryableError(message, retry_after=retry_after)
 
-        elif isinstance(e, PermissionDeniedError):
-            return LLMError(f"Permission denied: {str(e)}")
+            # 5xx = server errors (retryable)
+            if isinstance(code, int) and code >= 500:
+                return RetryableError(f"Server error ({code}): {str(e)}")
 
-        elif isinstance(e, BadRequestError):
-            return LLMError(f"Invalid request: {str(e)}")
+            # Map status codes to descriptive messages
+            error_messages = {
+                400: "Invalid request",
+                401: "Authentication failed",
+                403: "Permission denied",
+                404: "Resource not found",
+                422: "Unprocessable entity",
+                429: "Rate limited",
+            }
 
-        elif isinstance(e, NotFoundError):
-            return LLMError(f"Resource not found: {str(e)}")
+            label = error_messages.get(code, "API error")
 
-        elif isinstance(e, UnprocessableEntityError):
-            return LLMError(f"Unprocessable entity: {str(e)}")
+            # For plain APIStatusError or unknown codes, include the code in the message
+            include_code = (type(e) is APIStatusError) or (code not in error_messages)
+            code_str = f" ({code})" if include_code and code is not None else ""
+            return LLMError(f"{label}{code_str}: {str(e)}")
 
-        else:
-            # Unknown error - don't retry
-            return LLMError(f"Unexpected error: {str(e)}")
+        # Catch-all for unexpected errors
+        return LLMError(f"Unexpected error: {str(e)}")
 
     async def validate_connection(self) -> bool:
         try:

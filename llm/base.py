@@ -12,12 +12,14 @@ class LLMProvider(ABC):
     @abstractmethod
     async def generate(self, prompt: str) -> str:
         """Generate text completion from prompt."""
-        raise NotImplementedError(f"generate() not implemented for prompt={prompt!r}")
+        raise NotImplementedError(
+            f"generate() not implemented for prompt={prompt!r}"
+        )  # pragma: no cover
 
     @abstractmethod
     async def validate_connection(self) -> bool:
         """Test if the LLM provider is reachable and credentials work."""
-        raise NotImplementedError("validate_connection() must be implemented")
+        raise NotImplementedError("validate_connection() must be implemented")  # pragma: no cover
 
 
 class LLMError(Exception):

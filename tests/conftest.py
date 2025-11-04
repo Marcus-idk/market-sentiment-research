@@ -3,6 +3,20 @@ Shared pytest fixtures and utilities for all tests.
 This file is automatically discovered by pytest and its contents are available to all test files.
 """
 
+# IMPORTANT: Install SDK stubs FIRST
+from tests.shared_stubs.llm import _ensure_google_genai_stub, _ensure_openai_stub
+
+_ensure_openai_stub()
+_ensure_google_genai_stub()
+
+# Safety check: verify stub was installed correctly
+import openai
+
+assert getattr(openai, "__version__", "stub") == "stub", (
+    "OpenAI stub not installed correctly - real SDK loaded instead"
+)
+
+# Now safe to do regular imports
 import gc
 import os
 import sqlite3
