@@ -1,22 +1,7 @@
-"""
-Shared pytest fixtures and utilities for all tests.
-This file is automatically discovered by pytest and its contents are available to all test files.
-"""
+"""Project-wide pytest fixtures and utilities."""
 
-# IMPORTANT: Install SDK stubs FIRST
-from tests.shared_stubs.llm import _ensure_google_genai_stub, _ensure_openai_stub
+from __future__ import annotations
 
-_ensure_openai_stub()
-_ensure_google_genai_stub()
-
-# Safety check: verify stub was installed correctly
-import openai
-
-assert getattr(openai, "__version__", "stub") == "stub", (
-    "OpenAI stub not installed correctly - real SDK loaded instead"
-)
-
-# Now safe to do regular imports
 import gc
 import os
 import sqlite3
@@ -30,23 +15,14 @@ from data.storage import connect, init_database
 
 
 def cleanup_sqlite_artifacts(db_path: str):
-    """
-    Windows-safe SQLite cleanup for WAL databases. Solves Windows file locking issues.
-
-    Key steps:
-    1. Checkpoint WAL data back to main DB
-    2. Switch from WAL→DELETE mode (releases Windows memory-mapped .shm files)
-    3. Delete files in correct order: -wal, -shm, then main .db
-    4. Best-effort only - never fail tests due to cleanup issues
-    """
+    """Windows-safe cleanup for SQLite WAL databases used in tests."""
     if not os.path.exists(db_path):
         return
 
     gc.collect()
 
     try:
-        uri = f"file:{db_path}?mode=rw"
-        with connect(uri, uri=True) as conn:
+        with connect(db_path) as conn:
             conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")  # Merge WAL→main DB
             conn.execute("PRAGMA journal_mode=DELETE")  # Exit WAL mode (key for Windows)
             conn.commit()
@@ -95,8 +71,8 @@ def mock_http_client(monkeypatch):
         mock_client.__aenter__ = AsyncMock(return_value=mock_client)
         mock_client.__aexit__ = AsyncMock(return_value=None)
 
-        # Replace httpx.AsyncClient with our fake
-        monkeypatch.setattr(httpx, "AsyncClient", lambda: mock_client)
+        # Replace httpx.AsyncClient with our fake (accept arbitrary init kwargs)
+        monkeypatch.setattr(httpx, "AsyncClient", lambda *args, **kwargs: mock_client)
         return mock_client
 
     return _create_mock_client

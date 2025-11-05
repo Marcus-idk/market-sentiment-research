@@ -5,7 +5,10 @@ from __future__ import annotations
 from types import SimpleNamespace
 from unittest.mock import AsyncMock
 
+import httpx
 import pytest
+
+pytest.importorskip("openai")
 
 from config.llm import OpenAISettings
 from llm.base import LLMError
@@ -29,6 +32,14 @@ def _make_provider(
     settings = OpenAISettings(api_key="test-key")
     provider = OpenAIProvider(settings, "test-model", **provider_kwargs)
     return provider, client
+
+
+def _dummy_request() -> httpx.Request:
+    return httpx.Request("GET", "https://example.test/")
+
+
+def _status_response(code: int, headers: dict[str, str] | None = None) -> httpx.Response:
+    return httpx.Response(code, headers=headers or {}, request=_dummy_request())
 
 
 class TestOpenAIProvider:
@@ -74,7 +85,7 @@ class TestOpenAIProvider:
         provider, _ = _make_provider(monkeypatch)
         headers = {"retry-after": "3"}
         exc = openai_module.RateLimitError(
-            "Too many requests", response=SimpleNamespace(headers=headers)
+            "Too many requests", response=_status_response(429, headers=headers), body=None
         )
 
         mapped = provider._classify_openai_exception(exc)
@@ -84,7 +95,9 @@ class TestOpenAIProvider:
 
     def test_classify_rate_limit_without_retry_after(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _ = _make_provider(monkeypatch)
-        exc = openai_module.RateLimitError("Too many requests")
+        exc = openai_module.RateLimitError(
+            "Too many requests", response=_status_response(429), body=None
+        )
 
         mapped = provider._classify_openai_exception(exc)
 
@@ -94,9 +107,9 @@ class TestOpenAIProvider:
     @pytest.mark.parametrize(
         "exception",
         [
-            openai_module.APITimeoutError("Timeout"),
-            openai_module.APIConnectionError("Connection"),
-            openai_module.ConflictError("Conflict"),
+            openai_module.APITimeoutError(_dummy_request()),
+            openai_module.APIConnectionError(message="Connection", request=_dummy_request()),
+            openai_module.ConflictError("Conflict", response=_status_response(409), body=None),
         ],
     )
     def test_classify_retryable_errors(
@@ -110,7 +123,7 @@ class TestOpenAIProvider:
 
     def test_classify_api_status_retryable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _ = _make_provider(monkeypatch)
-        exc = openai_module.APIStatusError("Server", status_code=503)
+        exc = openai_module.APIStatusError("Server", response=_status_response(503), body=None)
 
         mapped = provider._classify_openai_exception(exc)
 
@@ -122,8 +135,8 @@ class TestOpenAIProvider:
         headers = {"retry-after": "2.5"}
         exc = openai_module.APIStatusError(
             "Too many requests",
-            status_code=429,
-            response=SimpleNamespace(headers=headers),
+            response=_status_response(429, headers=headers),
+            body=None,
         )
 
         mapped = provider._classify_openai_exception(exc)
@@ -134,7 +147,7 @@ class TestOpenAIProvider:
 
     def test_classify_api_status_non_retryable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _ = _make_provider(monkeypatch)
-        exc = openai_module.APIStatusError("Bad request", status_code=400)
+        exc = openai_module.APIStatusError("Bad request", response=_status_response(400), body=None)
 
         mapped = provider._classify_openai_exception(exc)
 
@@ -142,20 +155,24 @@ class TestOpenAIProvider:
         assert "400" in str(mapped)
 
     @pytest.mark.parametrize(
-        "exc_cls, expected_message",
+        "exc_cls, status_code, expected_message",
         [
-            (openai_module.AuthenticationError, "Authentication failed"),
-            (openai_module.PermissionDeniedError, "Permission denied"),
-            (openai_module.BadRequestError, "Invalid request"),
-            (openai_module.NotFoundError, "Resource not found"),
-            (openai_module.UnprocessableEntityError, "Unprocessable entity"),
+            (openai_module.AuthenticationError, 401, "Authentication failed"),
+            (openai_module.PermissionDeniedError, 403, "Permission denied"),
+            (openai_module.BadRequestError, 400, "Invalid request"),
+            (openai_module.NotFoundError, 404, "Resource not found"),
+            (openai_module.UnprocessableEntityError, 422, "Unprocessable entity"),
         ],
     )
     def test_classify_non_retryable_openai_errors(
-        self, monkeypatch: pytest.MonkeyPatch, exc_cls: type[Exception], expected_message: str
+        self,
+        monkeypatch: pytest.MonkeyPatch,
+        exc_cls: type[Exception],
+        status_code: int,
+        expected_message: str,
     ) -> None:
         provider, _ = _make_provider(monkeypatch)
-        exc = exc_cls("boom")
+        exc = exc_cls("boom", response=_status_response(status_code), body=None)
 
         mapped = provider._classify_openai_exception(exc)
 
@@ -173,7 +190,9 @@ class TestOpenAIProvider:
 
     async def test_validate_connection_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, client = _make_provider(monkeypatch)
-        client.models.list.side_effect = openai_module.APIConnectionError("Offline")
+        client.models.list.side_effect = openai_module.APIConnectionError(
+            message="Offline", request=_dummy_request()
+        )
 
         result = await provider.validate_connection()
 

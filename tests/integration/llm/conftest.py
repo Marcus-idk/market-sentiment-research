@@ -9,6 +9,9 @@ from typing import Any
 import pytest
 from dotenv import load_dotenv
 
+pytest.importorskip("openai")
+pytest.importorskip("google.genai")
+
 from config.llm import GeminiSettings, OpenAISettings
 from llm import GeminiProvider, OpenAIProvider
 

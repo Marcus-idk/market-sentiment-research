@@ -8,6 +8,8 @@ from unittest.mock import AsyncMock
 
 import pytest
 
+pytest.importorskip("google.genai")
+
 from config.llm import GeminiSettings
 from llm.base import LLMError
 from llm.providers import gemini as gemini_module
@@ -36,11 +38,6 @@ def _make_provider(
             recorded["config"].append(kwargs)
             self.kwargs = kwargs
 
-    class HttpOptions:  # pragma: no cover - simple capture
-        def __init__(self, **kwargs) -> None:
-            recorded.setdefault("http_options", []).append(kwargs)
-            self.kwargs = kwargs
-
     monkeypatch.setattr(gemini_module.types, "ThinkingConfig", ThinkingConfig, raising=False)
     monkeypatch.setattr(
         gemini_module.types,
@@ -48,7 +45,6 @@ def _make_provider(
         GenerateContentConfig,
         raising=False,
     )
-    monkeypatch.setattr(gemini_module.types, "HttpOptions", HttpOptions, raising=False)
 
     client = SimpleNamespace(
         aio=SimpleNamespace(
@@ -68,7 +64,6 @@ def _make_provider(
     )
 
     def client_factory(**kwargs):
-        recorded.setdefault("client_args", []).append(kwargs)
         return client
 
     monkeypatch.setattr(gemini_module.genai, "Client", client_factory, raising=False)
@@ -82,6 +77,48 @@ def _make_provider(
         thinking_config=thinking_config,
     )
     return provider, client, recorded
+
+
+class _TestAPIError(gemini_module.APIError):  # type: ignore[misc]
+    """Test shim for google-genai APIError preserving isinstance behavior."""
+
+    def __init__(self, msg: str, code: int, headers: dict[str, str] | None = None) -> None:
+        Exception.__init__(self, msg)
+        self.code = code
+        self.headers = headers or {}
+
+    def __str__(self) -> str:  # pragma: no cover - simple passthrough
+        return Exception.__str__(self)
+
+
+class _TestServerError(gemini_module.ServerError):  # type: ignore[misc]
+    def __init__(self, msg: str, code: int = 500) -> None:
+        Exception.__init__(self, msg)
+        self.code = code
+
+    def __str__(self) -> str:  # pragma: no cover
+        return Exception.__str__(self)
+
+
+class _TestClientError(gemini_module.ClientError):  # type: ignore[misc]
+    def __init__(self, msg: str, code: int = 400) -> None:
+        Exception.__init__(self, msg)
+        self.code = code
+
+    def __str__(self) -> str:  # pragma: no cover
+        return Exception.__str__(self)
+
+
+def _api_error(code: int, message: str = "message", headers: dict[str, str] | None = None):
+    return _TestAPIError(message, code, headers)
+
+
+def _server_error(message: str = "server", code: int = 500):
+    return _TestServerError(message, code)
+
+
+def _client_error(message: str = "client", code: int = 400):
+    return _TestClientError(message, code)
 
 
 class TestGeminiProvider:
@@ -191,7 +228,7 @@ class TestGeminiProvider:
 
     async def test_validate_connection_failure(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, client, _ = _make_provider(monkeypatch)
-        client.aio.models.list.side_effect = gemini_module.ServerError("offline")
+        client.aio.models.list.side_effect = _server_error("offline")
 
         result = await provider.validate_connection()
 
@@ -201,7 +238,7 @@ class TestGeminiProvider:
 
     def test_classify_server_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _, _ = _make_provider(monkeypatch)
-        exc = gemini_module.ServerError("boom")
+        exc = _server_error("boom")
 
         mapped = provider._classify_gemini_exception(exc)
 
@@ -228,7 +265,7 @@ class TestGeminiProvider:
         self, monkeypatch: pytest.MonkeyPatch, code: int, expected_retryable: bool
     ) -> None:
         provider, _, _ = _make_provider(monkeypatch)
-        exc = gemini_module.APIError("message", code=code)
+        exc = _api_error(code)
 
         mapped = provider._classify_gemini_exception(exc)
 
@@ -242,7 +279,7 @@ class TestGeminiProvider:
     ) -> None:
         provider, _, _ = _make_provider(monkeypatch)
         headers = {"retry-after": "7"}
-        exc = gemini_module.APIError("slow down", code=429, headers=headers)
+        exc = _api_error(429, message="slow down", headers=headers)
 
         mapped = provider._classify_gemini_exception(exc)
 
@@ -251,7 +288,7 @@ class TestGeminiProvider:
 
     def test_classify_client_error(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _, _ = _make_provider(monkeypatch)
-        exc = gemini_module.ClientError("bad client")
+        exc = _client_error("bad client")
 
         mapped = provider._classify_gemini_exception(exc)
 
