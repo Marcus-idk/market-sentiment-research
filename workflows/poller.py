@@ -79,7 +79,7 @@ class DataPoller:
         self._stop_event = asyncio.Event()
 
         # Track macro providers that use ID-based watermarks (currently Finnhub macro endpoint)
-        self._finnhub_macro_providers: set[NewsDataSource] = {
+        self._finnhub_macro_providers: set[FinnhubMacroNewsProvider] = {
             provider
             for provider in news_providers
             if isinstance(provider, FinnhubMacroNewsProvider)

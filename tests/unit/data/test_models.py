@@ -438,13 +438,16 @@ class TestAnalysisResult:
 
         # Test last_updated timezone normalization
         item = AnalysisResult(**{**base_data, "last_updated": naive_dt})
+        assert item.last_updated is not None
         assert item.last_updated.tzinfo == UTC
 
         # Test created_at timezone normalization when provided
         item_with_created = AnalysisResult(
             **{**base_data, "last_updated": naive_dt, "created_at": naive_dt}
         )
+        assert item_with_created.created_at is not None
         assert item_with_created.created_at.tzinfo == UTC
+        assert item_with_created.last_updated is not None
         assert item_with_created.last_updated.tzinfo == UTC
 
     def test_analysisresult_symbol_validation(self):
@@ -576,15 +579,19 @@ class TestHoldings:
 
         # Test created_at timezone normalization when provided
         item = Holdings(**{**base_data, "created_at": naive_dt})
+        assert item.created_at is not None
         assert item.created_at.tzinfo == UTC
 
         # Test updated_at timezone normalization when provided
         item = Holdings(**{**base_data, "updated_at": naive_dt})
+        assert item.updated_at is not None
         assert item.updated_at.tzinfo == UTC
 
         # Test both fields together
         item = Holdings(**{**base_data, "created_at": naive_dt, "updated_at": naive_dt})
+        assert item.created_at is not None
         assert item.created_at.tzinfo == UTC
+        assert item.updated_at is not None
         assert item.updated_at.tzinfo == UTC
 
     def test_holdings_symbol_validation(self):
@@ -596,12 +603,22 @@ class TestHoldings:
         }
 
         # Symbol with whitespace should be trimmed
-        item = Holdings(symbol="  AAPL  ", **base_data)
+        item = Holdings(
+            symbol="  AAPL  ",
+            quantity=base_data["quantity"],
+            break_even_price=base_data["break_even_price"],
+            total_cost=base_data["total_cost"],
+        )
         assert item.symbol == "AAPL"
 
         # Empty symbol after strip should raise ValueError
         with pytest.raises(ValueError, match="symbol cannot be empty"):
-            Holdings(symbol="   ", **base_data)
+            Holdings(
+                symbol="   ",
+                quantity=base_data["quantity"],
+                break_even_price=base_data["break_even_price"],
+                total_cost=base_data["total_cost"],
+            )
 
     def test_holdings_notes_trimming(self):
         """Test notes field trimming when provided"""

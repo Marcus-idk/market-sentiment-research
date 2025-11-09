@@ -6,7 +6,6 @@ class LLMProvider(ABC):
 
     def __init__(self, **kwargs) -> None:
         """Initialize provider with arbitrary config passed to SDK calls."""
-        # Arbitrary provider-specific config passed through to SDK calls
         self.config = kwargs
 
     @abstractmethod

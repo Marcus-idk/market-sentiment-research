@@ -278,7 +278,7 @@ class TestDataPoller:
         )
 
         # Explicitly mark macro provider without patching builtins
-        poller._finnhub_macro_providers = {macro_provider}
+        poller._finnhub_macro_providers = {macro_provider}  # type: ignore[reportAttributeAccessIssue]
 
         stats = await poller.poll_once()
 
@@ -347,7 +347,7 @@ class TestDataPoller:
         )
 
         # Explicitly mark macro provider without patching builtins
-        poller._finnhub_macro_providers = {macro_provider}
+        poller._finnhub_macro_providers = {macro_provider}  # type: ignore[reportAttributeAccessIssue]
 
         await poller.poll_once()
 
@@ -744,7 +744,7 @@ class TestDataPollerNewsProcessing:
         macro_provider = StubMacroNews(macro_news)
         macro_provider.last_fetched_max_id = 150
         poller = DataPoller(temp_db, [macro_provider], [StubPrice([])], poll_interval=300)
-        poller._finnhub_macro_providers = {macro_provider}
+        poller._finnhub_macro_providers = {macro_provider}  # type: ignore[reportAttributeAccessIssue]
 
         async def immediate_to_thread(func, *args, **kwargs):
             return func(*args, **kwargs)

@@ -17,9 +17,9 @@
   Defaults: If omitted, the provider sets `{"effort":"low"}` to balance cost with tool compatibility.  
   `OpenAIProvider(..., reasoning={"effort":"medium"}, ...)`
 
-- **`tools: list[dict] | None`** — enable built-ins or custom function tools.  
-  - **`{"type":"web_search"}`** — search the live web and return cited results.  
-    `tools=[{"type":"web_search"}]`
+- **`tools: list[dict] | None`** — enable built-ins or custom function tools.
+  - **`{"type":"web_search_preview"}`** — search the live web and return cited results.
+    `tools=[{"type":"web_search_preview"}]`
   - **`{"type":"file_search"}`** — retrieve answers from uploaded files/vector stores.  
     `tools=[{"type":"file_search"}]`
   - **`{"type":"code_interpreter"}`** — run Python for calculations, parsing, plots, file ops.  
@@ -37,15 +37,11 @@
   - **Force specific tool** — only call the one you specify.  
     `tool_choice={"type":"function","function":{"name":"save"}}`
 
-- **`**kwargs -> self.config`** — extra params for `responses.create(...)`.  
-  - `max_output_tokens: int` — max tokens in output.  
-    `..., max_output_tokens=8000`  
-  - `top_p: float` — nucleus sampling (0–1).  
-    `..., top_p=0.9`  
-  - `presence_penalty: float` — discourage repeats (0–2).  
-    `..., presence_penalty=0.1`  
-  - `frequency_penalty: float` — lower freq of common tokens (0–2).  
-    `..., frequency_penalty=0.2`
+- **`**kwargs -> self.config`** — extra params for `responses.create(...)`.
+  - `max_output_tokens: int` — max tokens in output.
+    `..., max_output_tokens=8000`
+  - `top_p: float` — nucleus sampling (0–1).
+    `..., top_p=0.9`
 
 ### Call
 `text = await openai_llm.generate("Write 3 bullets.")`
@@ -64,11 +60,12 @@
 - **`temperature: float | None`** — randomness control.  
   `GeminiProvider(..., temperature=0.7, ...)`
 
-- **`tools: list | None`** — declare capabilities (dict forms shown).  
-  - **Code execution** — run Python for math, data wrangling, small files.  
+- **`tools: list | None`** — declare capabilities (dict forms shown).
+  - **Code execution** — run Python for math, data wrangling, small files.
     `tools=[{"code_execution":{}}]`
-  - **Google search** — grounded web search with citations.  
+  - **Google search** — search the web to inform responses (no citations).
     `tools=[{"google_search":{}}]`
+    Note: For grounded search with source citations, use `{"google_search_retrieval":{}}` instead.
   - **URL context** — fetch and read content from given URLs.  
     `tools=[{"url_context":{}}]`
   - **Function declarations** — expose callable functions; you handle execution.  
@@ -138,6 +135,75 @@ text = await gemini.generate("Summarize feature X in 5 bullets.")
 - If your `tools` include only `{"code_execution":{}}`, do not set `tool_choice`.
 - `tool_choice` controls function calling. It requires `function_declarations` to be present.
 - If you set `tool_choice` without functions, the API may return INVALID_ARGUMENT.
+
+---
+
+## Structured JSON Output
+
+Both providers support strict JSON output with schema validation. Use these when you need the model to return structured data that conforms to a specific format.
+
+### OpenAI JSON Schema
+Use `text.format.json_schema` to enforce a JSON schema:
+
+```python
+from config.llm.openai import OpenAISettings
+from llm.providers.openai import OpenAIProvider
+
+openai_llm = OpenAIProvider(
+    settings=OpenAISettings.from_env(),
+    model_name="gpt-5",
+    temperature=0.3,
+    # Pass json_schema config via **kwargs
+    text={
+        "format": {
+            "type": "json_schema",
+            "json_schema": {
+                "name": "stock_analysis",
+                "schema": {
+                    "type": "object",
+                    "properties": {
+                        "ticker": {"type": "string"},
+                        "recommendation": {"type": "string", "enum": ["BUY", "HOLD", "SELL"]},
+                        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+                    },
+                    "required": ["ticker", "recommendation", "confidence"]
+                }
+            }
+        }
+    }
+)
+response = await openai_llm.generate("Analyze AAPL stock")
+# Response will be valid JSON matching the schema
+```
+
+### Gemini JSON Schema
+Use `response_mime_type` and `response_schema` in kwargs:
+
+```python
+from config.llm.gemini import GeminiSettings
+from llm.providers.gemini import GeminiProvider
+
+gemini_llm = GeminiProvider(
+    settings=GeminiSettings.from_env(),
+    model_name="gemini-2.5-flash",
+    temperature=0.3,
+    # Pass via **kwargs to GenerateContentConfig
+    response_mime_type="application/json",
+    response_schema={
+        "type": "OBJECT",
+        "properties": {
+            "ticker": {"type": "STRING"},
+            "recommendation": {"type": "STRING", "enum": ["BUY", "HOLD", "SELL"]},
+            "confidence": {"type": "NUMBER"}
+        },
+        "required": ["ticker", "recommendation", "confidence"]
+    }
+)
+response = await gemini_llm.generate("Analyze AAPL stock")
+# Response will be valid JSON matching the schema
+```
+
+**Note:** Both providers support a limited JSON Schema subset. Avoid advanced features like `allOf`, `oneOf`, `not` for best compatibility.
 
 ---
 

@@ -76,7 +76,7 @@ _PROVIDER_SPECS: tuple[ProviderSpec, ...] = (
         code_tools_factory=lambda: [{"type": "code_interpreter", "container": {"type": "auto"}}],
         code_tool_choice_on="auto",
         code_tool_choice_off="none",
-        search_tools_factory=lambda: [{"type": "web_search"}],
+        search_tools_factory=lambda: [{"type": "web_search_preview"}],
         search_tool_choice_on="auto",
         search_tool_choice_off="none",
     ),

@@ -1,5 +1,5 @@
 import logging
-from typing import Any
+from typing import Any, cast
 
 from google import genai
 from google.genai import types
@@ -61,7 +61,8 @@ class GeminiProvider(LLMProvider):
                 cfg["tool_config"] = {"function_calling_config": {"mode": mode}}
 
         if self.thinking_config:
-            cfg["thinking_config"] = types.ThinkingConfig(**self.thinking_config)
+            thinking_ctor = cast(Any, types.ThinkingConfig)
+            cfg["thinking_config"] = thinking_ctor(**self.thinking_config)
 
         config = types.GenerateContentConfig(**cfg)
 
@@ -84,13 +85,18 @@ class GeminiProvider(LLMProvider):
                     )
 
                 # Extract both text and tool outputs
-                parts = resp.candidates[0].content.parts
+                candidate = resp.candidates[0]
+                content = getattr(candidate, "content", None)
+                parts = getattr(content, "parts", None) or []
                 out = []
                 for p in parts:
-                    if getattr(p, "text", None):
-                        out.append(p.text)
-                    if getattr(p, "code_execution_result", None):
-                        out.append(p.code_execution_result.output or "")
+                    text = getattr(p, "text", None)
+                    if text:
+                        out.append(text)
+                    code_result = getattr(p, "code_execution_result", None)
+                    if code_result:
+                        output = getattr(code_result, "output", None) or ""
+                        out.append(output)
                 return "\n".join(out).strip()
 
             except (
@@ -128,8 +134,9 @@ class GeminiProvider(LLMProvider):
             if error_code == 429:
                 # Rate limited - check for retry-after header
                 retry_after = None
-                if hasattr(e, "headers"):
-                    retry_after_header = e.headers.get("retry-after")
+                headers = getattr(e, "headers", None)
+                if headers:
+                    retry_after_header = headers.get("retry-after")
                     retry_after = parse_retry_after(retry_after_header)
                 return RetryableError(f"Rate limited: {error_msg}", retry_after=retry_after)
             elif error_code in (500, 502, 503, 504):
