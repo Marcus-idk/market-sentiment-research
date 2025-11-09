@@ -20,6 +20,8 @@ except ImportError as e:
         "Install with: pip install 'exchange-calendars>=4.11,<5.0'"
     ) from e
 
+from typing import cast
+
 from data.models import Session
 
 logger = logging.getLogger(__name__)
@@ -69,7 +71,7 @@ def classify_us_session(ts_utc: datetime) -> Session:
     nyse = _get_nyse_calendar()
 
     # Convert date to pandas Timestamp label (calendar expects tz-naive)
-    session_label = pd.Timestamp(et.date())
+    session_label = cast(pd.Timestamp, pd.Timestamp(et.date()))
 
     # First gate: check if market is open today (handles holidays/weekends)
     if not nyse.is_session(session_label):

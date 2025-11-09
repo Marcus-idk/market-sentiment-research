@@ -37,7 +37,7 @@ class TestIsoParsingHelpers:
 
     def test_parse_rfc3339_raises_for_non_string(self):
         with pytest.raises(TypeError):
-            _parse_rfc3339(123)
+            _parse_rfc3339(123)  # type: ignore[reportArgumentType] - intentional negative test
 
     def test_parse_rfc3339_invalid_format_raises(self):
         with pytest.raises(ValueError):

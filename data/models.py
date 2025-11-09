@@ -133,7 +133,8 @@ class NewsEntry:
 
     @property
     def news_type(self) -> NewsType:
-        return self.article.news_type
+        nt = self.article.news_type
+        return nt if isinstance(nt, NewsType) else NewsType(nt)
 
 
 @dataclass

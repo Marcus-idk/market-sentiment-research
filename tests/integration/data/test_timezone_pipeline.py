@@ -137,6 +137,7 @@ class TestTimezonePipeline:
 
         # Verify AnalysisResult datetime normalization
         assert analysis_mixed.last_updated.tzinfo == UTC
+        assert analysis_mixed.created_at is not None
         assert analysis_mixed.created_at.tzinfo == UTC
         expected_london_utc = london_dt.astimezone(UTC)
         assert analysis_mixed.last_updated == expected_london_utc
@@ -152,7 +153,9 @@ class TestTimezonePipeline:
         )
 
         # Verify Holdings datetime normalization
+        assert holdings_mixed.created_at is not None
         assert holdings_mixed.created_at.tzinfo == UTC
+        assert holdings_mixed.updated_at is not None
         assert holdings_mixed.updated_at.tzinfo == UTC
         assert holdings_mixed.created_at == expected_eastern_utc
 

@@ -5,7 +5,7 @@ Handles storing, querying, and updating news, prices, analysis, and holdings.
 
 from datetime import UTC, datetime
 
-from data.models import AnalysisResult, Holdings, NewsEntry, NewsSymbol, PriceData
+from data.models import AnalysisResult, Holdings, NewsEntry, NewsSymbol, NewsType, PriceData
 from data.storage.db_context import _cursor_context
 from data.storage.storage_utils import (
     _datetime_to_iso,
@@ -32,6 +32,16 @@ def store_news_items(db_path: str, items: list[NewsEntry]) -> None:
             article = item.article
             normalized_url = _normalize_url(article.url)
 
+            try:
+                if isinstance(article.news_type, NewsType):
+                    news_type_value = article.news_type.value
+                else:
+                    news_type_value = NewsType(str(article.news_type)).value
+            except Exception as exc:
+                raise ValueError(
+                    f"Invalid news_type for NewsItem; expected NewsType or valid string: {exc}"
+                ) from exc
+
             cursor.execute(
                 """
                 INSERT OR IGNORE INTO news_items
@@ -44,7 +54,7 @@ def store_news_items(db_path: str, items: list[NewsEntry]) -> None:
                     article.content,
                     _datetime_to_iso(article.published),
                     article.source,
-                    article.news_type.value,
+                    news_type_value,
                 ),
             )
 

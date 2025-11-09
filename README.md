@@ -80,7 +80,12 @@ npm install -g jscpd
 jscpd .
 ```
 
-**Note**: Pre-commit hooks automatically run `ruff check --fix`, `ruff format`, and `pylint` before each commit. Run jscpd manually for periodic cleanup.
+**Run Pyright (type checking):**
+```bash
+pyright
+```
+
+**Note**: Pre-commit hooks automatically run `ruff check --fix`, `ruff format`, `pyright`, and `pylint` before each commit. Run jscpd manually for periodic cleanup. Pylance provides real-time type checking in VS Code (basic mode).
 
 ## Testing
 

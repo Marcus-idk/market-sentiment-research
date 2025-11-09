@@ -88,6 +88,7 @@ class TestLastNewsTime:
         result = get_last_news_time(temp_db)
 
         # Should be equal when both are UTC-aware
+        assert result is not None
         assert result == dt_aware
         assert result.tzinfo == UTC
 
@@ -105,6 +106,7 @@ class TestLastNewsTime:
         result = get_last_news_time(temp_db)
         expected = dt_naive.replace(tzinfo=UTC)
 
+        assert result is not None
         assert result == expected
         assert result.tzinfo == UTC
 

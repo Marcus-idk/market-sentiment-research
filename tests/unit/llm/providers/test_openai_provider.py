@@ -85,7 +85,9 @@ class TestOpenAIProvider:
         provider, _ = _make_provider(monkeypatch)
         headers = {"retry-after": "3"}
         exc = openai_module.RateLimitError(
-            "Too many requests", response=_status_response(429, headers=headers), body=None
+            "Too many requests",
+            response=_status_response(429, headers=headers),
+            body=None,  # type: ignore[reportCallIssue]
         )
 
         mapped = provider._classify_openai_exception(exc)
@@ -96,7 +98,9 @@ class TestOpenAIProvider:
     def test_classify_rate_limit_without_retry_after(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _ = _make_provider(monkeypatch)
         exc = openai_module.RateLimitError(
-            "Too many requests", response=_status_response(429), body=None
+            "Too many requests",
+            response=_status_response(429),
+            body=None,  # type: ignore[reportCallIssue]
         )
 
         mapped = provider._classify_openai_exception(exc)
@@ -109,7 +113,7 @@ class TestOpenAIProvider:
         [
             openai_module.APITimeoutError(_dummy_request()),
             openai_module.APIConnectionError(message="Connection", request=_dummy_request()),
-            openai_module.ConflictError("Conflict", response=_status_response(409), body=None),
+            openai_module.ConflictError("Conflict", response=_status_response(409), body=None),  # type: ignore[reportCallIssue]
         ],
     )
     def test_classify_retryable_errors(
@@ -123,7 +127,7 @@ class TestOpenAIProvider:
 
     def test_classify_api_status_retryable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _ = _make_provider(monkeypatch)
-        exc = openai_module.APIStatusError("Server", response=_status_response(503), body=None)
+        exc = openai_module.APIStatusError("Server", response=_status_response(503), body=None)  # type: ignore[reportCallIssue]
 
         mapped = provider._classify_openai_exception(exc)
 
@@ -133,7 +137,7 @@ class TestOpenAIProvider:
     def test_classify_api_status_rate_limit(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _ = _make_provider(monkeypatch)
         headers = {"retry-after": "2.5"}
-        exc = openai_module.APIStatusError(
+        exc = openai_module.APIStatusError(  # type: ignore[reportCallIssue]
             "Too many requests",
             response=_status_response(429, headers=headers),
             body=None,
@@ -147,7 +151,7 @@ class TestOpenAIProvider:
 
     def test_classify_api_status_non_retryable(self, monkeypatch: pytest.MonkeyPatch) -> None:
         provider, _ = _make_provider(monkeypatch)
-        exc = openai_module.APIStatusError("Bad request", response=_status_response(400), body=None)
+        exc = openai_module.APIStatusError("Bad request", response=_status_response(400), body=None)  # type: ignore[reportCallIssue]
 
         mapped = provider._classify_openai_exception(exc)
 
@@ -172,7 +176,7 @@ class TestOpenAIProvider:
         expected_message: str,
     ) -> None:
         provider, _ = _make_provider(monkeypatch)
-        exc = exc_cls("boom", response=_status_response(status_code), body=None)
+        exc = exc_cls("boom", response=_status_response(status_code), body=None)  # type: ignore[reportCallIssue]
 
         mapped = provider._classify_openai_exception(exc)
 

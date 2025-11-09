@@ -30,6 +30,8 @@ def parse_retry_after(value: str | float | int | None) -> float | None:
 
     try:
         # Try parsing as HTTP-date ("Thu, 01 Dec 2024 15:30:00 GMT")
+        if not isinstance(value, str):
+            return None
         retry_time = parsedate_to_datetime(value)
         now = datetime.now(UTC)
         seconds = (retry_time - now).total_seconds()

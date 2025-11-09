@@ -24,16 +24,16 @@ class TestFinnhubMacroProviderSpecific:
     """Tests for Finnhub-only behaviors not covered by macro contracts."""
 
     async def test_fetch_incremental_includes_min_id_param(
-        self, macro_provider: FinnhubMacroNewsProvider
+        self, macro_provider: FinnhubMacroNewsProvider, monkeypatch
     ):
-        captured: dict[str, dict[str, str | int]] = {}
+        captured: dict[str, object] = {}
 
         async def mock_get(path: str, params: dict[str, str | int]):
             captured["path"] = path
             captured["params"] = params.copy()
             return []
 
-        macro_provider.client.get = mock_get
+        monkeypatch.setattr(macro_provider.client, "get", mock_get)
 
         await macro_provider.fetch_incremental(min_id=123)
 

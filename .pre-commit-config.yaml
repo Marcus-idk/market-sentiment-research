@@ -5,7 +5,11 @@ repos:
       - id: ruff-check   # linter, run first
         args: [--fix]
       - id: ruff-format  # formatter, run second
+  - repo: https://github.com/RobertCraigie/pyright-python
+    rev: v1.1.407
+    hooks:
+      - id: pyright       # type checker, run third
   - repo: https://github.com/pycqa/pylint
     rev: v4.0.2
     hooks:
-      - id: pylint        # cyclic-import checker, run third
+      - id: pylint        # cyclic-import checker, run fourth

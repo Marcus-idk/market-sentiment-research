@@ -10,7 +10,7 @@ import asyncio
 import logging
 from datetime import datetime
 from decimal import Decimal
-from typing import TypedDict
+from typing import TypedDict, cast
 
 from analysis.urgency_detector import detect_urgency
 from data import DataSourceError, NewsDataSource, PriceDataSource
@@ -79,7 +79,7 @@ class DataPoller:
         self._stop_event = asyncio.Event()
 
         # Track macro providers that use ID-based watermarks (currently Finnhub macro endpoint)
-        self._finnhub_macro_providers = {
+        self._finnhub_macro_providers: set[NewsDataSource] = {
             provider
             for provider in news_providers
             if isinstance(provider, FinnhubMacroNewsProvider)
@@ -135,10 +135,11 @@ class DataPoller:
                 logger.debug(f"{provider_name} news fetch failed: {result}")
                 errors.append(f"{provider_name}: {str(result)}")
             else:
+                entries = cast(list[NewsEntry], result)
                 if provider in self._finnhub_macro_providers:
-                    macro_news.extend(result)
+                    macro_news.extend(entries)
                 else:
-                    company_news.extend(result)
+                    company_news.extend(entries)
 
         # Process price results - keep providers separate
         for provider, result in zip(self.price_providers, price_results, strict=True):
@@ -148,7 +149,8 @@ class DataPoller:
                 errors.append(f"{provider_name}: {str(result)}")
             else:
                 # Convert list to dict keyed by symbol
-                prices_by_provider[provider] = {p.symbol: p for p in result}
+                prices = cast(list[PriceData], result)
+                prices_by_provider[provider] = {p.symbol: p for p in prices}
 
         return DataBatch(
             company_news=company_news,

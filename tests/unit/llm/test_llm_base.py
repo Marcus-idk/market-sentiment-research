@@ -29,7 +29,7 @@ class TestAbstractMethodEnforcement:
     def test_llmprovider_cannot_instantiate(self):
         """Test that LLMProvider ABC cannot be instantiated directly"""
         with pytest.raises(TypeError, match="Can't instantiate abstract class LLMProvider"):
-            LLMProvider()
+            LLMProvider()  # type: ignore[reportAbstractUsage]
 
     def test_llmprovider_requires_generate(self):
         """Test that subclass without generate() cannot be instantiated"""
@@ -39,7 +39,7 @@ class TestAbstractMethodEnforcement:
                 async def validate_connection(self) -> bool:
                     return True
 
-            IncompleteProvider()
+            IncompleteProvider()  # type: ignore[reportAbstractUsage]
 
     def test_llmprovider_requires_validate_connection(self):
         """Test that subclass without validate_connection() cannot be instantiated"""
@@ -51,7 +51,7 @@ class TestAbstractMethodEnforcement:
                 async def generate(self, prompt: str) -> str:
                     return "test"
 
-            IncompleteProvider()
+            IncompleteProvider()  # type: ignore[reportAbstractUsage]
 
     def test_concrete_implementation_works(self):
         """Test that complete implementation can be instantiated"""

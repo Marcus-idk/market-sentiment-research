@@ -146,7 +146,8 @@ class OpenAIProvider(LLMProvider):
                 429: "Rate limited",
             }
 
-            label = error_messages.get(code, "API error")
+            # Normalize key to int for lookup to satisfy typing
+            label = error_messages.get(code if isinstance(code, int) else -1, "API error")
 
             # For plain APIStatusError or unknown codes, include the code in the message
             include_code = (type(e) is APIStatusError) or (code not in error_messages)

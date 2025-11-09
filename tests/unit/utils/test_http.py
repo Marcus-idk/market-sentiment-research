@@ -108,7 +108,7 @@ class TestGetJsonWithRetry:
 
         mock_http_client(mock_get)
 
-        with pytest.raises(DataSourceError, match="Client error \(status 404\)"):
+        with pytest.raises(DataSourceError, match=r"Client error \(status 404\)"):
             await get_json_with_retry("https://example.com/api", timeout=10, max_retries=3)
         assert call_count == 1  # No retries for client errors
 
@@ -258,7 +258,7 @@ class TestGetJsonWithRetry:
         mock_http_client(mock_get)
 
         with patch("asyncio.sleep", new_callable=AsyncMock):
-            with pytest.raises(RetryableError, match="Transient error \(status 503\)"):
+            with pytest.raises(RetryableError, match=r"Transient error \(status 503\)"):
                 await get_json_with_retry(
                     "https://example.com/api",
                     timeout=10,

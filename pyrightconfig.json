@@ -1,0 +1,29 @@
+{
+  "include": [
+    "analysis",
+    "config",
+    "data",
+    "llm",
+    "utils",
+    "workflows",
+    "ui",
+    "tests",
+    "run_poller.py"
+  ],
+  "typeCheckingMode": "off",
+  "pythonVersion": "3.13",
+  "venvPath": ".",
+  "venv": ".venv",
+  "exclude": [
+    ".venv",
+    "build",
+    "dist",
+    ".eggs",
+    "**/__pycache__",
+    "**/.pytest_cache",
+    "**/.ruff_cache",
+    "**/.mypy_cache",
+    "**/.hypothesis",
+    "docs"
+  ]
+}

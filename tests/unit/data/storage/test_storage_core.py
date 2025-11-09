@@ -53,7 +53,9 @@ def test_check_json1_support_returns_false_when_extension_missing(caplog):
 
     caplog.set_level("DEBUG")
 
-    assert _check_json1_support(JsonLessConnection()) is False
+    from typing import cast
+
+    assert _check_json1_support(cast(sqlite3.Connection, JsonLessConnection())) is False
     assert "SQLite JSON1 extension not available" in caplog.text
 
 

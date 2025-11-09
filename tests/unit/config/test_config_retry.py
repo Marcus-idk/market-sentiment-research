@@ -36,13 +36,13 @@ class TestLLMRetryConfig:
         config = LLMRetryConfig()
 
         with pytest.raises(FrozenInstanceError):
-            config.timeout_seconds = 500
+            config.timeout_seconds = 500  # type: ignore[reportAttributeAccessIssue]
 
         with pytest.raises(FrozenInstanceError):
-            config.max_retries = 10
+            config.max_retries = 10  # type: ignore[reportAttributeAccessIssue]
 
         with pytest.raises(FrozenInstanceError):
-            config.base = 0.5
+            config.base = 0.5  # type: ignore[reportAttributeAccessIssue]
 
     def test_default_instance(self):
         """Test DEFAULT_LLM_RETRY instance exists with correct values"""
@@ -56,7 +56,7 @@ class TestLLMRetryConfig:
     def test_default_instance_immutable(self):
         """Test DEFAULT_LLM_RETRY instance cannot be modified"""
         with pytest.raises(FrozenInstanceError):
-            DEFAULT_LLM_RETRY.timeout_seconds = 999
+            DEFAULT_LLM_RETRY.timeout_seconds = 999  # type: ignore[reportAttributeAccessIssue]
 
 
 class TestDataRetryConfig:
@@ -88,13 +88,13 @@ class TestDataRetryConfig:
         config = DataRetryConfig()
 
         with pytest.raises(FrozenInstanceError):
-            config.timeout_seconds = 100
+            config.timeout_seconds = 100  # type: ignore[reportAttributeAccessIssue]
 
         with pytest.raises(FrozenInstanceError):
-            config.max_retries = 5
+            config.max_retries = 5  # type: ignore[reportAttributeAccessIssue]
 
         with pytest.raises(FrozenInstanceError):
-            config.jitter = 0.5
+            config.jitter = 0.5  # type: ignore[reportAttributeAccessIssue]
 
     def test_default_instance(self):
         """Test DEFAULT_DATA_RETRY instance exists with correct values"""
@@ -108,7 +108,7 @@ class TestDataRetryConfig:
     def test_default_instance_immutable(self):
         """Test DEFAULT_DATA_RETRY instance cannot be modified"""
         with pytest.raises(FrozenInstanceError):
-            DEFAULT_DATA_RETRY.timeout_seconds = 999
+            DEFAULT_DATA_RETRY.timeout_seconds = 999  # type: ignore[reportAttributeAccessIssue]
 
 
 class TestRetryBusinessRules:

@@ -199,13 +199,13 @@ async def create_and_validate_providers(
     polygon_macro_news_provider = PolygonMacroNewsProvider(config.polygon_settings, config.symbols)
 
     # Group providers by type
-    news_providers = [
+    news_providers: list[NewsDataSource] = [
         company_news_provider,
         macro_news_provider,
         polygon_company_news_provider,
         polygon_macro_news_provider,
     ]
-    price_providers = [finnhub_price_provider]
+    price_providers: list[PriceDataSource] = [finnhub_price_provider]
 
     # Validate connections
     logger.info("Validating API connections...")
