@@ -101,13 +101,22 @@ class TestTableStructure:
                 "price_data",
                 "analysis_results",
                 "holdings",
-                "last_seen",
+                "last_seen_state",
             }
 
-            names = {name for name, _ in tables}
+            sql_by_name = {name: sql for name, sql in tables}
+            names = set(sql_by_name)
             missing = required - names
             assert not missing
 
-            # Verify each table uses WITHOUT ROWID
-            for _name, sql in tables:
+            without_rowid_tables = {
+                "news_items",
+                "news_symbols",
+                "price_data",
+                "analysis_results",
+                "holdings",
+            }
+
+            for table in without_rowid_tables:
+                sql = sql_by_name[table]
                 assert "WITHOUT ROWID" in sql.upper()

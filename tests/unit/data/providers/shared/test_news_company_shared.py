@@ -172,13 +172,15 @@ class TestNewsCompanyShared:
         path, params = captured[0]
         assert path == provider_spec_company.endpoint
 
+        overlap_delta = timedelta(minutes=provider.settings.company_news_overlap_minutes)
+
         if provider_spec_company.name == "finnhub":
-            expected_from = (since - timedelta(minutes=2)).strftime("%Y-%m-%d")
+            expected_from = (since - overlap_delta).strftime("%Y-%m-%d")
             assert params["from"] == expected_from
             assert params["to"] == fixed_now.strftime("%Y-%m-%d")
             assert params["symbol"] in provider_spec_company.default_symbols
         else:
-            expected_gt = _datetime_to_iso(since - timedelta(minutes=2))
+            expected_gt = _datetime_to_iso(since - overlap_delta)
             assert params["published_utc.gt"] == expected_gt
             assert params["ticker"] in provider_spec_company.default_symbols
 
@@ -213,13 +215,15 @@ class TestNewsCompanyShared:
         path, params = captured[0]
         assert path == provider_spec_company.endpoint
 
+        bootstrap_delta = timedelta(days=provider.settings.company_news_first_run_days)
+
         if provider_spec_company.name == "finnhub":
-            expected_from = (fixed_now - timedelta(days=2)).strftime("%Y-%m-%d")
+            expected_from = (fixed_now - bootstrap_delta).strftime("%Y-%m-%d")
             assert params["from"] == expected_from
             assert params["to"] == fixed_now.strftime("%Y-%m-%d")
             assert params["symbol"] in provider_spec_company.default_symbols
         else:
-            expected_gt = _datetime_to_iso(fixed_now - timedelta(days=2))
+            expected_gt = _datetime_to_iso(fixed_now - bootstrap_delta)
             assert params["published_utc.gt"] == expected_gt
             assert params["ticker"] in provider_spec_company.default_symbols
 
@@ -279,3 +283,32 @@ class TestNewsCompanyShared:
         results = await provider.fetch_incremental()
 
         assert results == []
+
+    async def test_symbol_since_map_takes_precedence(self, provider_spec_company):
+        provider = provider_spec_company.make_provider(symbols=["AAPL", "TSLA"])
+
+        if not hasattr(provider, "_resolve_symbol_cursor"):
+            pytest.skip("provider does not expose symbol cursor helper")
+
+        global_since = datetime(2024, 1, 10, 12, 0, tzinfo=UTC)
+        symbol_since = datetime(2024, 1, 12, 9, 0, tzinfo=UTC)
+
+        result_aapl = provider._resolve_symbol_cursor("AAPL", {"AAPL": symbol_since}, global_since)
+        result_tsla = provider._resolve_symbol_cursor("TSLA", {"AAPL": symbol_since}, global_since)
+
+        assert result_aapl == symbol_since
+        assert result_tsla == global_since
+
+    async def test_symbol_cursor_falls_back_to_global_or_none(self, provider_spec_company):
+        provider = provider_spec_company.make_provider(symbols=["AAPL"])
+
+        if not hasattr(provider, "_resolve_symbol_cursor"):
+            pytest.skip("provider does not expose symbol cursor helper")
+
+        global_since = datetime(2024, 1, 8, 15, 0, tzinfo=UTC)
+
+        result_with_global = provider._resolve_symbol_cursor("AAPL", {}, global_since)
+        result_without_global = provider._resolve_symbol_cursor("AAPL", None, None)
+
+        assert result_with_global == global_since
+        assert result_without_global is None

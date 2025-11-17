@@ -14,10 +14,10 @@ class PolygonSettings:
     api_key: str
     base_url: str = "https://api.polygon.io"
     retry_config: DataRetryConfig = DEFAULT_DATA_RETRY
-    company_news_overlap_minutes: int = 5
+    company_news_overlap_minutes: int = 2
     company_news_first_run_days: int = 7
-    macro_news_overlap_minutes: int = 5
-    macro_news_first_run_days: int = 2
+    macro_news_overlap_minutes: int = 2
+    macro_news_first_run_days: int = 7
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> "PolygonSettings":

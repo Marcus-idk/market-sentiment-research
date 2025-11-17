@@ -54,17 +54,20 @@ class PolygonMacroNewsProvider(NewsDataSource):
         overlap_delta = timedelta(minutes=self.settings.macro_news_overlap_minutes)
         bootstrap_delta = timedelta(days=self.settings.macro_news_first_run_days)
 
-        buffer_time: datetime | None
         if since is not None:
             start_time = since - overlap_delta
-            buffer_time = since
         else:
             start_time = now_utc - bootstrap_delta
-            buffer_time = None
 
         if start_time > now_utc:
             start_time = now_utc
 
+        # Buffer matches start_time to keep all articles in the overlap window.
+        # This allows us to catch delayed articles (published before cursor but
+        # not yet visible in the API). The database handles deduplication by URL.
+        # Downstream systems (Poller, urgency) will see overlap articles again,
+        # but this is intentional to ensure we never miss late-arriving news.
+        buffer_time = start_time
         published_gt = _datetime_to_iso(start_time)
 
         news_entries: list[NewsEntry] = []

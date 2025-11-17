@@ -2,7 +2,8 @@
 
 from __future__ import annotations
 
-from datetime import UTC, datetime
+import logging
+from datetime import UTC, datetime, timedelta
 
 import pytest
 
@@ -95,3 +96,45 @@ class TestPolygonNewsProvider:
 
         cursor = provider._extract_cursor(next_url)
         assert cursor == expected
+
+    async def test_fetch_symbol_news_applies_buffer_filter(self, monkeypatch, caplog):
+        settings = PolygonSettings(api_key="test_key")
+        provider = PolygonNewsProvider(settings, ["AAPL"])
+        buffer_time = datetime(2024, 1, 20, 12, 0, tzinfo=UTC)
+        early = (buffer_time - timedelta(minutes=1)).isoformat().replace("+00:00", "Z")
+        late = (buffer_time + timedelta(minutes=1)).isoformat().replace("+00:00", "Z")
+
+        response = {
+            "results": [
+                {
+                    "title": "Too Old",
+                    "article_url": "https://example.com/old",
+                    "published_utc": early,
+                    "publisher": {"name": "Polygon"},
+                    "description": "",
+                },
+                {
+                    "title": "Fresh",
+                    "article_url": "https://example.com/new",
+                    "published_utc": late,
+                    "publisher": {"name": "Polygon"},
+                    "description": "Desc",
+                },
+            ]
+        }
+
+        async def mock_get(path: str, params: dict | None = None):
+            return response
+
+        provider.client.get = mock_get
+
+        caplog.set_level(logging.WARNING)
+        result = await provider._fetch_symbol_news(
+            "AAPL",
+            "2024-01-01T00:00:00Z",
+            buffer_time,
+        )
+
+        assert len(result) == 1
+        assert result[0].article.headline == "Fresh"
+        assert "published=" in caplog.text

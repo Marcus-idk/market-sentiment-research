@@ -271,19 +271,15 @@ class WatermarkEngine:
             symbol=None,
         )
         existing_ts = _ensure_utc(existing) if existing is not None else None
-        target = clamped
-        if existing_ts is not None:
-            target = max(existing_ts, clamped)
-            if target == existing_ts:
-                return
-
-        set_last_seen_timestamp(
-            self.db_path,
-            rule.provider,
-            rule.stream,
-            ScopeEnum.GLOBAL,
-            target,
-        )
+        target = clamped if existing_ts is None else max(existing_ts, clamped)
+        if existing_ts is None or target > existing_ts:
+            set_last_seen_timestamp(
+                self.db_path,
+                rule.provider,
+                rule.stream,
+                ScopeEnum.GLOBAL,
+                target,
+            )
 
         if rule.bootstrap:
             per_symbol_max: dict[str, datetime] = {}
@@ -297,12 +293,30 @@ class WatermarkEngine:
 
             for symbol, ts in per_symbol_max.items():
                 clamped_symbol = _clamp_future(ts, now)
+                existing_symbol = get_last_seen_timestamp(
+                    self.db_path,
+                    rule.provider,
+                    rule.stream,
+                    ScopeEnum.SYMBOL,
+                    symbol=symbol,
+                )
+                existing_symbol_ts = (
+                    _ensure_utc(existing_symbol) if existing_symbol is not None else None
+                )
+                target_symbol = (
+                    clamped_symbol
+                    if existing_symbol_ts is None
+                    else max(existing_symbol_ts, clamped_symbol)
+                )
+                if existing_symbol_ts is not None and target_symbol == existing_symbol_ts:
+                    continue
+
                 set_last_seen_timestamp(
                     self.db_path,
                     rule.provider,
                     rule.stream,
                     ScopeEnum.SYMBOL,
-                    clamped_symbol,
+                    target_symbol,
                     symbol=symbol,
                 )
 

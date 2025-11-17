@@ -81,7 +81,9 @@ class TestNewsMacroShared:
         monkeypatch.setattr(f"{provider.__module__}.timezone", timezone)
         monkeypatch.setattr(f"{provider.__module__}.timedelta", timedelta)
 
-        buffer_epoch = int(datetime(2024, 1, 13, 10, 0, tzinfo=UTC).timestamp())
+        bootstrap_delta = timedelta(days=provider.settings.macro_news_first_run_days)
+        buffer_anchor = datetime(2024, 1, 15, 10, 0, tzinfo=UTC) - bootstrap_delta
+        buffer_epoch = int(buffer_anchor.timestamp())
         inside_epoch = buffer_epoch + 60
         article_old = provider_spec_macro.article_factory(epoch=buffer_epoch)
         article_new = provider_spec_macro.article_factory(epoch=inside_epoch)

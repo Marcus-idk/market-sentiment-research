@@ -11,17 +11,10 @@ import pytest
 
 from data.base import NewsDataSource, PriceDataSource
 from data.models import NewsEntry, NewsType, PriceData, Session
-from data.storage import (
-    get_last_macro_min_id,
-    get_last_news_time,
-    get_news_since,
-    get_price_data_since,
-    set_last_macro_min_id,
-    set_last_news_time,
-)
 from llm.base import LLMError
 from tests.factories import make_news_entry, make_price_data
 from workflows.poller import DataPoller
+from workflows.watermarks import CursorPlan
 
 
 class StubNews(NewsDataSource):
@@ -109,50 +102,6 @@ class TestDataPoller:
 
     pytestmark = pytest.mark.asyncio
 
-    async def test_poll_once_stores_and_updates_watermark(self, temp_db):
-        """Stores news/prices and sets watermark to max published."""
-        t1 = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
-        t2 = datetime(2024, 1, 15, 10, 5, tzinfo=UTC)
-
-        news = [
-            make_news_entry(
-                symbol="AAPL",
-                url="https://example.com/n1",
-                headline="h1",
-                source="StubSource",
-                published=t1,
-                news_type=NewsType.COMPANY_SPECIFIC,
-            ),
-            make_news_entry(
-                symbol="AAPL",
-                url="https://example.com/n2",
-                headline="h2",
-                source="StubSource",
-                published=t2,
-                news_type=NewsType.COMPANY_SPECIFIC,
-            ),
-        ]
-        prices = [
-            make_price_data(
-                symbol="AAPL",
-                timestamp=t2,
-                price=Decimal("123.45"),
-                session=Session.REG,
-            ),
-        ]
-
-        poller = DataPoller(temp_db, [StubNews(news)], [StubPrice(prices)], poll_interval=300)
-
-        stats = await poller.poll_once()
-        assert stats["news"] == 2
-        assert stats["prices"] == 1
-        assert stats["errors"] == []
-
-        # DB assertions
-        assert len(get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))) == 2
-        assert len(get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))) == 1
-        assert get_last_news_time(temp_db) == t2  # watermark = max published
-
     async def test_poll_once_collects_errors(self, temp_db):
         """Aggregates errors from failing providers without aborting cycle."""
 
@@ -187,18 +136,6 @@ class TestDataPoller:
         assert stats["errors"] and any(
             "ErrNews" in e for e in stats["errors"]
         )  # provider name included
-
-    async def test_poll_once_no_data_no_watermark(self, temp_db):
-        """No data returned → stats zero and watermark remains None."""
-        assert get_last_news_time(temp_db) is None  # precondition
-
-        poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
-        stats = await poller.poll_once()
-
-        assert stats["news"] == 0
-        assert stats["prices"] == 0
-        assert stats["errors"] == []
-        assert get_last_news_time(temp_db) is None  # unchanged
 
     async def test_poller_quick_shutdown(self, temp_db):
         """Verify poller stops quickly when stop() is called during sleep."""
@@ -239,125 +176,6 @@ class TestDataPoller:
         another_poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=120)
         assert another_poller.poll_interval == 120
 
-    async def test_macro_provider_min_id_passed_and_watermark_updated(self, temp_db):
-        """Macro providers consume min_id watermark and update it after fetch."""
-        t1 = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
-
-        # Set initial watermark
-        set_last_macro_min_id(temp_db, 100)
-
-        # Create distinct news items for each provider
-        company_news = [
-            make_news_entry(
-                symbol="AAPL",
-                url="https://example.com/company",
-                headline="Company news",
-                source="StubSource",
-                published=t1,
-                news_type=NewsType.COMPANY_SPECIFIC,
-            ),
-        ]
-        macro_news = [
-            make_news_entry(
-                symbol="MARKET",
-                url="https://example.com/macro",
-                headline="Macro news",
-                source="StubSource",
-                published=t1,
-                news_type=NewsType.MACRO,
-            ),
-        ]
-
-        # Create providers
-        company_provider = StubNews(company_news)
-        macro_provider = StubMacroNews(macro_news)
-        macro_provider.last_fetched_max_id = 150  # Simulate watermark update
-
-        # Create poller with both providers
-        poller = DataPoller(
-            temp_db, [company_provider, macro_provider], [StubPrice([])], poll_interval=300
-        )
-
-        # Explicitly mark macro provider without patching builtins
-        poller._finnhub_macro_providers = {macro_provider}  # type: ignore[reportAttributeAccessIssue]
-
-        stats = await poller.poll_once()
-
-        # Verify both providers were called
-        assert company_provider.last_called_with_since is None  # First run, no watermark
-
-        # Macro provider gets min_id watermark
-        assert macro_provider.last_called_with_min_id == 100
-
-        # Verify both sets of news were stored
-        assert stats["news"] == 2
-        stored_news = get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
-        assert len(stored_news) == 2
-        symbols = {entry.symbol for entry in stored_news}
-        assert symbols == {"AAPL", "MARKET"}
-
-        # Verify macro watermark was updated
-        assert get_last_macro_min_id(temp_db) == 150
-
-    async def test_updates_news_since_iso_and_macro_min_id_independently(self, temp_db):
-        """Test dual watermark updates: datetime and integer advance independently"""
-        t1 = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
-        t2 = datetime(2024, 1, 15, 10, 5, tzinfo=UTC)
-
-        # Set initial watermarks
-        set_last_macro_min_id(temp_db, 100)
-
-        # Create news with different timestamps
-        company_news = [
-            make_news_entry(
-                symbol="AAPL",
-                url="https://example.com/c1",
-                headline="Company 1",
-                source="StubSource",
-                published=t1,
-                news_type=NewsType.COMPANY_SPECIFIC,
-            ),
-            make_news_entry(
-                symbol="AAPL",
-                url="https://example.com/c2",
-                headline="Company 2",
-                source="StubSource",
-                published=t2,
-                news_type=NewsType.COMPANY_SPECIFIC,
-            ),  # Latest timestamp
-        ]
-        macro_news = [
-            make_news_entry(
-                symbol="MARKET",
-                url="https://example.com/m1",
-                headline="Macro 1",
-                source="StubSource",
-                published=t1,
-                news_type=NewsType.MACRO,
-            ),
-        ]
-
-        # Create providers
-        company_provider = StubNews(company_news)
-        macro_provider = StubMacroNews(macro_news)
-        macro_provider.last_fetched_max_id = 150  # New max ID
-
-        # Create poller
-        poller = DataPoller(
-            temp_db, [company_provider, macro_provider], [StubPrice([])], poll_interval=300
-        )
-
-        # Explicitly mark macro provider without patching builtins
-        poller._finnhub_macro_providers = {macro_provider}  # type: ignore[reportAttributeAccessIssue]
-
-        await poller.poll_once()
-
-        # Verify news_since_iso advanced to latest timestamp (t2)
-        assert get_last_news_time(temp_db) == t2
-
-        # Verify macro_news_min_id advanced independently to 150
-        assert get_last_macro_min_id(temp_db) == 150
-
     async def test_poll_once_collects_price_provider_errors(self, temp_db):
         """Price provider failures are reported without aborting the cycle."""
 
@@ -382,38 +200,62 @@ class TestDataPoller:
         assert stats["prices"] == 0
         assert any("ErrPrice" in message for message in stats["errors"])
 
-    async def test_poll_once_logs_since_when_watermark_present(self, temp_db, caplog, monkeypatch):
-        """Existing watermark is logged before fetching."""
-        watermark = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-        set_last_news_time(temp_db, watermark)
-        poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
+    async def test_fetch_all_data_forwards_cursor_kwargs(self, temp_db, monkeypatch):
+        provider = StubNews([])
+        poller = DataPoller(temp_db, [provider], [], poll_interval=60)
 
-        async def fake_fetch_all(self, last_news_time, last_macro_min_id):
-            assert last_news_time == watermark
-            return {
-                "company_news": [],
-                "macro_news": [],
-                "prices": {},
-                "errors": [],
-            }
+        plan = CursorPlan(
+            since=datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
+            min_id=42,
+            symbol_since_map={"AAPL": datetime(2024, 1, 2, 12, 0, tzinfo=UTC)},
+        )
+        monkeypatch.setattr(poller.watermarks, "build_plan", lambda _provider: plan)
 
-        monkeypatch.setattr(DataPoller, "_fetch_all_data", fake_fetch_all)
-        caplog.set_level(logging.INFO)
+        captured: dict[str, object | None] = {}
 
-        stats = await poller.poll_once()
+        async def capturing_fetch(**kwargs):
+            captured.update(kwargs)
+            return []
 
-        assert stats == {"news": 0, "prices": 0, "errors": []}
-        assert "Fetching news since" in caplog.text
+        provider.fetch_incremental = capturing_fetch  # type: ignore[assignment]
+
+        await poller._fetch_all_data()
+
+        assert captured["since"] == plan.since
+        assert captured["min_id"] == plan.min_id
+        assert captured["symbol_since_map"] is plan.symbol_since_map
+
+    async def test_fetch_all_data_routes_company_and_macro_news(self, temp_db, monkeypatch):
+        company_entry = make_news_entry(symbol="AAPL", news_type=NewsType.COMPANY_SPECIFIC)
+        macro_entry = make_news_entry(symbol="MARKET", news_type=NewsType.MACRO)
+        company_provider = StubNews([company_entry])
+        macro_provider = StubMacroNews([macro_entry])
+
+        poller = DataPoller(temp_db, [company_provider, macro_provider], [], poll_interval=60)
+
+        monkeypatch.setattr(poller.watermarks, "build_plan", lambda _provider: CursorPlan())
+        monkeypatch.setattr(
+            "workflows.poller.is_macro_stream",
+            lambda provider: provider is macro_provider,
+        )
+
+        data = await poller._fetch_all_data()
+
+        assert data["company_news"] == [company_entry]
+        assert data["macro_news"] == [macro_entry]
+        assert data["news_by_provider"][company_provider] == [company_entry]
+        assert data["news_by_provider"][macro_provider] == [macro_entry]
 
     async def test_poll_once_logs_no_price_data(self, temp_db, caplog, monkeypatch):
         """Empty price payload logs a notice."""
         poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
 
-        async def fake_fetch_all(self, last_news_time, last_macro_min_id):
+        async def fake_fetch_all(self):
             return {
                 "company_news": [],
                 "macro_news": [],
                 "prices": {},
+                "news_by_provider": {},
                 "errors": [],
             }
 
@@ -673,6 +515,80 @@ class TestDataPollerProcessPrices:
 class TestDataPollerNewsProcessing:
     """News storage, urgency, and watermark handling."""
 
+    @pytest.mark.asyncio
+    async def test_process_news_commits_each_provider(self, temp_db, monkeypatch):
+        poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
+        provider_one = StubNews([make_news_entry(symbol="AAPL")])
+        provider_two = StubNews([make_news_entry(symbol="TSLA")])
+        news_by_provider: dict[NewsDataSource, list[NewsEntry]] = {
+            provider_one: provider_one._items,
+            provider_two: provider_two._items,
+        }
+        company_news = provider_one._items
+        macro_news = provider_two._items
+
+        async def immediate_to_thread(func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
+
+        calls: list[tuple[NewsDataSource, list[NewsEntry]]] = []
+
+        def fake_commit(provider, entries):
+            calls.append((provider, entries))
+
+        monkeypatch.setattr(poller.watermarks, "commit_updates", fake_commit)
+        monkeypatch.setattr("workflows.poller.store_news_items", lambda *_: None)
+
+        count = await poller._process_news(news_by_provider, company_news, macro_news)
+
+        assert count == len(company_news) + len(macro_news)
+        assert calls == [
+            (provider_one, provider_one._items),
+            (provider_two, provider_two._items),
+        ]
+
+    @pytest.mark.asyncio
+    async def test_process_news_logs_urgency_detection_failures(self, temp_db, monkeypatch, caplog):
+        poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
+        entry = make_news_entry(symbol="AAPL")
+        provider = StubNews([entry])
+        news_by_provider: dict[NewsDataSource, list[NewsEntry]] = {provider: [entry]}
+
+        async def immediate_to_thread(func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
+        monkeypatch.setattr("workflows.poller.store_news_items", lambda *_args: None)
+        monkeypatch.setattr(poller.watermarks, "commit_updates", lambda *_: None)
+
+        def raising_detect(_entries):
+            raise LLMError("urgency boom")
+
+        monkeypatch.setattr("workflows.poller.detect_urgency", raising_detect)
+
+        caplog.set_level(logging.ERROR)
+        count = await poller._process_news(news_by_provider, [entry], [])
+
+        assert count == 1
+        assert "Urgency detection failed" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_process_news_logs_when_empty(self, temp_db, monkeypatch, caplog):
+        poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
+
+        async def immediate_to_thread(func, *args, **kwargs):
+            return func(*args, **kwargs)
+
+        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
+        monkeypatch.setattr(poller.watermarks, "commit_updates", lambda *_: None)
+        caplog.set_level(logging.INFO)
+
+        count = await poller._process_news({}, [], [])
+
+        assert count == 0
+        assert "No news items to process" in caplog.text
+
     def test_log_urgent_items_logs_summary(self, temp_db, caplog):
         poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
         caplog.set_level(logging.WARNING)
@@ -691,77 +607,6 @@ class TestDataPollerNewsProcessing:
 
         assert "Found 11 URGENT news items requiring attention" in caplog.text
         assert "... 1 more" in caplog.text
-
-    @pytest.mark.asyncio
-    async def test_process_news_urgency_detection_failure_is_logged(
-        self, temp_db, monkeypatch, caplog
-    ):
-        poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
-        news_item = make_news_entry(
-            symbol="AAPL",
-            url="https://example.com/aapl",
-            headline="AAPL update",
-            source="StubSource",
-            published=datetime(2024, 1, 1, 12, 0, tzinfo=UTC),
-        )
-
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
-        def raising_detect(_entries):
-            raise LLMError("urgency boom")
-
-        caplog.set_level(logging.ERROR)
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
-        monkeypatch.setattr("workflows.poller.detect_urgency", raising_detect)
-
-        count = await poller._process_news([news_item], [])
-
-        assert count == 1
-        assert "Urgency detection failed" in caplog.text
-
-    @pytest.mark.asyncio
-    async def test_process_news_no_items_logs(self, temp_db, monkeypatch, caplog):
-        poller = DataPoller(temp_db, [StubNews([])], [StubPrice([])], poll_interval=300)
-
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
-        caplog.set_level(logging.INFO)
-
-        count = await poller._process_news([], [])
-
-        assert count == 0
-        assert "No news items to process" in caplog.text
-
-    @pytest.mark.asyncio
-    async def test_process_news_updates_macro_watermark(self, temp_db, monkeypatch):
-        published = datetime(2024, 1, 1, 12, 0, tzinfo=UTC)
-        macro_news = [
-            make_news_entry(
-                symbol="MARKET",
-                url="https://example.com/macro",
-                headline="Macro headline",
-                source="StubSource",
-                published=published,
-            )
-        ]
-        macro_provider = StubMacroNews(macro_news)
-        macro_provider.last_fetched_max_id = 150
-        poller = DataPoller(temp_db, [macro_provider], [StubPrice([])], poll_interval=300)
-        poller._finnhub_macro_providers = {macro_provider}  # type: ignore[reportAttributeAccessIssue]
-
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
-        monkeypatch.setattr("workflows.poller.detect_urgency", lambda entries: [])
-
-        await poller._process_news([], macro_news)
-
-        assert get_last_news_time(temp_db) == published
-        assert get_last_macro_min_id(temp_db) == 150
 
 
 class TestDataPollerRunLoop:

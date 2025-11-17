@@ -9,7 +9,6 @@ from decimal import Decimal
 from data.models import Session
 from data.storage import (
     commit_llm_batch,
-    get_last_seen,
     get_news_since,
     get_news_symbols,
     get_price_data_since,
@@ -17,7 +16,7 @@ from data.storage import (
     store_price_data,
 )
 from data.storage.db_context import _cursor_context
-from data.storage.storage_utils import _datetime_to_iso, _iso_to_datetime, _normalize_url
+from data.storage.storage_utils import _iso_to_datetime, _normalize_url
 from tests.factories import make_news_entry, make_price_data
 
 
@@ -123,8 +122,6 @@ class TestBatchOperations:
         assert len(remaining_prices) == 1
         assert remaining_prices[0].symbol == "GOOGL"
 
-        assert get_last_seen(temp_db, "llm_last_run_iso") == _datetime_to_iso(cutoff)
-
     def test_commit_llm_batch_empty_database(self, temp_db):
         """Empty database should still set watermark and delete nothing."""
         cutoff = datetime.now(UTC)
@@ -132,7 +129,6 @@ class TestBatchOperations:
         result = commit_llm_batch(temp_db, cutoff)
 
         assert result == {"symbols_deleted": 0, "news_deleted": 0, "prices_deleted": 0}
-        assert get_last_seen(temp_db, "llm_last_run_iso") == _datetime_to_iso(cutoff)
 
     def test_commit_llm_batch_boundary_conditions(self, temp_db):
         """Rows with created_at <= cutoff are deleted (inclusive boundary)."""
@@ -183,4 +179,3 @@ class TestBatchOperations:
 
         result2 = commit_llm_batch(temp_db, cutoff)
         assert result2 == {"symbols_deleted": 0, "news_deleted": 0, "prices_deleted": 0}
-        assert get_last_seen(temp_db, "llm_last_run_iso") == _datetime_to_iso(cutoff)

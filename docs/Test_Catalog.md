@@ -214,7 +214,7 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_skips_missing_headline` - Skips blank headline
   - `test_skips_missing_url` - Skips blank URL
   - `test_skips_invalid_timestamp` - Skips invalid timestamp
-  - `test_filters_articles_with_buffer` - Applies 2-minute buffer
+  - `test_filters_articles_with_buffer` - Applies configured overlap buffer window
   - `test_date_window_params_with_since` - Adds correct date/ISO params with since
   - `test_date_window_params_without_since` - Adds correct date/ISO params without since
   - `test_symbol_normalization_uppercases` - Uppercases symbol list
@@ -222,6 +222,8 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_per_symbol_error_isolation` - Isolates errors per symbol
   - `test_structural_error_raises` - Malformed response raises DataSourceError
   - `test_empty_response_returns_empty_list` - Empty response returns []
+  - `test_symbol_since_map_takes_precedence` - Per-symbol cursor overrides global since when present
+  - `test_symbol_cursor_falls_back_to_global_or_none` - Falls back to global cursor or None when no per-symbol entry
 
 ### `tests/unit/data/providers/shared/test_news_macro_shared.py`
 - Purpose: Macro news providers shared behaviors
@@ -275,6 +277,8 @@ The detailed inventory starts below this line (to be populated and maintained).
   **TestFinnhubMacroProviderSpecific**
   - `test_fetch_incremental_includes_min_id_param` - Includes minId param
   - `test_last_fetched_max_id_advances_only_on_newer_ids` - Tracks and resets last_fetched_max_id
+  - `test_fetch_incremental_paginates_with_min_id` - Paginates using minId and tracks last_fetched_max_id
+  - `test_fetch_incremental_stops_at_bootstrap_cutoff` - Stops at bootstrap cutoff based on macro lookback window
 
 ### `tests/unit/data/providers/test_finnhub_prices.py`
 - Purpose: Finnhub price specifics (beyond shared tests)
@@ -290,6 +294,7 @@ The detailed inventory starts below this line (to be populated and maintained).
   **TestPolygonNewsProvider**
   - `test_fetch_incremental_handles_pagination` - Handles next_url pagination
   - `test_extract_cursor_from_next_url` - Extracts cursor from next_url
+  - `test_fetch_symbol_news_applies_buffer_filter` - Applies buffer filter and logs when API returns too-old articles
 
 ### `tests/unit/data/providers/test_polygon_macro_news.py`
 - Purpose: Polygon macro news specifics (beyond shared tests)
@@ -353,11 +358,13 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_volume_non_negative` - Volume non-negative
   - `test_volume_null_allowed` - Volume can be NULL
 
-### `tests/unit/data/schema/test_schema_last_seen_keys.py`
-- Purpose: Watermark key presence/constraints
+### `tests/unit/data/schema/test_schema_last_seen_state.py`
+- Purpose: Watermark table schema and constraints for `last_seen_state`
 - Tests:
-  **TestLastSeenKeyConstraint**
-  - `test_last_seen_key_accepts_macro_news_min_id` - Validates allowed/invalid keys
+  **TestLastSeenStateSchema**
+  - `test_table_has_expected_columns` - Validates last_seen_state column layout via PRAGMA table_info
+  - `test_primary_key_enforces_uniqueness` - Primary key prevents duplicate provider/stream/scope/symbol rows
+  - `test_scope_check_constraint` - Scope CHECK constraint rejects invalid values
 
 ### `tests/unit/data/schema/test_schema_not_null.py`
 - Purpose: NOT NULL constraint coverage
@@ -440,31 +447,25 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_upsert_holdings_timestamp_handling` - Preserve created_at, update updated_at
   - `test_upsert_holdings_auto_timestamps` - Auto-generate timestamps
 
-### `tests/unit/data/storage/test_storage_last_seen.py`
-- Purpose: Watermark storage behavior
+### `tests/unit/data/storage/test_storage_watermark.py`
+- Purpose: Typed watermark helpers for `last_seen_state`
 - Tests:
-  **TestLastSeenState**
-  - `test_basic_roundtrip_set_get` - Basic set/get functionality
-  - `test_replace_existing_key` - INSERT OR REPLACE overwrites existing keys
-  - `test_unknown_key_returns_none` - Non-existent keys return None
-  - `test_unicode_safety` - Unicode handling in values
-  - `test_key_constraint_enforcement` - CHECK constraint rejects invalid keys
-  **TestLastNewsTime**
-  - `test_roundtrip_aware_timestamp` - UTC-aware datetime roundtrip
-  - `test_naive_timestamp_treated_as_utc` - Naive datetime treated as UTC
-  - `test_overwrite_behavior` - Last write wins, no monotonic enforcement
-  - `test_missing_key_returns_none` - Missing news_since_iso key returns None
-  **TestLastMacroMinId**
-  - `test_macro_min_id_roundtrip_int` - Integer roundtrip
-  - `test_macro_min_id_missing_returns_none` - Missing returns None
-  - `test_macro_min_id_overwrite_and_nonint_value_returns_none` - Overwrite/non-int returns None
+  **TestTimestampCursors**
+  - `test_global_timestamp_roundtrip` - Global timestamp stored with __GLOBAL__ symbol and round-trips as UTC
+  - `test_symbol_timestamp_roundtrip` - Per-symbol timestamps stored and round-trip correctly
+  **TestSymbolNormalization**
+  - `test_symbol_scope_requires_non_empty_value` - Symbol scope rejects None, empty, and reserved __GLOBAL__ sentinel
+  - `test_global_scope_rejects_symbols` - Global scope requires None and normalizes to __GLOBAL__; rejects non-None symbols
+  **TestIdCursors**
+  - `test_global_id_roundtrip` - Global ID watermark stored and retrieved as integer
+  - `test_corrupted_id_row_returns_none` - Corrupted/non-integer ID rows are logged and return None
 
 ### `tests/unit/data/storage/test_storage_llm_batch.py`
 - Purpose: LLM batch commit flow
 - Tests:
   **TestBatchOperations**
-  - `test_commit_llm_batch_atomic_transaction` - Atomic delete ≤ cutoff, set watermark
-  - `test_commit_llm_batch_empty_database` - No-op on empty DB, set watermark
+  - `test_commit_llm_batch_atomic_transaction` - Atomically deletes rows with created_at_iso ≤ cutoff and returns deletion counts
+  - `test_commit_llm_batch_empty_database` - Empty database yields zero deletion counts
   - `test_commit_llm_batch_boundary_conditions` - Boundary timestamp behavior (≤ cutoff)
   - `test_commit_llm_batch_idempotency` - Idempotent repeated calls
 
@@ -718,15 +719,12 @@ The detailed inventory starts below this line (to be populated and maintained).
 - Tags: [async]
 - Tests:
   **TestDataPoller**
-  - `test_poll_once_stores_and_updates_watermark` - Stores and updates watermark
-  - `test_poll_once_collects_errors` - Aggregates provider errors
-  - `test_poll_once_no_data_no_watermark` - No data keeps watermark None
+  - `test_poll_once_collects_errors` - Aggregates provider errors without aborting price processing
   - `test_poller_quick_shutdown` - Stops quickly on stop()
   - `test_poller_custom_poll_interval` - Accepts custom intervals
-  - `test_macro_provider_min_id_passed_and_watermark_updated` - Macro provider uses min_id and updates watermark
-  - `test_updates_news_since_iso_and_macro_min_id_independently` - Updates both watermarks
   - `test_poll_once_collects_price_provider_errors` - Reports price provider failures without aborting
-  - `test_poll_once_logs_since_when_watermark_present` - Logs existing watermark before fetching
+  - `test_fetch_all_data_forwards_cursor_kwargs` - Forwards since/min_id/symbol_since_map into provider fetch calls
+  - `test_fetch_all_data_routes_company_and_macro_news` - Routes entries into company vs macro collections based on stream type
   - `test_poll_once_logs_no_price_data` - Logs when no price data is fetched
   - `test_poll_once_catches_cycle_error_and_appends` - Catches cycle error and appends to stats
 
@@ -739,13 +737,29 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_process_prices_handles_duplicate_class_instances` - Handles duplicate class instances; primary stored; mismatch logged
 
   **TestDataPollerNewsProcessing**
+  - `test_process_news_commits_each_provider` - Commits watermark updates once per provider with that provider's entries
+  - `test_process_news_logs_urgency_detection_failures` - Logs urgency detection failures but still returns correct count
+  - `test_process_news_logs_when_empty` - Logs when there are no news items to process
   - `test_log_urgent_items_logs_summary` - Logs bounded urgent-items summary with ellipsis
-  - `test_process_news_urgency_detection_failure_is_logged` - Logs when urgency detection raises; count still returned
-  - `test_process_news_no_items_logs` - Logs when there are no news items to process
-  - `test_process_news_updates_macro_watermark` - Updates `last_news_time` and macro min_id
 
   **TestDataPollerRunLoop**
   - `test_run_logs_completed_with_errors` - Logs "completed with errors" when errors present
   - `test_run_skips_wait_when_sleep_time_zero` - Skips wait when interval yields zero sleep
   - `test_run_handles_wait_timeout` - Handles wait timeout and continues
   - `test_run_handles_wait_cancelled` - Handles cancelled wait and exits
+
+### `tests/unit/workflows/test_watermark_engine.py`
+- Purpose: WatermarkEngine planning and commit logic
+- Tests:
+  **TestBuildPlan**
+  - `test_finnhub_macro_plan_uses_id_cursor` - Uses stored ID watermark for Finnhub macro streams
+  - `test_finnhub_company_plan_maps_each_symbol` - Builds per-symbol timestamp cursors with bootstrap for new symbols
+  - `test_polygon_company_plan_bootstraps_symbols` - Uses global timestamp watermark and per-symbol bootstrap overrides
+  **TestCommitUpdates**
+  - `test_symbol_scope_clamps_future` - Clamps per-symbol timestamps slightly in the future
+  - `test_global_scope_bootstrap_updates` - Updates global and per-symbol timestamps with clamping and max-of-existing behavior
+  - `test_id_scope_writes_last_fetched_max` - Writes last_fetched_max_id for ID-based macro streams
+  - `test_id_scope_noop_without_last_fetched` - No-op when last_fetched_max_id is None
+  **TestHelpers**
+  - `test_get_settings_missing_attribute_raises` - _get_settings raises when provider lacks settings attribute
+  - `test_is_macro_stream_matches_rule` - is_macro_stream returns True only for macro providers

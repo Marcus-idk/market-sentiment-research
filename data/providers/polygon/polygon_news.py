@@ -59,13 +59,18 @@ class PolygonNewsProvider(NewsDataSource):
                 symbol_cursor = self._resolve_symbol_cursor(symbol, symbol_since_map, since)
                 if symbol_cursor is not None:
                     start_time = symbol_cursor - overlap_delta
-                    buffer_time = symbol_cursor
                 else:
                     start_time = now_utc - bootstrap_delta
-                    buffer_time = None
 
                 if start_time > now_utc:
                     start_time = now_utc
+
+                # Buffer matches start_time to keep all articles in the overlap window.
+                # This allows us to catch delayed articles (published before cursor but
+                # not yet visible in the API). The database handles deduplication by URL.
+                # Downstream systems (Poller, urgency) will see overlap articles again,
+                # but this is intentional to ensure we never miss late-arriving news.
+                buffer_time = start_time
 
                 published_gt = _datetime_to_iso(start_time)
                 symbol_news = await self._fetch_symbol_news(symbol, published_gt, buffer_time)
