@@ -10,7 +10,6 @@ import pytest
 from data.models import AnalysisType, NewsEntry, NewsItem, NewsSymbol, NewsType, Session, Stance
 from data.storage.storage_utils import (
     _iso_to_datetime,
-    _parse_rfc3339,
     _row_to_analysis_result,
     _row_to_holdings,
     _row_to_news_entry,
@@ -18,6 +17,7 @@ from data.storage.storage_utils import (
     _row_to_news_symbol,
     _row_to_price_data,
 )
+from utils.datetime_utils import parse_rfc3339
 
 
 class TestIsoParsingHelpers:
@@ -32,16 +32,16 @@ class TestIsoParsingHelpers:
         assert dt == datetime(2024, 3, 10, 15, 45, tzinfo=UTC)
 
     def test_parse_rfc3339_handles_naive_as_utc(self):
-        dt = _parse_rfc3339("2024-03-10T15:45:00")
+        dt = parse_rfc3339("2024-03-10T15:45:00")
         assert dt == datetime(2024, 3, 10, 15, 45, tzinfo=UTC)
 
     def test_parse_rfc3339_raises_for_non_string(self):
         with pytest.raises(TypeError):
-            _parse_rfc3339(123)  # type: ignore[reportArgumentType] - intentional negative test
+            parse_rfc3339(123)  # type: ignore[reportArgumentType] - intentional negative test
 
     def test_parse_rfc3339_invalid_format_raises(self):
         with pytest.raises(ValueError):
-            _parse_rfc3339("not-a-timestamp")
+            parse_rfc3339("not-a-timestamp")
 
 
 class TestRowMappers:

@@ -12,15 +12,7 @@ from data.storage.storage_utils import (
 
 
 def get_news_before(db_path: str, cutoff: datetime) -> list[NewsEntry]:
-    """
-    Get news entries created at or before the cutoff for LLM processing.
-
-    Args:
-        cutoff: Include items with created_at_iso <= this timestamp
-
-    Returns:
-        List of NewsEntry domain objects with datetime fields in UTC
-    """
+    """Return news entries created at or before the cutoff."""
     iso_cutoff = _datetime_to_iso(cutoff)
     with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute(
@@ -46,15 +38,7 @@ def get_news_before(db_path: str, cutoff: datetime) -> list[NewsEntry]:
 
 
 def get_prices_before(db_path: str, cutoff: datetime) -> list[PriceData]:
-    """
-    Get price data created at or before the cutoff for LLM processing.
-
-    Args:
-        cutoff: Include items with created_at_iso <= this timestamp
-
-    Returns:
-        List of PriceData model objects with datetime fields in UTC
-    """
+    """Return price rows created at or before the cutoff."""
     iso_cutoff = _datetime_to_iso(cutoff)
     with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute(
@@ -71,21 +55,7 @@ def get_prices_before(db_path: str, cutoff: datetime) -> list[PriceData]:
 
 
 def commit_llm_batch(db_path: str, cutoff: datetime) -> dict[str, int]:
-    """
-    Atomically prune processed raw data up to a cutoff.
-
-    This performs, in a single transaction, the following:
-      - DELETE from `news_symbols`, `news_items`, and `price_data`
-        where `created_at_iso <= cutoff`.
-
-    Args:
-        db_path: Path to the SQLite database
-        cutoff: The snapshot cutoff used for the LLM batch
-
-    Returns:
-        Dict with counts of deleted rows:
-        {"symbols_deleted": int, "news_deleted": int, "prices_deleted": int}
-    """
+    """Delete processed news/price rows up to cutoff in one transaction."""
     iso_cutoff = _datetime_to_iso(cutoff)
     with _cursor_context(db_path) as cursor:
         # Prune items processed in this batch

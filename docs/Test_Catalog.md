@@ -338,12 +338,14 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_analysis_type_enum_values_unchanged` - Locks AnalysisType values
   - `test_news_type_enum_values_unchanged` - Locks NewsType values
   - `test_urgency_enum_values_unchanged` - Locks Urgency values
+  - `test_last_seen_state_enum_values_unchanged` - Locks Provider/Stream/Scope enum values used in `last_seen_state`
   **TestEnumConstraints**
   - `test_session_enum_values` - Enforces session constraint
   - `test_stance_enum_values` - Enforces stance constraint
   - `test_analysis_type_enum_values` - Enforces analysis_type constraint
   - `test_news_type_enum_values` - Enforces news_type constraint
   - `test_news_symbols_is_important_constraint` - `news_symbols.is_important` allows NULL/0/1 only
+  - `test_last_seen_state_constraints` - Enforces `last_seen_state` provider/stream/scope CHECK constraints
 
 ### `tests/unit/data/schema/test_schema_financial_values.py`
 - Purpose: Decimal/numeric constraints

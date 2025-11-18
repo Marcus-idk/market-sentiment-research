@@ -1,5 +1,3 @@
-"""Polygon.io provider configuration."""
-
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -21,27 +19,10 @@ class PolygonSettings:
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> "PolygonSettings":
-        """
-        Create PolygonSettings from environment variables.
-
-        Args:
-            env: Optional environment dict (defaults to os.environ)
-
-        Returns:
-            PolygonSettings instance
-
-        Raises:
-            ValueError: If POLYGON_API_KEY is not found or empty
-        """
+        """Load Polygon settings from environment variables."""
         if env is None:
             env = os.environ
-
-        api_key = env.get("POLYGON_API_KEY")
-        if not api_key:
+        key = (env.get("POLYGON_API_KEY") or "").strip()
+        if not key:
             raise ValueError("POLYGON_API_KEY environment variable not found or empty")
-
-        api_key = api_key.strip()
-        if not api_key:
-            raise ValueError("POLYGON_API_KEY environment variable is empty or whitespace")
-
-        return PolygonSettings(api_key=api_key)
+        return PolygonSettings(api_key=key)

@@ -52,14 +52,14 @@ class TestParseSymbols:
     def test_mixed_valid_invalid_tokens_logs_when_validate_true(self, caplog):
         """Test logging behavior for invalid symbols during validation"""
         with caplog.at_level(logging.DEBUG):
-            result = parse_symbols("AAPL,123,MSFT", validate=True, log_label="TEST")
+            result = parse_symbols("AAPL,123,MSFT", validate=True)
 
         # Returns only valid symbols
         assert result == ["AAPL", "MSFT"]
 
-        # Logged the invalid symbol
+        # Logged the invalid symbol with a generic label
         assert any(
-            "Unexpected TEST entry format: 123" in record.message for record in caplog.records
+            "Unexpected symbol entry format: 123" in record.message for record in caplog.records
         )
 
     def test_share_class_and_suffix_symbols_allowed(self):

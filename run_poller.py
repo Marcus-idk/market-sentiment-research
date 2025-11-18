@@ -72,7 +72,7 @@ def build_config(with_viewer: bool) -> PollerConfig:
             "(e.g., SYMBOLS=AAPL,MSFT,TSLA)"
         )
 
-    symbols = parse_symbols(symbols_env, validate=True, log_label="SYMBOLS")
+    symbols = parse_symbols(symbols_env, validate=True)
     if not symbols:
         raise ValueError(
             "SYMBOLS environment variable is empty or invalid. Please provide "

@@ -101,12 +101,12 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
       - ID-based providers use `min_id` (ignore `since`)
       - `symbol_since_map` allows per-symbol cursors that override the global `since` where supported
   - `PriceDataSource` - Abstract class for price providers
-    - `fetch_incremental(since: datetime | None = None)` — price fetch (since unused for quotes)
+    - `fetch_incremental() -> list[PriceData]` — snapshot price fetch (no incremental cursors yet)
 
 - `data/models.py` - Core dataclasses and enums
   **Enums**:
   - `AnalysisType` - Types: `news_analysis`, `sentiment_analysis`, `sec_filings`, `head_trader`
-  - `NewsType` - News kinds: `macro`, `company_specific`, `social_sentiment`
+  - `NewsType` - News kinds: `macro`, `company_specific`
   - `Session` - Trading sessions: REG, PRE, POST, CLOSED
   - `Stance` - Analysis stances: BULL, BEAR, NEUTRAL
   - `Urgency` - News urgency levels: URGENT, NOT_URGENT
@@ -120,7 +120,6 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `PriceData` - `symbol`, `timestamp` (UTC), `price` (Decimal), `volume` (optional), `session` (Session)
 
   **Functions**:
-  - `_normalize_to_utc()` - Normalize naive/aware datetimes to UTC for model constructors
   - `_valid_http_url()` - Validate HTTP/HTTPS URLs
 
 - `data/storage/` - SQLite storage package (organized into focused modules)
@@ -149,7 +148,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - **Helpers**: `get_last_seen_timestamp()`, `set_last_seen_timestamp()`, `get_last_seen_id()`, `set_last_seen_id()` - Read/write timestamp and ID cursors using strongly-typed enums for provider, stream, and scope
 
   - `storage_utils.py` - Utilities and type converters
-    - **Helpers**: `_datetime_to_iso()`, `_decimal_to_text()`, `_iso_to_datetime()`, `_normalize_url()`, `_parse_rfc3339()`
+    - **Helpers**: `_datetime_to_iso()`, `_decimal_to_text()`, `_iso_to_datetime()`, `_normalize_url()`
     - **Row converters**: `_row_to_analysis_result()`, `_row_to_holdings()`, `_row_to_news_item()` (article-level), `_row_to_news_symbol()`, `_row_to_news_entry()`, `_row_to_price_data()`
 
 **Subdirectories**:
@@ -175,7 +174,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `FinnhubPriceProvider` - Price quote fetching implementation
       - `__init__()` - Initialize with settings and symbols
       - `validate_connection()` - Delegates to client
-      - `fetch_incremental()` - Fetch current prices (drops `since` kwarg from base class signature; quotes are real-time snapshots; minor LSP inconsistency but runtime-safe)
+      - `fetch_incremental()` - Fetch current prices for configured symbols (snapshot quotes; no incremental cursor)
       - `_parse_quote()` - Convert API response to PriceData; skips missing/invalid/non-positive quotes; ET-based session detection
   - `data/providers/polygon/`
     - `PolygonClient` - HTTP client for Polygon.io API with retry logic
@@ -242,6 +241,10 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 **Files**:
 - `utils/__init__.py` - Package marker
 
+- `utils/datetime_utils.py` - Datetime helpers
+  - `normalize_to_utc(dt)` - Normalize naive/aware datetimes to UTC for use in models and workflows
+  - `parse_rfc3339(timestamp_str)` - Parse RFC3339/ISO 8601 strings to UTC datetimes
+
 - `utils/retry.py` - Retry logic with exponential backoff
   - `parse_retry_after()` - Parse Retry-After header values
   - `RetryableError` - Exception with retry_after hint
@@ -260,7 +263,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `classify_us_session(ts_utc)` - Determine if timestamp is PRE/REG/POST/CLOSED based on ET trading hours and NYSE calendar (holidays, early closes)
 
 - `utils/symbols.py` - Symbol parsing and validation helpers
-  - `parse_symbols(raw, *, filter_to=None, validate=True, log_label="SYMBOLS")` - Parse comma-separated tickers, normalize to upper-case, optionally filter to a watchlist while deduplicating and validating format. Used by `run_poller.py`, Finnhub macro, and Polygon macro news providers.
+  - `parse_symbols(raw, *, filter_to=None, validate=True)` - Parse comma-separated tickers, normalize to upper-case, optionally filter to a watchlist while deduplicating and validating format. Used by `run_poller.py`, Finnhub macro, and Polygon macro news providers.
 
 ### `workflows/` — Orchestration layer
 **Purpose**: Coordinate data collection, processing, and analysis workflows

@@ -13,20 +13,16 @@ from typing import Any
 from config.providers.polygon import PolygonSettings
 from data import DataSourceError, NewsDataSource
 from data.models import NewsEntry, NewsItem, NewsType
-from data.providers.polygon.polygon_client import _NEWS_LIMIT, _NEWS_ORDER, PolygonClient
-from data.storage.storage_utils import _datetime_to_iso, _parse_rfc3339
+from data.providers.polygon.polygon_client import NEWS_LIMIT, NEWS_ORDER, PolygonClient
+from data.storage.storage_utils import _datetime_to_iso
+from utils.datetime_utils import parse_rfc3339
 from utils.retry import RetryableError
 
 logger = logging.getLogger(__name__)
 
 
 class PolygonNewsProvider(NewsDataSource):
-    """Fetches company-specific news from Polygon.io's /v2/reference/news endpoint.
-
-    Rate Limits:
-        Free tier: ~5 calls/min (shared across all Polygon endpoints).
-        Each poll cycle makes one call per symbol, plus pagination if needed.
-    """
+    """Fetches company news from Polygon.io's /v2/reference/news endpoint."""
 
     def __init__(
         self, settings: PolygonSettings, symbols: list[str], source_name: str = "Polygon"
@@ -52,28 +48,24 @@ class PolygonNewsProvider(NewsDataSource):
         overlap_delta = timedelta(minutes=self.settings.company_news_overlap_minutes)
         bootstrap_delta = timedelta(days=self.settings.company_news_first_run_days)
 
+        # Polygon's /v2/reference/news endpoint uses pagination
         news_entries: list[NewsEntry] = []
 
         for symbol in self.symbols:
+            # Prefer per-symbol cursor; fall back to global since
+            symbol_cursor = self._resolve_symbol_cursor(symbol, symbol_since_map, since)
+            if symbol_cursor is not None:
+                start_time = symbol_cursor - overlap_delta
+            else:
+                start_time = now_utc - bootstrap_delta
+
+            # Make sure start_time is not in the future (API might return wrong)
+            if start_time > now_utc:
+                start_time = now_utc
+
             try:
-                symbol_cursor = self._resolve_symbol_cursor(symbol, symbol_since_map, since)
-                if symbol_cursor is not None:
-                    start_time = symbol_cursor - overlap_delta
-                else:
-                    start_time = now_utc - bootstrap_delta
-
-                if start_time > now_utc:
-                    start_time = now_utc
-
-                # Buffer matches start_time to keep all articles in the overlap window.
-                # This allows us to catch delayed articles (published before cursor but
-                # not yet visible in the API). The database handles deduplication by URL.
-                # Downstream systems (Poller, urgency) will see overlap articles again,
-                # but this is intentional to ensure we never miss late-arriving news.
-                buffer_time = start_time
-
                 published_gt = _datetime_to_iso(start_time)
-                symbol_news = await self._fetch_symbol_news(symbol, published_gt, buffer_time)
+                symbol_news = await self._fetch_symbol_news(symbol, published_gt, start_time)
                 news_entries.extend(symbol_news)
             except (RetryableError, ValueError, TypeError, KeyError, AttributeError) as exc:
                 logger.warning(f"Company news fetch failed for {symbol}: {exc}")
@@ -107,10 +99,11 @@ class PolygonNewsProvider(NewsDataSource):
                 params: dict[str, Any] = {
                     "ticker": symbol,
                     "published_utc.gt": published_gt,
-                    "limit": _NEWS_LIMIT,
-                    "order": _NEWS_ORDER,
+                    "limit": NEWS_LIMIT,
+                    "order": NEWS_ORDER,
                 }
 
+                # Add cursor for pagination (first loop None)
                 if cursor:
                     params["cursor"] = cursor
 
@@ -123,15 +116,16 @@ class PolygonNewsProvider(NewsDataSource):
                     )
 
                 articles = response.get("results", [])
+
                 if not isinstance(articles, list):
                     raise DataSourceError(
                         "Polygon company news 'results' field is "
                         f"{type(articles).__name__}, expected list"
                     )
+
                 if not articles:
                     break
 
-                # Parse articles
                 for article in articles:
                     try:
                         entry = self._parse_article(article, symbol, buffer_time)
@@ -163,6 +157,7 @@ class PolygonNewsProvider(NewsDataSource):
 
         return news_entries
 
+    # Duplicated from polygon_macro_news.py; could be refactored to a common base class
     def _extract_cursor(self, next_url: str) -> str | None:
         """Extract cursor parameter from Polygon next_url."""
         try:
@@ -190,7 +185,7 @@ class PolygonNewsProvider(NewsDataSource):
 
         # Parse RFC3339 timestamp
         try:
-            published = _parse_rfc3339(published_utc)
+            published = parse_rfc3339(published_utc)
         except (ValueError, TypeError) as exc:
             logger.debug(
                 f"Skipping company news article for {symbol} due to invalid timestamp "
@@ -198,17 +193,16 @@ class PolygonNewsProvider(NewsDataSource):
             )
             return None
 
-        # Apply buffer filter (defensive check - API should already filter via published_utc.gt)
+        # Apply buffer filter (defensive check - API should already honor published_utc.gt)
         if buffer_time and published <= buffer_time:
+            cutoff_iso = _datetime_to_iso(buffer_time)
             logger.warning(
-                f"Polygon API returned article with published="
-                f"{published.isoformat()} "
-                f"despite published_utc.gt={_datetime_to_iso(buffer_time)} filter - "
-                f"possible API contract violation"
+                f"Polygon API returned article with published={published.isoformat()} "
+                f"at/before cutoff {cutoff_iso} despite published_utc.gt filter"
             )
             return None
 
-        # Extract source from publisher
+        # Extract source and content
         publisher = article.get("publisher", {})
         if isinstance(publisher, dict):
             source = publisher.get("name", "").strip() or "Polygon"

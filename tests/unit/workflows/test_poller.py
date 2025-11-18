@@ -47,11 +47,7 @@ class StubPrice(PriceDataSource):
     async def validate_connection(self) -> bool:
         return True
 
-    async def fetch_incremental(
-        self,
-        *,
-        since: datetime | None = None,
-    ) -> list[PriceData]:
+    async def fetch_incremental(self) -> list[PriceData]:
         return self._items
 
 
@@ -65,11 +61,7 @@ class SecondaryStubPrice(PriceDataSource):
     async def validate_connection(self) -> bool:
         return True
 
-    async def fetch_incremental(
-        self,
-        *,
-        since: datetime | None = None,
-    ) -> list[PriceData]:
+    async def fetch_incremental(self) -> list[PriceData]:
         return self._items
 
 
@@ -186,11 +178,7 @@ class TestDataPoller:
             async def validate_connection(self) -> bool:
                 return True
 
-            async def fetch_incremental(
-                self,
-                *,
-                since: datetime | None = None,
-            ) -> list[PriceData]:
+            async def fetch_incremental(self) -> list[PriceData]:
                 raise RuntimeError("price boom")
 
         poller = DataPoller(temp_db, [StubNews([])], [ErrPrice()], poll_interval=300)

@@ -20,6 +20,7 @@ from data.storage import (
 from data.storage.state_enums import Provider as ProviderEnum
 from data.storage.state_enums import Scope as ScopeEnum
 from data.storage.state_enums import Stream as StreamEnum
+from utils.datetime_utils import normalize_to_utc
 
 logger = logging.getLogger(__name__)
 
@@ -92,10 +93,6 @@ def _utc_now() -> datetime:
     return datetime.now(UTC)
 
 
-def _ensure_utc(dt: datetime) -> datetime:
-    return dt if dt.tzinfo is not None else dt.replace(tzinfo=UTC)
-
-
 def _cfg_days(settings: object | None, family: str, default: int = 7) -> int:
     if settings is None:
         return default
@@ -129,7 +126,7 @@ def _is_bootstrap_symbol(
     if symbol_ts is None:
         return True
 
-    return _ensure_utc(symbol_ts) < base_since
+    return normalize_to_utc(symbol_ts) < base_since
 
 
 @dataclass
@@ -166,7 +163,7 @@ class WatermarkEngine:
                 if prev is None:
                     since = now - timedelta(days=first_run_days)
                 else:
-                    since = _ensure_utc(prev)
+                    since = normalize_to_utc(prev)
                 per_symbol_map[symbol] = since
             return CursorPlan(symbol_since_map=per_symbol_map)
 
@@ -180,7 +177,7 @@ class WatermarkEngine:
         if prev is None:
             base_since = now - timedelta(days=first_run_days)
         else:
-            base_since = _ensure_utc(prev)
+            base_since = normalize_to_utc(prev)
 
         symbol_map: dict[str, datetime] | None = None
         if rule.bootstrap and getattr(provider, "symbols", None):
@@ -224,7 +221,7 @@ class WatermarkEngine:
             for entry in entries:
                 if not entry.symbol:
                     continue
-                published = _ensure_utc(entry.published)
+                published = normalize_to_utc(entry.published)
                 current = max_by_symbol.get(entry.symbol)
                 if current is None or published > current:
                     max_by_symbol[entry.symbol] = published
@@ -251,7 +248,7 @@ class WatermarkEngine:
                 )
             return
 
-        max_ts = max(_ensure_utc(entry.published) for entry in entries)
+        max_ts = max(normalize_to_utc(entry.published) for entry in entries)
         clamped = _clamp_future(max_ts, now)
         if clamped != max_ts:
             logger.warning(
@@ -270,7 +267,7 @@ class WatermarkEngine:
             ScopeEnum.GLOBAL,
             symbol=None,
         )
-        existing_ts = _ensure_utc(existing) if existing is not None else None
+        existing_ts = normalize_to_utc(existing) if existing is not None else None
         target = clamped if existing_ts is None else max(existing_ts, clamped)
         if existing_ts is None or target > existing_ts:
             set_last_seen_timestamp(
@@ -286,7 +283,7 @@ class WatermarkEngine:
             for entry in entries:
                 if not entry.symbol:
                     continue
-                published = _ensure_utc(entry.published)
+                published = normalize_to_utc(entry.published)
                 current = per_symbol_max.get(entry.symbol)
                 if current is None or published > current:
                     per_symbol_max[entry.symbol] = published
@@ -301,7 +298,7 @@ class WatermarkEngine:
                     symbol=symbol,
                 )
                 existing_symbol_ts = (
-                    _ensure_utc(existing_symbol) if existing_symbol is not None else None
+                    normalize_to_utc(existing_symbol) if existing_symbol is not None else None
                 )
                 target_symbol = (
                     clamped_symbol

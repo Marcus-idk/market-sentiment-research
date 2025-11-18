@@ -20,16 +20,7 @@ logger = logging.getLogger(__name__)
 
 
 class FinnhubMacroNewsProvider(NewsDataSource):
-    """Fetches market-wide macro news from Finnhub's /news endpoint.
-
-    Fetches general market news using ID-based pagination and maps articles to watchlist
-    symbols based on the related field in each article. Falls back to 'MARKET' for
-    articles that don't match any watchlist symbols.
-
-    Rate Limits:
-        Free tier: 60 calls/min.
-        Each poll cycle makes one call (no per-symbol iteration for macro news).
-    """
+    """Fetches macro/market news from Finnhub's /news endpoint."""
 
     def __init__(
         self, settings: FinnhubSettings, symbols: list[str], source_name: str = "Finnhub Macro"
@@ -62,8 +53,11 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         overall_max_id: int | None = None
         reached_buffer_cutoff = False
 
+        # Not factored into a helper like polygon_news.py, this is a global stream
         while True:
             params = base_params.copy()
+
+            # Add min_id for pagination (first run EVER, not first loop)
             if current_min_id is not None:
                 params["minId"] = current_min_id
 
@@ -74,6 +68,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                     f"Finnhub API returned {type(articles).__name__} instead of list"
                 )
 
+            # First EVER loop won't hit this block
             if current_min_id is not None:
                 filtered_articles = [
                     article
@@ -87,6 +82,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                     )
                 articles = filtered_articles
 
+            # Stop if no more articles (done paginating)
             if not articles:
                 break
 
@@ -97,6 +93,8 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                 if isinstance(article_id, int) and article_id > 0:
                     page_ids.append(article_id)
 
+                # First EVER run only; check if we hit buffer_time cutoff.
+                # We keep processing the whole page even if we hit the cutoff.
                 if buffer_time is not None:
                     published_ts = article.get("datetime")
                     if isinstance(published_ts, (int, float)):
@@ -140,6 +138,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         article: dict[str, Any],
         buffer_time: datetime | None,
     ) -> list[NewsEntry]:
+        """Parse Finnhub macro news article into one or more NewsEntry objects."""
         headline = article.get("headline", "").strip()
         url = article.get("url", "").strip()
         datetime_epoch = article.get("datetime", 0)
@@ -153,12 +152,15 @@ class FinnhubMacroNewsProvider(NewsDataSource):
             logger.debug(
                 f"Skipping macro news article due to invalid epoch {datetime_epoch}: {exc}"
             )
+            # Return empty array because function might map to multiple entries
             return []
 
+        # Drop this article if it's older than the bootstrap/lookback cutoff
         if buffer_time and published <= buffer_time:
+            cutoff_iso = _datetime_to_iso(buffer_time)
             logger.warning(
                 f"Finnhub API returned article with published={published.isoformat()} "
-                f"at/before cutoff {_datetime_to_iso(buffer_time)} despite default lookback"
+                f"at/before cutoff {cutoff_iso} despite default lookback window"
             )
             return []
 
@@ -198,7 +200,6 @@ class FinnhubMacroNewsProvider(NewsDataSource):
             related,
             filter_to=self.symbols,
             validate=True,
-            log_label="RELATED",
         )
 
         if not symbols:

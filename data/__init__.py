@@ -1,5 +1,4 @@
-# Data module for trading bot - clean exports
-# Components will be added as they're implemented
+"""Public data models, providers, and storage helpers for the trading bot."""
 
 # Core abstractions (available immediately)
 from data.base import DataSource, DataSourceError, NewsDataSource, PriceDataSource

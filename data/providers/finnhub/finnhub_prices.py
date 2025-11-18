@@ -72,6 +72,9 @@ class FinnhubPriceProvider(PriceDataSource):
             return None
 
         if price <= 0:
+            logger.warning(
+                f"Finnhub /quote returned non-positive price for {symbol}: {price!r} - skipping"
+            )
             return None
 
         quote_timestamp = quote.get("t", 0)
@@ -79,9 +82,11 @@ class FinnhubPriceProvider(PriceDataSource):
             try:
                 timestamp = datetime.fromtimestamp(quote_timestamp, tz=UTC)
             except (ValueError, OSError) as exc:
-                logger.debug(
-                    f"Invalid quote timestamp for {symbol}: {quote_timestamp!r} "
-                    f"({exc}) - using now()"
+                logger.warning(
+                    "Invalid quote timestamp for %s: %r (%s) - using now()",
+                    symbol,
+                    quote_timestamp,
+                    exc,
                 )
                 timestamp = datetime.now(UTC)
         else:

@@ -1,7 +1,4 @@
-"""
-Utility functions and type conversions for trading bot data storage.
-Handles URL normalization, datetime conversions, and database row mapping.
-"""
+"""Utility helpers and type conversions for trading bot storage."""
 
 from datetime import UTC, datetime
 from decimal import Decimal
@@ -22,10 +19,7 @@ from data.models import (
 
 
 def _normalize_url(url: str) -> str:
-    """
-    Normalize URL by stripping tracking parameters for cross-provider deduplication.
-    Removes: utm_source, utm_medium, utm_campaign, ref, fbclid, etc.
-    """
+    """Normalize URL by stripping common tracking parameters."""
     parsed = urlparse(url)
     # Lowercase the hostname for consistent deduplication
     parsed = parsed._replace(netloc=parsed.netloc.lower())
@@ -76,29 +70,6 @@ def _datetime_to_iso(dt: datetime) -> str:
 def _iso_to_datetime(iso_str: str) -> datetime:
     """Convert ISO string from database to UTC datetime object."""
     return datetime.fromisoformat(iso_str.replace("Z", "+00:00"))
-
-
-def _parse_rfc3339(timestamp_str: str) -> datetime:
-    """Parse RFC3339/ISO 8601 timestamp string to UTC datetime.
-
-    Handles common formats seen from providers:
-    - "2025-10-10T14:30:00Z" (Z suffix)
-    - "2025-10-10T14:30:00+00:00" (explicit timezone)
-    - "2025-10-10T14:30:00" (naive, assume UTC)
-
-    Raises:
-        ValueError: If timestamp format is invalid
-        TypeError: If input is not a string
-    """
-    if not isinstance(timestamp_str, str):
-        raise TypeError(f"timestamp_str must be str, got {type(timestamp_str).__name__}")
-
-    if timestamp_str.endswith("Z"):
-        return datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-    if "+" in timestamp_str or timestamp_str.count("-") > 2:
-        return datetime.fromisoformat(timestamp_str)
-    # Assume UTC if no timezone info present
-    return datetime.fromisoformat(timestamp_str).replace(tzinfo=UTC)
 
 
 def _decimal_to_text(decimal_val: Decimal) -> str:

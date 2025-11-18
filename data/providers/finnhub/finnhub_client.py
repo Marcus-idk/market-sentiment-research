@@ -32,6 +32,7 @@ class FinnhubClient:
         )
 
     async def validate_connection(self) -> bool:
+        """Validate API connection using a simple quote request."""
         try:
             await self.get("/quote", {"symbol": "SPY"})
             return True

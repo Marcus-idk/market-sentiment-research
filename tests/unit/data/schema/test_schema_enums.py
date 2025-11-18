@@ -6,6 +6,7 @@ import pytest
 
 from data.models import AnalysisType, NewsType, Session, Stance, Urgency
 from data.storage.db_context import _cursor_context
+from data.storage.state_enums import Provider, Scope, Stream
 
 
 class TestEnumValueLocks:
@@ -49,12 +50,10 @@ class TestEnumValueLocks:
         """Lock NewsType values - stored in database."""
         assert NewsType.MACRO.value == "macro"
         assert NewsType.COMPANY_SPECIFIC.value == "company_specific"
-        assert NewsType.SOCIAL_SENTIMENT.value == "social_sentiment"
-        assert len(NewsType) == 3
+        assert len(NewsType) == 2
         assert set(news_type.value for news_type in NewsType) == {
             "macro",
             "company_specific",
-            "social_sentiment",
         }
 
     def test_urgency_enum_values_unchanged(self):
@@ -64,6 +63,20 @@ class TestEnumValueLocks:
 
         assert len(Urgency) == 2
         assert set(u.value for u in Urgency) == {"URGENT", "NOT_URGENT"}
+
+    def test_last_seen_state_enum_values_unchanged(self):
+        """Lock Provider/Stream/Scope enum values used in last_seen_state."""
+        assert Provider.FINNHUB.value == "FINNHUB"
+        assert Provider.POLYGON.value == "POLYGON"
+        assert set(p.value for p in Provider) == {"FINNHUB", "POLYGON"}
+
+        assert Stream.COMPANY.value == "COMPANY"
+        assert Stream.MACRO.value == "MACRO"
+        assert set(s.value for s in Stream) == {"COMPANY", "MACRO"}
+
+        assert Scope.GLOBAL.value == "GLOBAL"
+        assert Scope.SYMBOL.value == "SYMBOL"
+        assert set(sc.value for sc in Scope) == {"GLOBAL", "SYMBOL"}
 
 
 class TestEnumConstraints:
@@ -193,7 +206,7 @@ class TestEnumConstraints:
     def test_news_type_enum_values(self, temp_db):
         """Test news_items.news_type constraint values."""
         with _cursor_context(temp_db) as cursor:
-            for suffix, news_type in enumerate(["macro", "company_specific", "social_sentiment"]):
+            for suffix, news_type in enumerate(["macro", "company_specific"]):
                 cursor.execute(
                     """
                     INSERT INTO news_items (
@@ -309,7 +322,45 @@ class TestEnumConstraints:
             with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
                 cursor.execute(
                     """
-                    INSERT INTO news_symbols (url, symbol, is_important)
-                    VALUES ('http://example.com/symbol', 'NVDA', 5)
+                INSERT INTO news_symbols (url, symbol, is_important)
+                VALUES ('http://example.com/symbol', 'NVDA', 5)
+            """
+                )
+
+    def test_last_seen_state_constraints(self, temp_db):
+        """Test last_seen_state provider/stream/scope CHECK constraints."""
+        with _cursor_context(temp_db) as cursor:
+            # Valid values
+            cursor.execute(
+                """
+                INSERT INTO last_seen_state (provider, stream, scope, symbol, timestamp, id)
+                VALUES ('FINNHUB', 'COMPANY', 'GLOBAL', '__GLOBAL__', '2024-01-01T00:00:00Z', 1)
+            """
+            )
+
+            # Invalid provider
+            with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
+                cursor.execute(
+                    """
+                    INSERT INTO last_seen_state (provider, stream, scope, symbol)
+                    VALUES ('FOO', 'COMPANY', 'GLOBAL', '__GLOBAL__')
+                """
+                )
+
+            # Invalid stream
+            with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
+                cursor.execute(
+                    """
+                    INSERT INTO last_seen_state (provider, stream, scope, symbol)
+                    VALUES ('FINNHUB', 'PRICE', 'GLOBAL', '__GLOBAL__')
+                """
+                )
+
+            # Invalid scope
+            with pytest.raises(sqlite3.IntegrityError, match="CHECK constraint failed"):
+                cursor.execute(
+                    """
+                    INSERT INTO last_seen_state (provider, stream, scope, symbol)
+                    VALUES ('FINNHUB', 'COMPANY', 'LOCAL', '__GLOBAL__')
                 """
                 )

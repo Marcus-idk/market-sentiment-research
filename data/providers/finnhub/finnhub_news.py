@@ -45,27 +45,25 @@ class FinnhubNewsProvider(NewsDataSource):
         now_utc = datetime.now(UTC)
         overlap_delta = timedelta(minutes=self.settings.company_news_overlap_minutes)
         bootstrap_delta = timedelta(days=self.settings.company_news_first_run_days)
+
+        # Finnhub's /company-news endpoint requires from/to date parameters
         to_date = now_utc.date()
         news_entries: list[NewsEntry] = []
 
         for symbol in self.symbols:
+            # Prefer per-symbol cursor; fall back to global since
             symbol_cursor = self._resolve_symbol_cursor(symbol, symbol_since_map, since)
             if symbol_cursor is not None:
                 start_time = symbol_cursor - overlap_delta
             else:
                 start_time = now_utc - bootstrap_delta
 
+            # Make sure start_time is not in the future (API might return wrong)
             if start_time > now_utc:
                 start_time = now_utc
 
-            # Buffer matches start_time to keep all articles in the overlap window.
-            # This allows us to catch delayed articles (published before cursor but
-            # not yet visible in the API). The database handles deduplication by URL.
-            # Downstream systems (Poller, urgency) will see overlap articles again,
-            # but this is intentional to ensure we never miss late-arriving news.
-            buffer_time = start_time
-
             from_date = start_time.date()
+
             try:
                 params = {
                     "symbol": symbol,
@@ -82,7 +80,7 @@ class FinnhubNewsProvider(NewsDataSource):
 
                 for article in articles:
                     try:
-                        entry = self._parse_article(article, symbol, buffer_time)
+                        entry = self._parse_article(article, symbol, start_time)
                         if entry:
                             news_entries.append(entry)
                     except (ValueError, TypeError, KeyError, AttributeError) as exc:
@@ -112,6 +110,7 @@ class FinnhubNewsProvider(NewsDataSource):
         symbol: str,
         buffer_time: datetime | None,
     ) -> NewsEntry | None:
+        """Parse Finnhub company news article into a NewsEntry."""
         headline = article.get("headline", "").strip()
         url = article.get("url", "").strip()
         datetime_epoch = article.get("datetime", 0)
@@ -128,13 +127,16 @@ class FinnhubNewsProvider(NewsDataSource):
             )
             return None
 
+        # Apply buffer filter (defensive check - API should already honor from/to dates)
         if buffer_time and published <= buffer_time:
+            cutoff_iso = _datetime_to_iso(buffer_time)
             logger.warning(
                 f"Finnhub API returned article with published={published.isoformat()} "
-                f"at/before cutoff {_datetime_to_iso(buffer_time)} despite from/to date filter"
+                f"at/before cutoff {cutoff_iso} despite from/to date filter"
             )
             return None
 
+        # Extract source and content
         source = article.get("source", "").strip() or "Finnhub"
         summary = article.get("summary", "").strip()
         content = summary if summary else None

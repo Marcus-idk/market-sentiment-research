@@ -23,7 +23,6 @@ def parse_symbols(
     filter_to: Iterable[str] | None = None,
     *,
     validate: bool = True,
-    log_label: str = "SYMBOLS",
 ) -> list[str]:
     """
     Parse a comma-separated string into an order-preserving, deduplicated list of
@@ -55,7 +54,7 @@ def parse_symbols(
 
         # Validate against supported ticker formats (e.g., BRK.B, BF-B, GOOG, PSX)
         if validate and not _is_valid_symbol(sym):
-            logger.debug(f"Unexpected {log_label} entry format: {sym}")
+            logger.debug(f"Unexpected symbol entry format: {sym}")
             continue
 
         # Filter to watchlist if provided

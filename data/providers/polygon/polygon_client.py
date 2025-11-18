@@ -10,8 +10,8 @@ from utils.retry import RetryableError
 
 logger = logging.getLogger(__name__)
 
-_NEWS_LIMIT = 100  # Page size for news pagination
-_NEWS_ORDER = "asc"  # Required for incremental fetching
+NEWS_LIMIT = 100
+NEWS_ORDER = "asc"
 
 
 class PolygonClient:

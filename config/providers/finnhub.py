@@ -1,7 +1,3 @@
-"""
-Configuration settings for Finnhub API provider
-"""
-
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -23,27 +19,10 @@ class FinnhubSettings:
 
     @staticmethod
     def from_env(env: Mapping[str, str] | None = None) -> "FinnhubSettings":
-        """
-        Create FinnhubSettings from environment variables
-
-        Args:
-            env: Optional environment dict (defaults to os.environ)
-
-        Returns:
-            FinnhubSettings instance
-
-        Raises:
-            ValueError: If FINNHUB_API_KEY is not found or empty
-        """
+        """Load Finnhub settings from environment variables."""
         if env is None:
             env = os.environ
-
-        api_key = env.get("FINNHUB_API_KEY")
-        if not api_key:
+        key = (env.get("FINNHUB_API_KEY") or "").strip()
+        if not key:
             raise ValueError("FINNHUB_API_KEY environment variable not found or empty")
-
-        api_key = api_key.strip()
-        if not api_key:
-            raise ValueError("FINNHUB_API_KEY environment variable is empty or whitespace")
-
-        return FinnhubSettings(api_key=api_key)
+        return FinnhubSettings(api_key=key)

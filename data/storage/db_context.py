@@ -1,4 +1,4 @@
-"""Internal database context manager utilities for reducing boilerplate."""
+"""Internal database context manager utilities for SQLite work."""
 
 import sqlite3
 from collections.abc import Iterator
@@ -9,25 +9,7 @@ from data.storage.storage_core import connect
 
 @contextmanager
 def _cursor_context(db_path: str, *, commit: bool = True) -> Iterator[sqlite3.Cursor]:
-    """
-    Internal context manager for database operations with automatic cleanup.
-
-    Args:
-        db_path: Path to SQLite database
-        commit: Whether to commit on success (default: True for writes)
-
-    Yields:
-        sqlite3.Cursor ready for operations
-
-    Example (write):
-        with _cursor_context(db_path) as cursor:
-            cursor.execute("INSERT INTO...")
-
-    Example (read):
-        with _cursor_context(db_path, commit=False) as cursor:
-            cursor.execute("SELECT...")
-            return [dict(row) for row in cursor.fetchall()]
-    """
+    """Context manager for SQLite cursors with auto-commit/rollback."""
     conn = connect(db_path)
     conn.row_factory = sqlite3.Row  # Always enable dict-like row access
 

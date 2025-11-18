@@ -152,8 +152,9 @@ Timestamp parsing: prefer shared helpers for RFC3339/ISO conversions; don’t du
 
 ```python
 # ✅ GOOD: Centralize parsing
-from data.storage.storage_utils import _parse_rfc3339, _datetime_to_iso
-published = _parse_rfc3339(ts_str)
+from utils.datetime_utils import parse_rfc3339
+from data.storage.storage_utils import _datetime_to_iso
+published = parse_rfc3339(ts_str)
 published_iso = _datetime_to_iso(published)
 
 # ❌ BAD: Repeating multi-branch parsing logic inline in providers
@@ -170,8 +171,8 @@ Provider parameters and configurability: avoid premature config; use internal co
 
 ```python
 # ✅ Internal constants within provider package
-_NEWS_LIMIT = 100
-_NEWS_ORDER = "asc"
+NEWS_LIMIT = 100  # Shared constant imported by providers
+NEWS_ORDER = "asc"
 
 # ❌ Premature user-facing config for fixed behavior
 class PolygonSettings:
@@ -208,6 +209,7 @@ def process():
 ### FACADES_THIN
 Keep `__init__.py` thin, side-effect free, explicit `__all__`.
 - **Never re-export `_private` helpers** - import them from the defining module when needed
+- Top of each package `__init__.py` should be a single short docstring line describing the package; avoid extra commentary comments.
 
 ### NAMING_CONVENTIONS
 - Modules/functions: `snake_case`
@@ -230,11 +232,11 @@ Use `*` for clarity when needed.
 Always UTC timezone-aware. Never format timestamps by hand.
 ```python
 # Flow: API input → normalize_to_utc() → _datetime_to_iso() → SQLite ISO+Z
-from data.models import _normalize_to_utc
+from utils.datetime_utils import normalize_to_utc
 
 class NewsItem:
-    def __init__(self, published: datetime | str):
-        self.published = _normalize_to_utc(published)  # Always normalize
+    def __init__(self, published: datetime):
+        self.published = normalize_to_utc(published)  # Always normalize
 ```
 
 ### MONEY_PRECISION
@@ -276,6 +278,13 @@ logger.exception("Workflow failed")  # In except blocks for stack trace
 
 # SHOULD-FOLLOW RULES
 ---
+
+### COMMENT_STYLE
+- Add comments and docstrings only where they clarify intent or mark key sections, not to restate obvious code.
+- Almost always use a single-line summary docstring.
+- Add a short `"Notes:"` block only when strictly necessary (e.g., non-trivial contracts) or when explicitly requested.
+- Avoid long `Args`/`Returns` sections unless explicitly requested.
+- Follow the surrounding file's commenting style so sections read consistently.
 
 # CODE REVIEW CHECKLIST
 

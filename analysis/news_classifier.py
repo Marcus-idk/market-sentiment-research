@@ -15,13 +15,11 @@ logger = logging.getLogger(__name__)
 
 def classify(news_entries: list[NewsEntry]) -> list[NewsSymbol]:
     """
-    Stub classifier for news entries.
+    Classify news entries for downstream routing.
 
-    Args:
-        news_entries: List of NewsEntry objects to evaluate.
-
-    Returns:
-        Empty list; routing is handled elsewhere.
+    Note:
+        Current implementation is a stub and always returns an empty list;
+        routing and importance are handled elsewhere in the pipeline.
     """
     if news_entries:
         logger.debug("News classifier stub invoked but no labels are generated.")

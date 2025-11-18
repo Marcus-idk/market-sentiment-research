@@ -24,8 +24,6 @@ class DataSource(ABC):
     async def validate_connection(self) -> bool:
         """Test whether the remote service is reachable and credentials work."""
 
-    ...
-
 
 class DataSourceError(Exception):
     """Base exception for data source related errors."""
@@ -44,19 +42,12 @@ class NewsDataSource(DataSource):
         min_id: int | None = None,
         symbol_since_map: dict[str, datetime | None] | None = None,
     ) -> list[NewsEntry]:
-        """
-        Fetch new news items using incremental cursors.
+        """Fetch new news items using incremental cursors.
 
-        Keyword Args:
-            since: Fetch items published after this timestamp (time-based providers).
-            min_id: Fetch items with ID greater than this value (ID-based providers).
-            symbol_since_map: Map of per-symbol cursors overriding global timestamps.
-
-        Returns:
-            List of :class:`NewsEntry` instances.
-
-        Implementations may declare only the cursor(s) they actually support.
-        Orchestrators must pass only relevant cursors to each provider.
+        Notes:
+            Implementations may declare only the cursor arguments they support
+            (since, min_id, symbol_since_map). Orchestrators must pass only
+            relevant cursors to each provider.
         """
         raise NotImplementedError(
             "fetch_incremental must be implemented by subclasses "
@@ -68,9 +59,7 @@ class PriceDataSource(DataSource):
     """Abstract base class for data sources that provide price/market data."""
 
     @abstractmethod
-    async def fetch_incremental(self, since: datetime | None = None) -> list[PriceData]:
-        """Fetch new price data since the specified timestamp."""
+    async def fetch_incremental(self) -> list[PriceData]:
+        """Fetch the latest available price data."""
 
-        raise NotImplementedError(
-            f"fetch_incremental must be implemented by subclasses (since={since!r})"
-        )
+        raise NotImplementedError("fetch_incremental must be implemented by subclasses")

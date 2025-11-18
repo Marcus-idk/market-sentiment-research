@@ -102,9 +102,9 @@ class TestNewsItem:
             headline="String",
             source="Source",
             published=datetime.now(),
-            news_type="social_sentiment",
+            news_type="company_specific",
         )
-        assert item_str.news_type is NewsType.SOCIAL_SENTIMENT
+        assert item_str.news_type is NewsType.COMPANY_SPECIFIC
 
         with pytest.raises(ValueError, match="valid NewsType"):
             NewsItem(

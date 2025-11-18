@@ -13,8 +13,9 @@ from typing import Any
 from config.providers.polygon import PolygonSettings
 from data import DataSourceError, NewsDataSource
 from data.models import NewsEntry, NewsItem, NewsType
-from data.providers.polygon.polygon_client import _NEWS_LIMIT, _NEWS_ORDER, PolygonClient
-from data.storage.storage_utils import _datetime_to_iso, _parse_rfc3339
+from data.providers.polygon.polygon_client import NEWS_LIMIT, NEWS_ORDER, PolygonClient
+from data.storage.storage_utils import _datetime_to_iso
+from utils.datetime_utils import parse_rfc3339
 from utils.retry import RetryableError
 from utils.symbols import parse_symbols
 
@@ -22,16 +23,7 @@ logger = logging.getLogger(__name__)
 
 
 class PolygonMacroNewsProvider(NewsDataSource):
-    """Fetches market-wide macro news from Polygon.io's /v2/reference/news endpoint.
-
-    Fetches general market news (no ticker filter) and maps articles to watchlist
-    symbols based on the tickers array in each article. Falls back to 'MARKET' for
-    articles that don't match any watchlist symbols.
-
-    Rate Limits:
-        Free tier: ~5 calls/min (shared across all Polygon endpoints).
-        Each poll cycle makes pagination requests until complete.
-    """
+    """Fetches macro/market news from Polygon.io's /v2/reference/news endpoint."""
 
     def __init__(
         self, settings: PolygonSettings, symbols: list[str], source_name: str = "Polygon Macro"
@@ -62,12 +54,6 @@ class PolygonMacroNewsProvider(NewsDataSource):
         if start_time > now_utc:
             start_time = now_utc
 
-        # Buffer matches start_time to keep all articles in the overlap window.
-        # This allows us to catch delayed articles (published before cursor but
-        # not yet visible in the API). The database handles deduplication by URL.
-        # Downstream systems (Poller, urgency) will see overlap articles again,
-        # but this is intentional to ensure we never miss late-arriving news.
-        buffer_time = start_time
         published_gt = _datetime_to_iso(start_time)
 
         news_entries: list[NewsEntry] = []
@@ -78,10 +64,11 @@ class PolygonMacroNewsProvider(NewsDataSource):
                 # Build request params (no ticker filter = general market news)
                 params: dict[str, Any] = {
                     "published_utc.gt": published_gt,
-                    "limit": _NEWS_LIMIT,
-                    "order": _NEWS_ORDER,
+                    "limit": NEWS_LIMIT,
+                    "order": NEWS_ORDER,
                 }
 
+                # Add cursor for pagination (first loop None)
                 if cursor:
                     params["cursor"] = cursor
 
@@ -102,10 +89,9 @@ class PolygonMacroNewsProvider(NewsDataSource):
                 if not articles:
                     break
 
-                # Parse articles
                 for article in articles:
                     try:
-                        items = self._parse_article(article, buffer_time)
+                        items = self._parse_article(article, start_time)
                         news_entries.extend(items)
                     except (ValueError, TypeError, KeyError, AttributeError) as exc:
                         logger.debug(
@@ -136,6 +122,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
 
         return news_entries
 
+    # Duplicated from polygon_news.py; could be refactored to a common base class
     def _extract_cursor(self, next_url: str) -> str | None:
         """Extract cursor parameter from Polygon next_url."""
         try:
@@ -162,7 +149,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
 
         # Parse RFC3339 timestamp
         try:
-            published = _parse_rfc3339(published_utc)
+            published = parse_rfc3339(published_utc)
         except (ValueError, TypeError) as exc:
             logger.debug(
                 f"Skipping macro news article due to invalid timestamp {published_utc}: {exc}"
@@ -171,11 +158,10 @@ class PolygonMacroNewsProvider(NewsDataSource):
 
         # Apply buffer filter (defensive check - API should already filter via published_utc.gt)
         if buffer_time and published <= buffer_time:
+            cutoff_iso = _datetime_to_iso(buffer_time)
             logger.warning(
-                f"Polygon API returned article with published="
-                f"{published.isoformat()} "
-                f"despite published_utc.gt={_datetime_to_iso(buffer_time)} filter - "
-                f"possible API contract violation"
+                f"Polygon API returned article with published={published.isoformat()} "
+                f"despite published_utc.gt={cutoff_iso} filter - possible API contract violation"
             )
             return []
 
@@ -229,7 +215,6 @@ class PolygonMacroNewsProvider(NewsDataSource):
             tickers_str,
             filter_to=self.symbols,
             validate=True,
-            log_label="TICKERS",
         )
 
         if not symbols:

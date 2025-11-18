@@ -1,7 +1,4 @@
-"""
-Database lifecycle and connection management for trading bot data.
-Handles database initialization, connections, and finalization.
-"""
+"""Database lifecycle and connection management for trading bot data."""
 
 import logging
 import os
@@ -13,12 +10,7 @@ logger = logging.getLogger(__name__)
 
 
 def connect(db_path: str, **kwargs) -> sqlite3.Connection:
-    """Open a SQLite connection with required PRAGMAs enabled.
-
-    Important: SQLite foreign key enforcement is disabled by default and must
-    be enabled per-connection. This helper ensures `PRAGMA foreign_keys = ON` is
-    set for all callers in this module.
-    """
+    """Open a SQLite connection with required PRAGMAs enabled."""
     # Direct sqlite3.connect is allowed here: this helper is the sanctioned entry point
     # that applies required PRAGMAs before use elsewhere in the codebase.
     conn = sqlite3.connect(db_path, **kwargs)
@@ -45,11 +37,7 @@ def _check_json1_support(conn: sqlite3.Connection) -> bool:
 
 
 def init_database(db_path: str) -> None:
-    """
-    Initialize SQLite database by executing schema.sql.
-    Creates all tables and sets performance optimizations.
-    Requires SQLite JSON1 extension for data integrity.
-    """
+    """Initialize SQLite database, enforcing JSON1 support and schema."""
     # Check JSON1 support at startup - fail fast if missing
     # In-memory connection is acceptable for capability checks; no disk access occurs.
     # sqlite3 connection context managers don't close the connection, so wrap with closing
@@ -72,20 +60,7 @@ def init_database(db_path: str) -> None:
 
 
 def finalize_database(db_path: str) -> None:
-    """
-    Finalize database for archiving/committing by merging WAL and removing sidecar files.
-
-    This function should be called before:
-    - Committing the database to Git
-    - Copying/archiving the database file
-    - Any operation that needs all data in the main .db file
-
-    It performs:
-    1. PRAGMA wal_checkpoint(TRUNCATE) - Forces all WAL data into main database
-    2. PRAGMA journal_mode=DELETE - Switches from WAL mode to remove sidecar files
-
-    After this, only the .db file contains all data (no .db-wal or .db-shm needed).
-    """
+    """Finalize database by checkpointing WAL and switching to DELETE mode."""
     if not os.path.exists(db_path):
         raise FileNotFoundError(f"Database not found: {db_path}")
 

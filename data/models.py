@@ -1,29 +1,31 @@
 import json
 from dataclasses import dataclass
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from enum import Enum
 from urllib.parse import urlparse
 
+from utils.datetime_utils import normalize_to_utc
+
 
 class Session(Enum):
-    REG = "REG"  # Regular trading session (09:30–16:00 ET)
-    PRE = "PRE"  # Pre-market session (04:00–09:30 ET)
-    POST = "POST"  # After-hours session (16:00–20:00 ET)
-    CLOSED = "CLOSED"  # Overnight/closed (20:00–04:00 ET)
+    REG = "REG"  # Regular trading session (09:30–16:00 ET / 22:30–05:00 SGT)
+    PRE = "PRE"  # Pre-market session (04:00–09:30 ET / 17:00–22:30 SGT)
+    POST = "POST"  # After-hours session (16:00–20:00 ET / 05:00–09:00 SGT)
+    CLOSED = "CLOSED"  # Overnight/closed (20:00–04:00 ET / 09:00–17:00 SGT)
 
 
 class Stance(Enum):
-    BULL = "BULL"  # Bullish/positive stance
-    BEAR = "BEAR"  # Bearish/negative stance
-    NEUTRAL = "NEUTRAL"  # Neutral stance
+    BULL = "BULL"  # Up
+    BEAR = "BEAR"  # Down
+    NEUTRAL = "NEUTRAL"  # Sideways
 
 
 class AnalysisType(Enum):
-    NEWS_ANALYSIS = "news_analysis"  # News Analyst LLM
-    SENTIMENT_ANALYSIS = "sentiment_analysis"  # Sentiment Analyst LLM
-    SEC_FILINGS = "sec_filings"  # SEC Filings Analyst LLM
-    HEAD_TRADER = "head_trader"  # Head Trader LLM
+    NEWS_ANALYSIS = "news_analysis"
+    SENTIMENT_ANALYSIS = "sentiment_analysis"
+    SEC_FILINGS = "sec_filings"
+    HEAD_TRADER = "head_trader"
 
 
 class Urgency(Enum):
@@ -34,25 +36,13 @@ class Urgency(Enum):
 class NewsType(Enum):
     MACRO = "macro"
     COMPANY_SPECIFIC = "company_specific"
-    SOCIAL_SENTIMENT = "social_sentiment"
 
 
 def _valid_http_url(u: str) -> bool:
+    """Check if url is a real host."""
     p = urlparse(u.strip())
+    # Require http/https scheme and a non-empty netloc like "example.com"
     return p.scheme in ("http", "https") and bool(p.netloc)
-
-
-def _normalize_to_utc(dt: datetime) -> datetime:
-    """Return a timezone-aware UTC datetime without altering the wall time.
-
-    - If `dt` is naive, attach UTC tzinfo.
-    - If `dt` is aware, convert to UTC via `astimezone`.
-
-    This centralizes the UTC normalization used by model `__post_init__` methods.
-    """
-    if dt.tzinfo is None:
-        return dt.replace(tzinfo=UTC)
-    return dt.astimezone(UTC)
 
 
 @dataclass
@@ -78,7 +68,7 @@ class NewsItem:
             self.news_type = NewsType(self.news_type)
         if not isinstance(self.news_type, NewsType):
             raise ValueError("news_type must be a NewsType enum value")
-        self.published = _normalize_to_utc(self.published)
+        self.published = normalize_to_utc(self.published)
 
 
 @dataclass
@@ -149,7 +139,7 @@ class PriceData:
         self.symbol = self.symbol.strip().upper()
         if not self.symbol:
             raise ValueError("symbol cannot be empty")
-        self.timestamp = _normalize_to_utc(self.timestamp)
+        self.timestamp = normalize_to_utc(self.timestamp)
         if self.price <= 0:
             raise ValueError("price must be > 0")
         if self.volume is not None and self.volume < 0:
@@ -191,9 +181,9 @@ class AnalysisResult:
             raise ValueError("stance must be a Stance enum value")
         if not (0.0 <= self.confidence_score <= 1.0):
             raise ValueError("confidence_score must be between 0.0 and 1.0")
-        self.last_updated = _normalize_to_utc(self.last_updated)
+        self.last_updated = normalize_to_utc(self.last_updated)
         if self.created_at is not None:
-            self.created_at = _normalize_to_utc(self.created_at)
+            self.created_at = normalize_to_utc(self.created_at)
 
 
 @dataclass
@@ -219,6 +209,6 @@ class Holdings:
         if self.total_cost <= 0:
             raise ValueError("total_cost must be > 0")
         if self.created_at is not None:
-            self.created_at = _normalize_to_utc(self.created_at)
+            self.created_at = normalize_to_utc(self.created_at)
         if self.updated_at is not None:
-            self.updated_at = _normalize_to_utc(self.updated_at)
+            self.updated_at = normalize_to_utc(self.updated_at)

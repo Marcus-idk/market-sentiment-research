@@ -1,7 +1,4 @@
-"""
-CRUD operations for trading bot data storage.
-Handles storing, querying, and updating news, prices, analysis, and holdings.
-"""
+"""CRUD operations for trading bot data storage."""
 
 from datetime import UTC, datetime
 
@@ -20,10 +17,7 @@ from data.storage.storage_utils import (
 
 
 def store_news_items(db_path: str, items: list[NewsEntry]) -> None:
-    """
-    Store news entries using normalized URLs and many-to-many symbol links.
-    Splits each NewsEntry into a NewsItem + NewsSymbol pair.
-    """
+    """Store news entries and symbol links."""
     if not items:
         return
 
@@ -37,7 +31,7 @@ def store_news_items(db_path: str, items: list[NewsEntry]) -> None:
                     news_type_value = article.news_type.value
                 else:
                     news_type_value = NewsType(str(article.news_type)).value
-            except Exception as exc:
+            except (TypeError, ValueError) as exc:
                 raise ValueError(
                     f"Invalid news_type for NewsItem; expected NewsType or valid string: {exc}"
                 ) from exc
@@ -76,10 +70,7 @@ def store_news_items(db_path: str, items: list[NewsEntry]) -> None:
 
 
 def store_price_data(db_path: str, items: list[PriceData]) -> None:
-    """
-    Store price data in the database with type conversions.
-    Uses INSERT OR IGNORE to handle duplicates gracefully.
-    """
+    """Store price data with type conversions."""
     if not items:
         return
 
@@ -102,10 +93,7 @@ def store_price_data(db_path: str, items: list[PriceData]) -> None:
 
 
 def get_news_since(db_path: str, timestamp: datetime) -> list[NewsEntry]:
-    """
-    Retrieve news entries since the given timestamp.
-    Returns NewsEntry domain objects with datetime fields in UTC.
-    """
+    """Retrieve news entries since the given timestamp."""
     with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute(
             """
@@ -156,10 +144,7 @@ def get_news_symbols(db_path: str, symbol: str | None = None) -> list[NewsSymbol
 
 
 def get_price_data_since(db_path: str, timestamp: datetime) -> list[PriceData]:
-    """
-    Retrieve price data since the given timestamp.
-    Returns PriceData model objects with datetime fields in UTC.
-    """
+    """Retrieve price data since the given timestamp."""
     with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute(
             """
@@ -175,10 +160,7 @@ def get_price_data_since(db_path: str, timestamp: datetime) -> list[PriceData]:
 
 
 def get_all_holdings(db_path: str) -> list[Holdings]:
-    """
-    Retrieve all current holdings.
-    Returns Holdings model objects with datetime fields in UTC.
-    """
+    """Retrieve all current holdings."""
     with _cursor_context(db_path, commit=False) as cursor:
         cursor.execute("""
             SELECT symbol, quantity, break_even_price, total_cost, notes,
@@ -191,10 +173,7 @@ def get_all_holdings(db_path: str) -> list[Holdings]:
 
 
 def get_analysis_results(db_path: str, symbol: str | None = None) -> list[AnalysisResult]:
-    """
-    Retrieve analysis results, optionally filtered by symbol.
-    Returns AnalysisResult model objects with datetime fields in UTC.
-    """
+    """Retrieve analysis results, optionally filtered by symbol."""
     with _cursor_context(db_path, commit=False) as cursor:
         if symbol:
             cursor.execute(
@@ -219,10 +198,7 @@ def get_analysis_results(db_path: str, symbol: str | None = None) -> list[Analys
 
 
 def upsert_analysis_result(db_path: str, result: AnalysisResult) -> None:
-    """
-    Insert or update analysis result using ON CONFLICT.
-    Updates existing analysis or creates new one.
-    """
+    """Insert or update analysis result with ON CONFLICT."""
     with _cursor_context(db_path) as cursor:
         # Set created_at if not provided
         created_at_iso = (
@@ -258,10 +234,7 @@ def upsert_analysis_result(db_path: str, result: AnalysisResult) -> None:
 
 
 def upsert_holdings(db_path: str, holdings: Holdings) -> None:
-    """
-    Insert or update holdings using ON CONFLICT.
-    Updates existing position or creates new one.
-    """
+    """Insert or update holdings using ON CONFLICT."""
     with _cursor_context(db_path) as cursor:
         # Set timestamps if not provided
         now_iso = _datetime_to_iso(datetime.now(UTC))

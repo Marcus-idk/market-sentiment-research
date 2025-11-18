@@ -132,12 +132,7 @@ class TestPriceDataSourceContract:
             async def validate_connection(self) -> bool:
                 return True
 
-            async def fetch_incremental(
-                self,
-                *,
-                since: datetime | None = None,
-            ) -> list[PriceData]:
-                assert since is None or isinstance(since, datetime)
+            async def fetch_incremental(self) -> list[PriceData]:
                 return []
 
         price_source = ConcretePrice("PriceTest")
