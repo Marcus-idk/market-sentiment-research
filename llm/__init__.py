@@ -1,7 +1,4 @@
-"""
-LLM module for TradingBot.
-Provides clean API for various LLM providers.
-"""
+"""LLM providers facade for TradingBot."""
 
 from llm.base import LLMProvider
 from llm.providers.gemini import GeminiProvider

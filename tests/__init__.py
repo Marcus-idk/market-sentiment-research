@@ -1,3 +1,3 @@
-"""
-Tests for TradingBot
-"""
+"""Tests package for TradingBot."""
+
+__all__ = []
