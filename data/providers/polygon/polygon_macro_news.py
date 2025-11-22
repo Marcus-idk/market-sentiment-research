@@ -41,6 +41,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
         *,
         since: datetime | None = None,
     ) -> list[NewsEntry]:
+        """Fetch macro news stream incrementally with overlap handling."""
         now_utc = datetime.now(UTC)
 
         overlap_delta = timedelta(minutes=self.settings.macro_news_overlap_minutes)

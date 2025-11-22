@@ -33,6 +33,7 @@ class FinnhubPriceProvider(PriceDataSource):
         return await self.client.validate_connection()
 
     async def fetch_incremental(self) -> list[PriceData]:
+        """Fetch latest quotes for configured symbols."""
         if not self.symbols:
             return []
 
@@ -61,6 +62,7 @@ class FinnhubPriceProvider(PriceDataSource):
         return price_data
 
     def _parse_quote(self, quote: dict[str, Any], symbol: str) -> PriceData | None:
+        """Convert Finnhub /quote payload into PriceData."""
         raw_price = quote.get("c")
         if raw_price is None:
             return None

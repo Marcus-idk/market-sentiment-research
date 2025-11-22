@@ -30,6 +30,21 @@ The **"Endpoints"** section shows only what we actually call/use (matching the �
 - Company News — ✅
 - Prices/Market Data — ✅
 
+**Rate Limits**
+- Global throttle: 30 API calls/second (hard cap across all endpoints).
+- Free tier: around 60 calls/minute.
+- Paid tiers: higher minute limits (roughly 300–900 calls/minute depending on plan).
+- Exceeding limits returns HTTP 429; 1 API key → 1 websocket connection.
+
+**Recommended Connectivity / Health Check**
+- Endpoint: `GET /stock/market-status`.
+- Why: Lightweight way to verify connectivity + key validity without heavy data.
+
+**Usage Notes (News & Prices)**
+- Macro news pagination: use `minId` with the last seen ID to fetch only newer items.
+- Company news: time‑window based, no built‑in pagination; we control date range.
+- Prices: `/quote` is fine for snapshots, but constant real‑time polling should use websockets instead.
+
 **Endpoints**
 - Macro News — `GET /news`
   - Params: `category` (`general` | `forex` | `crypto` | `merger`), `minId` (optional), `token`
@@ -92,6 +107,21 @@ The **"Endpoints"** section shows only what we actually call/use (matching the �
 - Macro News — ✅
 - Company News — ✅
 - Prices/Market Data — ❌ (available but requires paid plan, not implemented)
+
+**Rate Limits**
+- Free tier: 5 API requests/minute across endpoints.
+- Paid tiers: effectively much higher / “unlimited” within reasonable usage.
+- Websockets: higher concurrency options on paid plans.
+
+**Recommended Connectivity / Health Check**
+- Endpoint: `GET /v1/marketstatus/now`.
+- Why: Cheap status + server time check; good for connectivity verification.
+
+**Usage Notes (News & Prices)**
+- News pagination: use the `next_url` field (contains a `cursor`) to page.
+- Timestamps: RFC3339 in `published_utc`; use `published_utc.gt` for incremental fetches.
+- Snapshots: daily snapshot data resets around 3:30 AM EST and repopulates from ~4:00 AM EST.
+- Adjustments: most price data is split‑adjusted by default; `adjusted=false` gives raw values.
 
 **Endpoints**
 - Company News — `GET /v2/reference/news`
@@ -181,15 +211,6 @@ The **"Endpoints"** section shows only what we actually call/use (matching the �
     }
     ```
   - **Note**: Timestamps are in nanoseconds. We prefer `lastTrade.p` (actual execution) over quote midpoint.
-
-- Connection Validation — `GET /v1/marketstatus/now`
-  - Params: `apiKey`
-  - Used for validating API connectivity (cheap endpoint, doesn't count against rate limits)
-
-**Rate Limits**
-- Free tier: ~5 calls/min (shared across all endpoints)
-- Company news: 1 call per symbol per poll (+ pagination)
-- Macro news: 1 call per poll (+ pagination)
 
 ---
 

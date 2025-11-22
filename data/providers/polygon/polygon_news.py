@@ -41,6 +41,7 @@ class PolygonNewsProvider(NewsDataSource):
         since: datetime | None = None,
         symbol_since_map: dict[str, datetime | None] | None = None,
     ) -> list[NewsEntry]:
+        """Fetch company news per symbol with overlap handling and pagination."""
         if not self.symbols:
             return []
 
@@ -79,6 +80,7 @@ class PolygonNewsProvider(NewsDataSource):
         symbol_since_map: dict[str, datetime | None] | None,
         global_since: datetime | None,
     ) -> datetime | None:
+        """Return per-symbol cursor when available, else fall back to global."""
         if symbol_since_map is not None and symbol in symbol_since_map:
             return symbol_since_map[symbol]
         return global_since

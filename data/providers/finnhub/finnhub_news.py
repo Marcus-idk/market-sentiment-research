@@ -39,6 +39,7 @@ class FinnhubNewsProvider(NewsDataSource):
         since: datetime | None = None,
         symbol_since_map: dict[str, datetime | None] | None = None,
     ) -> list[NewsEntry]:
+        """Fetch company news for tracked symbols using overlap cursors."""
         if not self.symbols:
             return []
 
@@ -100,6 +101,7 @@ class FinnhubNewsProvider(NewsDataSource):
         symbol_since_map: dict[str, datetime | None] | None,
         global_since: datetime | None,
     ) -> datetime | None:
+        """Pick the most specific cursor for a symbol (per-symbol over global)."""
         if symbol_since_map is not None and symbol in symbol_since_map:
             return symbol_since_map[symbol]
         return global_since

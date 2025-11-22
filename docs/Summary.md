@@ -229,7 +229,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
     - `GeminiProvider` - Google Gemini implementation
       - `__init__()` - Configure with model, temperature, tools, tool_choice, thinking_config
         - `tool_choice`: maps to Gemini function-calling modes — `none→NONE`, `auto→AUTO`, `any→ANY`; "any" requires `tools` to be provided
-        - Defaults: if `thinking_config` is not provided, the provider sets `{"thinking_budget": 128}` (small but non‑zero reasoning budget)
+        - Defaults: if `thinking_config` is not provided, the provider sets `{"thinking_budget_token_limit": 128}` (small but non‑zero reasoning budget for thinking models that support it)
         - Code execution is opt‑in via `tools=[{"code_execution": {}}]`
       - `generate()` - Send prompt and get response
       - `validate_connection()` - Test API connectivity

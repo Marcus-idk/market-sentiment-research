@@ -1,3 +1,5 @@
+"""Gemini LLM provider configuration settings."""
+
 import os
 from collections.abc import Mapping
 from dataclasses import dataclass
@@ -7,6 +9,8 @@ from config.retry import DEFAULT_LLM_RETRY, LLMRetryConfig
 
 @dataclass(frozen=True)
 class GeminiSettings:
+    """Configuration for Gemini LLM access."""
+
     api_key: str
     retry_config: LLMRetryConfig = DEFAULT_LLM_RETRY
 

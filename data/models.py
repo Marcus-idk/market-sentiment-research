@@ -1,3 +1,5 @@
+"""Domain models and validation helpers for news, prices, and analysis."""
+
 import json
 from dataclasses import dataclass
 from datetime import datetime
@@ -47,6 +49,8 @@ def _valid_http_url(u: str) -> bool:
 
 @dataclass
 class NewsItem:
+    """Normalized news article content."""
+
     url: str
     headline: str
     published: datetime
@@ -73,6 +77,8 @@ class NewsItem:
 
 @dataclass
 class NewsSymbol:
+    """Symbol-level metadata associated with a news article."""
+
     url: str
     symbol: str
     is_important: bool | None = None
@@ -90,6 +96,8 @@ class NewsSymbol:
 
 @dataclass
 class NewsEntry:
+    """News item paired with its target symbol and importance flag."""
+
     article: NewsItem
     symbol: str
     is_important: bool | None = None
@@ -129,6 +137,8 @@ class NewsEntry:
 
 @dataclass
 class PriceData:
+    """Single price observation for a symbol."""
+
     symbol: str
     timestamp: datetime
     price: Decimal
@@ -150,6 +160,8 @@ class PriceData:
 
 @dataclass
 class AnalysisResult:
+    """Persisted model output for a symbol and analysis type."""
+
     symbol: str
     analysis_type: AnalysisType
     model_name: str
@@ -188,6 +200,8 @@ class AnalysisResult:
 
 @dataclass
 class Holdings:
+    """Portfolio holdings record with cost basis and notes."""
+
     symbol: str
     quantity: Decimal
     break_even_price: Decimal

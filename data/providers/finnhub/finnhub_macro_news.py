@@ -39,6 +39,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         *,
         min_id: int | None = None,
     ) -> list[NewsEntry]:
+        """Stream macro news incrementally using minId pagination."""
         now_utc = datetime.now(UTC)
         bootstrap_delta = timedelta(days=self.settings.macro_news_first_run_days)
 
@@ -193,6 +194,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         return entries
 
     def _extract_symbols_from_related(self, related: str | None) -> list[str]:
+        """Parse Finnhub related string into watchlisted symbols."""
         if not related or not related.strip():
             return ["MARKET"]
 

@@ -186,13 +186,13 @@ class TestGeminiProvider:
 
         await provider.generate("prompt")
 
-        assert recorded["thinking"][0] == {"thinking_budget": 128}
+        assert recorded["thinking"][0] == {"thinking_budget_token_limit": 128}
         assert recorded["config"][0]["candidate_count"] == 1
         assert client.aio.models.generate_content.await_count == 1
 
     @pytest.mark.asyncio
     async def test_generate_uses_custom_thinking(self, monkeypatch: pytest.MonkeyPatch) -> None:
-        custom = {"thinking_budget": 64, "think_limit": 5}
+        custom = {"thinking_budget_token_limit": 64, "include_thoughts": False}
         provider, _, recorded = _make_provider(
             monkeypatch,
             thinking_config=custom,

@@ -31,7 +31,7 @@ class GeminiProvider(LLMProvider):
         self.tools = tools
         self.tool_choice = tool_choice
         self.thinking_config = (
-            thinking_config if thinking_config is not None else {"thinking_budget": 128}
+            thinking_config if thinking_config is not None else {"thinking_budget_token_limit": 128}
         )
         self.client = genai.Client(
             api_key=settings.api_key,

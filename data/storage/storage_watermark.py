@@ -43,6 +43,7 @@ def _fetch_state_row(
     scope: Scope,
     symbol: str | None,
 ) -> dict[str, str | int | None] | None:
+    """Fetch raw watermark row matching provider/stream/scope/symbol."""
     normalized_symbol = _normalize_symbol(scope, symbol)
 
     query = """
@@ -71,6 +72,7 @@ def _upsert_state(
     cursor_id: int | None,
     symbol: str | None,
 ) -> None:
+    """Insert or update watermark row for provider/stream/scope/symbol."""
     normalized_symbol = _normalize_symbol(scope, symbol)
 
     with _cursor_context(db_path) as cursor:

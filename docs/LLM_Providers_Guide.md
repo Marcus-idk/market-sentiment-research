@@ -6,15 +6,17 @@
 - **`settings: OpenAISettings`** — holds your API key loaded from env.  
   `OpenAIProvider(..., settings=OpenAISettings.from_env(), ...)`
 
-- **`model_name: str`** — any Responses-capable model (e.g., `"o4-mini"`, `"gpt-4o"`, `"gpt-5"`).  
-  `OpenAIProvider(..., model_name="o4-mini", ...)`
+- **`model_name: str`** — any Responses-capable model (for example, the latest GPT-series text or reasoning model).  
+  `OpenAIProvider(..., model_name="<gpt-model-name>", ...)`
 
 - **`temperature: float | None`** — randomness control; `0` = deterministic, higher = more diverse.  
+  - Supported range: `0.0–2.0`, default is `1.0` when omitted.  
+  - For some reasoning models, temperature may be fixed at `1.0` even if you pass a value.  
   `OpenAIProvider(..., temperature=0.2, ...)`
 
 - **`reasoning: dict | None`** — reasoning effort.
-  Allowed: `{"effort": "low" | "medium" | "high"}` for most OpenAI reasoning-capable models.
-  **Note:** `"minimal"` is **GPT-5-only** and not broadly documented across earlier models. Prefer `low|medium|high` unless you specifically target GPT-5.
+  - Allowed: `{"effort": "low" | "medium" | "high"}` on reasoning models (e.g., newer GPT reasoning variants).  
+  - On non‑reasoning models this may be ignored or rejected by the API.  
   Defaults: If omitted, the provider sets `{"effort":"low"}` to balance cost with tool compatibility.
   `OpenAIProvider(..., reasoning={"effort":"medium"}, ...)`
 
@@ -38,13 +40,14 @@
     `tool_choice="none"`
   - **Force specific tool** — only call the one you specify.
     `tool_choice={"type":"function","function":{"name":"save"}}`
-  - **GPT-5 caveat:** Many GPT-5 models currently support only `tool_choice="auto"`. Officially supported choices are `"auto"`, `"none"`, and (in some flows) `"required"`. The provider automatically coerces string values like `"none"` or `"required"` to `"auto"` for GPT-5 models.
+  - **Newer GPT-series caveat:** Many of the latest GPT reasoning models currently support only `tool_choice="auto"`. Officially supported choices are `"auto"`, `"none"`, and (in some flows) `"required"`. The provider automatically coerces string values like `"none"` or `"required"` to `"auto"` **only for models we explicitly special-case in code (currently names starting with `"gpt-5"`)**. For other models, you must check the model docs and set a safe `tool_choice` yourself.
 
 - **`**kwargs -> self.config`** — extra params for `responses.create(...)`.
-  - `max_output_tokens: int` — max tokens in output.
-    `..., max_output_tokens=8000`
-  - `top_p: float` — nucleus sampling (0–1).
+  - `max_completion_tokens: int` — preferred over `max_tokens`; upper bound for generated tokens (including reasoning tokens).  
+    `..., max_completion_tokens=8000`
+  - `top_p: float` — nucleus sampling (0–1, default 1.0). Use lower values (e.g. 0.1) to constrain diversity.
     `..., top_p=0.9`
+  - Other Responses‑API fields (audio, images, etc.) can also be passed through this dict as needed.
 
 ### Call
 `text = await openai_llm.generate("Write 3 bullets.")`
@@ -57,17 +60,18 @@
 - **`settings: GeminiSettings`** — holds your API key loaded from env.  
   `GeminiProvider(..., settings=GeminiSettings.from_env(), ...)`
 
-- **`model_name: str`** — e.g., `"gemini-2.5-flash"`, `"gemini-2.5-pro"`.  
-  `GeminiProvider(..., model_name="gemini-2.5-flash", ...)`
+- **`model_name: str`** — any supported Gemini text or reasoning model.  
+  `GeminiProvider(..., model_name="<gemini-model-name>", ...)`
 
 - **`temperature: float | None`** — randomness control.  
+  - Supported range: `0.0–2.0`.  
   `GeminiProvider(..., temperature=0.7, ...)`
 
 - **`tools: list | None`** — declare capabilities (dict forms shown).
   - **Code execution** — run Python for math, data wrangling, small files.
     `tools=[{"code_execution":{}}]`
-  - **Google search** — search the web and return structured citation metadata.
-    `tools=[{"google_search":{}}]`
+  - **Google Search retrieval** — search the web and return grounded results.
+    `tools=[{"google_search_retrieval":{}}]`
   - **URL context** — fetch and read content from given URLs.  
     `tools=[{"url_context":{}}]`
   - **Function declarations** — expose callable functions; you handle execution.  
@@ -82,10 +86,12 @@
     `tool_choice="any"`
 
 - **`thinking_config: dict | None`** — reasoning controls.  
-  - `thinking_budget: int` — max tokens for “thinking” phase.  
-  - `include_thoughts: bool` — include a summary of thoughts in output.  
-  Defaults: If omitted, the provider sets a small budget (`{"thinking_budget": 128}`) to enable lightweight reasoning while limiting cost.  
-  `GeminiProvider(..., thinking_config={"thinking_budget":2048,"include_thoughts":False}, ...)`
+  - Used only for Gemini “thinking” / reasoning models.  
+  - Typical fields (depending on model/version):  
+    - `thinking_budget_token_limit: int` — max tokens for the internal thinking phase.  
+    - `include_thoughts: bool` — whether to include a summarized thought trace in the response.  
+  Defaults: If omitted, the provider sets a small budget (e.g., `{"thinking_budget": 128}` when supported) to enable lightweight reasoning while limiting cost.  
+  `GeminiProvider(..., thinking_config={"thinking_budget_token_limit":2048,"include_thoughts":False}, ...)`
 
 - **`**kwargs -> self.config`** — passed into `GenerateContentConfig(...)`.
   - `candidate_count: int` — number of completions to return.
@@ -110,12 +116,12 @@
 ```python
 openai_llm = OpenAIProvider(
     settings=OpenAISettings.from_env(),
-    model_name="gpt-5",
+    model_name="<gpt-model-name>",
     temperature=0.3,
     reasoning={"effort":"medium"},
     tools=[{"type":"code_interpreter","container":{"type":"auto"}}],
     tool_choice="auto",
-    max_output_tokens=2000
+    max_completion_tokens=2000
 )
 text = await openai_llm.generate("Calculate 392817 * 74837291")
 ```
@@ -123,10 +129,10 @@ text = await openai_llm.generate("Calculate 392817 * 74837291")
 ```python
 gemini = GeminiProvider(
     settings=GeminiSettings.from_env(),
-    model_name="gemini-2.5-flash",
+    model_name="<gemini-model-name>",
     temperature=0.7,
     tools=[{"code_execution":{}},{"url_context":{}}],  # no tool_choice with code-exec only
-    thinking_config={"thinking_budget":1024},
+    thinking_config={"thinking_budget_token_limit":1024},
     response_mime_type="text/markdown"
 )
 text = await gemini.generate("Summarize feature X in 5 bullets.")
@@ -144,7 +150,7 @@ text = await gemini.generate("Summarize feature X in 5 bullets.")
 Both providers support strict JSON output with schema validation. Use these when you need the model to return structured data that conforms to a specific format.
 
 ### OpenAI JSON Schema
-Use `text.format.json_schema` to enforce a JSON schema (or `response_format` depending on SDK):
+Use `response_format` with `type: "json_schema"` to enforce a JSON schema (Responses API):
 
 ```python
 from config.llm.openai import OpenAISettings
@@ -152,23 +158,22 @@ from llm.providers.openai import OpenAIProvider
 
 openai_llm = OpenAIProvider(
     settings=OpenAISettings.from_env(),
-    model_name="gpt-5",
+    model_name="<gpt-model-name>",
     temperature=0.3,
     # Pass json_schema config via **kwargs
-    text={
-        "format": {
-            "type": "json_schema",
-            "json_schema": {
-                "name": "stock_analysis",
-                "schema": {
-                    "type": "object",
-                    "properties": {
-                        "ticker": {"type": "string"},
-                        "recommendation": {"type": "string", "enum": ["BUY", "HOLD", "SELL"]},
-                        "confidence": {"type": "number", "minimum": 0, "maximum": 1}
-                    },
-                    "required": ["ticker", "recommendation", "confidence"]
-                }
+    response_format={
+        "type": "json_schema",
+        "json_schema": {
+            "name": "stock_analysis",
+            "strict": True,
+            "schema": {
+                "type": "object",
+                "properties": {
+                    "ticker": {"type": "string"},
+                    "recommendation": {"type": "string", "enum": ["BUY", "HOLD", "SELL"]},
+                    "confidence": {"type": "number", "minimum": 0, "maximum": 1}
+                },
+                "required": ["ticker", "recommendation", "confidence"]
             }
         }
     }
@@ -186,7 +191,7 @@ from llm.providers.gemini import GeminiProvider
 
 gemini_llm = GeminiProvider(
     settings=GeminiSettings.from_env(),
-    model_name="gemini-2.5-flash",
+    model_name="<gemini-model-name>",
     temperature=0.3,
     # Pass via **kwargs to GenerateContentConfig
     response_mime_type="application/json",
@@ -208,54 +213,30 @@ response = await gemini_llm.generate("Analyze AAPL stock")
 
 ---
 
-## Using Settings for API Keys (Required)
+## Knobs, Tools, and Recent Changes (Cheatsheet)
 
-All project entry points MUST load credentials via the settings modules in `config/llm/`. Instantiate providers the same way so retry and timeout policy stays consistent:
+### OpenAI — Supported Knobs & Gotchas
+- `temperature`: `0.0–2.0`, defaults to `1.0`. Reasoning models may fix it at `1.0`.
+- `top_p`: `0.0–1.0`, defaults to `1.0`. Use low values (e.g., `0.1`) for very focused outputs.
+- `max_completion_tokens`: preferred limit knob; `max_tokens` is deprecated.
+- `reasoning.effort`: `low|medium|high` on reasoning models only.
+- Reasoning models may not support classic system messages; use the appropriate “developer” role or equivalent in higher‑level APIs when needed.
 
-### OpenAI with Settings (required)
-```python
-from dotenv import load_dotenv
-from config.llm.openai import OpenAISettings
-from llm.providers.openai import OpenAIProvider
+### Gemini — Supported Knobs & Gotchas
+- `temperature`: `0.0–2.0` to control randomness.
+- `topP`: `0.0–1.0` nucleus sampling; `topK` (int) is also available.
+- `maxOutputTokens`: integer limit for response length (exposed as `max_output_tokens` / similar in some SDKs).
+- `thinking_config`: only for thinking/reasoning models; fields like `include_thoughts` and `thinking_budget_token_limit` may vary by version.
+- Safety: default settings can be strict; setting thresholds like `BLOCK_ONLY_HIGH` often reduces over‑blocking for benign prompts.
 
-# Load environment variables (only at entry points/tests)
-load_dotenv(override=True)
+### Tools Summary
+- **OpenAI tools:** `function`, `web_search_preview`, `file_search`, `code_interpreter`, `computer_use_preview` (availability depends on access).  
+  Use `tools=[...]` plus `tool_choice="auto" | "none" | "required" | {type:function...}`.
+- **Gemini tools:** `function_declarations`, `google_search_retrieval`, `code_execution`, `url_context`.  
+  Use `tools=[...]` plus `tool_config={"function_calling_config":{"mode":"AUTO"|"ANY"|"NONE"}}` when using functions.
 
-# Create settings from environment
-settings = OpenAISettings.from_env()
+### Recent API Shape Changes (High Level)
+- OpenAI Responses API replaces older `/v1/chat/completions`; `max_completion_tokens` and `response_format` are preferred over legacy knobs.
+- Gemini places structured output fields under `generationConfig` in the wire format; the Python SDK exposes them as `GenerateContentConfig` fields (e.g., `response_mime_type`, `response_schema`).
 
-# Pass settings object into provider
-openai_llm = OpenAIProvider(
-    settings=settings,
-    model_name="gpt-5",
-    temperature=0.3
-)
-text = await openai_llm.generate("Your prompt here")
-```
-
-### Gemini with Settings (required)
-```python
-from dotenv import load_dotenv
-from config.llm.gemini import GeminiSettings
-from llm.providers.gemini import GeminiProvider
-
-# Load environment variables (only at entry points/tests)
-load_dotenv(override=True)
-
-# Create settings from environment
-settings = GeminiSettings.from_env()
-
-# Pass settings object into provider
-gemini_llm = GeminiProvider(
-    settings=settings,
-    model_name="gemini-2.5-flash",
-    temperature=0.7
-)
-text = await gemini_llm.generate("Your prompt here")
-```
-
-### Environment Variables
-- **OpenAI**: Set `OPENAI_API_KEY` in your `.env` file or environment
-- **Gemini**: Set `GEMINI_API_KEY` in your `.env` file or environment
-
-Both settings classes validate that API keys are present and non-empty, raising `ValueError` if missing.
+---
