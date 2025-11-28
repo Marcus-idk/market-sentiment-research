@@ -21,6 +21,7 @@ def cleanup_sqlite_artifacts(db_path: str):
 
     gc.collect()
 
+    # Removes connection, memory and files
     try:
         # Use closing() to ensure connection is properly closed
         with closing(connect(db_path)) as conn:
@@ -32,6 +33,7 @@ def cleanup_sqlite_artifacts(db_path: str):
 
     gc.collect()
 
+    # Fallback File Removal
     for suffix in ("-wal", "-shm", ""):
         try:
             os.remove(db_path + suffix)
@@ -48,7 +50,7 @@ def cleanup_sqlite_artifacts(db_path: str):
 @pytest.fixture
 def temp_db_path():
     fd, db_path = tempfile.mkstemp(suffix=".db")
-    os.close(fd)
+    os.close(fd)  # get rid of fd (a id number for the path), we don't need
     yield db_path
     cleanup_sqlite_artifacts(db_path)
 

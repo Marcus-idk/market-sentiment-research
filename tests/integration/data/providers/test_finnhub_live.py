@@ -1,6 +1,4 @@
-"""
-Live integration tests for Finnhub provider.
-"""
+"""Live integration tests for Finnhub providers using the real API."""
 
 from datetime import UTC, datetime, timedelta
 from decimal import Decimal
@@ -84,7 +82,12 @@ async def test_live_multiple_symbols(finnhub_settings):
 
 
 async def test_live_error_handling(finnhub_settings):
-    """Test error handling with invalid symbol"""
+    """Test error handling with invalid symbol via price provider.
+
+    Notes:
+    - Finnhub has both price and news providers; we exercise price here.
+    - Polygon live tests only cover news, so keeping this on price balances coverage.
+    """
     # Test with invalid symbol
     provider = FinnhubPriceProvider(finnhub_settings, ["INVALID_SYMBOL_XYZ123"])
 

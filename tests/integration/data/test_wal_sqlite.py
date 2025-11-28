@@ -74,14 +74,19 @@ class TestWALSqlite:
 
     def test_concurrent_operations_with_wal(self, temp_db):
         """WAL allows concurrent read/write without lock errors and maintains consistency."""
-
+        # ========================================
         # VERIFY WAL MODE IS ENABLED
+        # ========================================
+
         with _cursor_context(temp_db, commit=False) as cursor:
             cursor.execute("PRAGMA journal_mode")
             mode = cursor.fetchone()[0]
             assert mode.lower() == "wal"
 
+        # ========================================
         # PREPARE TEST DATA
+        # ========================================
+
         base_time = datetime(2024, 1, 15, 10, 0, tzinfo=UTC)
         symbols = ["AAPL", "TSLA", "MSFT", "GOOGL", "AMZN", "SPY", "QQQ", "META"]
 
@@ -113,7 +118,10 @@ class TestWALSqlite:
                     else:
                         operation_results["read_errors"].append(error)
 
-        # SCENARIO 1: MULTIPLE CONCURRENT WRITES (Simulating multiple data source polling)
+        # ========================================
+        # SCENARIO 1: MULTIPLE CONCURRENT WRITES
+        # ========================================
+
         def write_news_data(thread_id, symbol_batch):
             for i, symbol in enumerate(symbol_batch):
                 news_items = [
@@ -173,7 +181,10 @@ class TestWALSqlite:
 
                 time.sleep(0.01)
 
-        # SCENARIO 2: CONCURRENT READS (Simulating multiple LLM agents analyzing data)
+        # ========================================
+        # SCENARIO 2: CONCURRENT READS
+        # ========================================
+
         def read_for_analysis(thread_id, query_type):
             for i in range(3):  # Multiple read operations per thread
                 if query_type == "news":
@@ -200,7 +211,9 @@ class TestWALSqlite:
 
                 time.sleep(0.01)  # Simulate analysis processing time
 
+        # ========================================
         # EXECUTE CONCURRENT OPERATIONS
+        # ========================================
 
         # Create thread pool for concurrent operations
         with concurrent.futures.ThreadPoolExecutor(max_workers=12) as executor:
@@ -226,13 +239,15 @@ class TestWALSqlite:
             for future in concurrent.futures.as_completed(futures):
                 future.result()
 
+        # ========================================
         # VALIDATE RESULTS
+        # ========================================
 
-        # 1. Verify no database locking errors occurred
+        # Verify no database locking errors occurred
         assert len(operation_results["write_errors"]) == 0
         assert len(operation_results["read_errors"]) == 0
 
-        # 2. Verify all operations completed successfully
+        # Verify all operations completed successfully
         writes_per_batch = sum(len(batch) for batch in symbol_batches)
         expected_writes = writes_per_batch * 3  # One write per symbol for each write helper
         read_iterations = 3  # Each reader performs three queries
@@ -241,7 +256,7 @@ class TestWALSqlite:
         assert operation_results["write_count"] == expected_writes
         assert operation_results["read_count"] == expected_reads
 
-        # 3. Verify data consistency - check that data written is actually stored
+        # Verify data consistency - check that data written is actually stored
         final_news = get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
         final_prices = get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
         final_analysis = get_analysis_results(temp_db)
@@ -256,7 +271,7 @@ class TestWALSqlite:
         assert price_symbols == expected_symbol_set
         assert analysis_symbols == expected_symbol_set
 
-        # 4. Test specific data integrity for one symbol
+        # Test specific data integrity for one symbol
         aapl_news = [item for item in final_news if item.symbol == "AAPL"]
         aapl_prices = [item for item in final_prices if item.symbol == "AAPL"]
         aapl_analysis = [item for item in final_analysis if item.symbol == "AAPL"]

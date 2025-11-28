@@ -15,7 +15,10 @@ class TestNewsDeduplication:
         symbol = "AAPL"
         base_url = "https://news.example.com/apple-quarterly-results"
 
-        # Create the same news article from different data sources with various tracking parameters
+        # ========================================
+        # CREATE DUPLICATE ARTICLES FROM DIFFERENT SOURCES
+        # ========================================
+
         # Source 1: Finnhub with UTM parameters
         finnhub_article = NewsEntry(
             article=NewsItem(
@@ -76,6 +79,10 @@ class TestNewsDeduplication:
             is_important=None,
         )
 
+        # ========================================
+        # STORE ARTICLES AND VERIFY DEDUPLICATION
+        # ========================================
+
         # Store first article from Finnhub
         store_news_items(temp_db, [finnhub_article])
 
@@ -115,6 +122,10 @@ class TestNewsDeduplication:
 
         # Verify published timestamp is preserved correctly
         assert final_article.published == datetime(2024, 1, 15, 12, 0, 0, tzinfo=UTC)
+
+        # ========================================
+        # VERIFY DIFFERENT SYMBOL IS NOT DEDUPLICATED
+        # ========================================
 
         # Test with a different symbol to ensure deduplication is symbol-specific
         different_symbol = "TSLA"

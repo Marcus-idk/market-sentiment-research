@@ -20,6 +20,8 @@ load_dotenv(override=True)
 
 @dataclass(slots=True)
 class ProviderSpec:
+    """Specification for an LLM provider used in integration tests."""
+
     name: str
     provider_cls: type
     settings_factory: Callable[[], Any]

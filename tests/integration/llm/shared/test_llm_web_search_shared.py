@@ -1,4 +1,4 @@
-"""Contract tests for LLM web search tooling."""
+"""Contract tests for LLM web-search tooling."""
 
 from __future__ import annotations
 

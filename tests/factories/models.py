@@ -4,7 +4,6 @@ from __future__ import annotations
 
 from datetime import UTC, datetime
 from decimal import Decimal
-from typing import Any
 
 from data.models import (
     AnalysisResult,
@@ -67,16 +66,15 @@ def make_price_data(
     *,
     symbol: str = "AAPL",
     timestamp: datetime | None = None,
-    price: Decimal | float | str = Decimal("150.00"),
+    price: Decimal = Decimal("150.00"),
     volume: int | None = None,
     session: Session = Session.REG,
 ) -> PriceData:
-    price_decimal = price if isinstance(price, Decimal) else Decimal(str(price))
     timestamp_dt = timestamp or _DEFAULT_TIME
     return PriceData(
         symbol=symbol,
         timestamp=timestamp_dt,
-        price=price_decimal,
+        price=price,
         volume=volume,
         session=session,
     )
@@ -92,45 +90,34 @@ def make_analysis_result(
     last_updated: datetime | None = None,
     created_at: datetime | None = None,
     result_json: str = '{"status": "ok"}',
-    extras: dict[str, Any] | None = None,
 ) -> AnalysisResult:
-    payload: dict[str, Any] = {
-        "symbol": symbol,
-        "analysis_type": analysis_type,
-        "model_name": model_name,
-        "stance": stance,
-        "confidence_score": confidence_score,
-        "last_updated": last_updated or _DEFAULT_TIME,
-        "created_at": created_at or _DEFAULT_TIME,
-        "result_json": result_json,
-    }
-    if extras:
-        payload.update(extras)
-    return AnalysisResult(**payload)
+    return AnalysisResult(
+        symbol=symbol,
+        analysis_type=analysis_type,
+        model_name=model_name,
+        stance=stance,
+        confidence_score=confidence_score,
+        last_updated=last_updated or _DEFAULT_TIME,
+        created_at=created_at or _DEFAULT_TIME,
+        result_json=result_json,
+    )
 
 
 def make_holdings(
     *,
     symbol: str = "AAPL",
-    quantity: Decimal | float | str = Decimal("100.0"),
-    break_even_price: Decimal | float | str = Decimal("150.00"),
-    total_cost: Decimal | float | str = Decimal("15000.00"),
+    quantity: Decimal = Decimal("100.0"),
+    break_even_price: Decimal = Decimal("150.00"),
+    total_cost: Decimal = Decimal("15000.00"),
     created_at: datetime | None = None,
     updated_at: datetime | None = None,
     notes: str | None = None,
 ) -> Holdings:
-    quantity_decimal = quantity if isinstance(quantity, Decimal) else Decimal(str(quantity))
-    break_even_decimal = (
-        break_even_price
-        if isinstance(break_even_price, Decimal)
-        else Decimal(str(break_even_price))
-    )
-    total_cost_decimal = total_cost if isinstance(total_cost, Decimal) else Decimal(str(total_cost))
     return Holdings(
         symbol=symbol,
-        quantity=quantity_decimal,
-        break_even_price=break_even_decimal,
-        total_cost=total_cost_decimal,
+        quantity=quantity,
+        break_even_price=break_even_price,
+        total_cost=total_cost,
         created_at=created_at or _DEFAULT_TIME,
         updated_at=updated_at or _DEFAULT_TIME,
         notes=notes,

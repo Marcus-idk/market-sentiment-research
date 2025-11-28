@@ -1,8 +1,6 @@
-"""Helper functions for LLM integration tests.
+"""Helper functions for LLM integration tests."""
 
-Notes:
-    Focused on testing code execution capabilities of LLM providers.
-"""
+from __future__ import annotations
 
 import base64
 import hashlib
@@ -19,6 +17,7 @@ _WIKI_URL = "https://en.wikipedia.org/api/rest_v1/feed/featured/{y}/{m:02d}/{d:0
 
 
 def make_base64_blob(n_bytes: int = 64) -> tuple[str, str]:
+    """Generate a random base64 blob and its SHA-256 hex digest."""
     blob = os.urandom(n_bytes)
     b64 = base64.b64encode(blob).decode("ascii")
     sha = hashlib.sha256(blob).hexdigest()
@@ -26,11 +25,13 @@ def make_base64_blob(n_bytes: int = 64) -> tuple[str, str]:
 
 
 def extract_hex64(s: str) -> str:
+    """Extract a 64-character hex string from text, or return empty string."""
     m = re.search(r"\b[0-9a-fA-F]{64}\b", s)
     return m.group(0).lower() if m else ""
 
 
 async def fetch_featured_wiki(date_utc: date) -> str:
+    """Fetch Wikipedia's featured article title for a given date."""
     url = _WIKI_URL.format(y=date_utc.year, m=date_utc.month, d=date_utc.day)
 
     headers = {"User-Agent": "Information (marcusgohkz@gmail.com)"}
@@ -65,4 +66,5 @@ async def fetch_featured_wiki(date_utc: date) -> str:
 
 
 def normalize_title(s: str) -> str:
+    """Normalize a title to lowercase alphanumeric for comparison."""
     return "".join(ch.lower() for ch in s if ch.isalnum())

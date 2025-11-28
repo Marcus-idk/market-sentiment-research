@@ -79,7 +79,9 @@ class TestTimezonePipeline:
         current_naive = datetime.now()
         current_utc = datetime.now(UTC)
 
-        # PHASE 1: TEST MODEL __POST_INIT__ NORMALIZATION
+        # ========================================
+        # TEST MODEL __POST_INIT__ NORMALIZATION
+        # ========================================
 
         # Test NewsItem normalization
         news_naive = NewsItem(
@@ -159,7 +161,9 @@ class TestTimezonePipeline:
         assert holdings_mixed.updated_at.tzinfo == UTC
         assert holdings_mixed.created_at == expected_eastern_utc
 
-        # PHASE 2: TEST STORAGE ISO FORMAT WITH 'Z' SUFFIX
+        # ========================================
+        # TEST STORAGE ISO FORMAT WITH 'Z' SUFFIX
+        # ========================================
 
         # Store all test data and verify ISO format in database
         test_news = [
@@ -242,7 +246,9 @@ class TestTimezonePipeline:
         for holdings in test_holdings:
             upsert_holdings(temp_db, holdings)
 
-        # PHASE 3: VERIFY RAW DATABASE STORAGE HAS 'Z' SUFFIX
+        # ========================================
+        # VERIFY RAW DATABASE STORAGE HAS 'Z' SUFFIX
+        # ========================================
 
         with _cursor_context(temp_db, commit=False) as cursor:
             # Check news_items table
@@ -289,7 +295,9 @@ class TestTimezonePipeline:
                 assert created_at_iso.endswith("Z")
                 assert updated_at_iso.endswith("Z")
 
-        # PHASE 4: TEST QUERY FUNCTIONS RETURN UTC-CONSISTENT DATA
+        # ========================================
+        # TEST QUERY FUNCTIONS RETURN UTC-CONSISTENT DATA
+        # ========================================
 
         # Query all data back
         retrieved_news = get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
@@ -318,7 +326,9 @@ class TestTimezonePipeline:
             assert isinstance(item.created_at, datetime) and item.created_at.tzinfo == UTC
             assert isinstance(item.updated_at, datetime) and item.updated_at.tzinfo == UTC
 
-        # PHASE 5: TEST CROSS-MODEL CONSISTENCY WITH SAME TIMESTAMP
+        # ========================================
+        # TEST CROSS-MODEL CONSISTENCY WITH SAME TIMESTAMP
+        # ========================================
 
         # Create a specific timestamp for consistency testing
         consistency_timestamp = datetime(2024, 2, 20, 16, 45, 30, tzinfo=UTC)
@@ -399,7 +409,9 @@ class TestTimezonePipeline:
         assert consistency_holdings_result[0].created_at == expected_dt
         assert consistency_holdings_result[0].updated_at == expected_dt
 
-        # PHASE 6: TEST BOUNDARY TIMEZONE SCENARIOS
+        # ========================================
+        # TEST BOUNDARY TIMEZONE SCENARIOS
+        # ========================================
 
         # Test timezone conversion with UTC-4 (Eastern Daylight Time)
         edt_tz = timezone(timedelta(hours=-4))

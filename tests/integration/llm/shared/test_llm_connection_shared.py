@@ -1,4 +1,4 @@
-"""Shared integration tests verifying LLM connection workflows."""
+"""Contract tests for basic LLM connectivity."""
 
 from __future__ import annotations
 

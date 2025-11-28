@@ -31,7 +31,10 @@ class TestDataRoundtrip:
 
     def test_complete_data_roundtrip(self, temp_db):
         """Store and retrieve all models, validating field preservation and timezone conversion."""
-        # 1. CREATE REALISTIC TEST DATA
+        # ========================================
+        # CREATE REALISTIC TEST DATA
+        # ========================================
+
         test_timestamp = datetime(2024, 1, 15, 10, 30, 45, tzinfo=UTC)
         naive_timestamp = datetime(2024, 1, 15, 14, 45, 30)  # Will be converted to UTC
 
@@ -166,7 +169,10 @@ class TestDataRoundtrip:
             ),
         ]
 
-        # 2. STORE ALL DATA USING STORAGE FUNCTIONS
+        # ========================================
+        # STORE ALL DATA USING STORAGE FUNCTIONS
+        # ========================================
+
         store_news_items(temp_db, news_entries)
         store_price_data(temp_db, price_data)
 
@@ -176,13 +182,18 @@ class TestDataRoundtrip:
         for holdings in holdings_list:
             upsert_holdings(temp_db, holdings)
 
-        # 3. QUERY ALL DATA BACK USING GET FUNCTIONS
+        # ========================================
+        # QUERY ALL DATA BACK USING GET FUNCTIONS
+        # ========================================
+
         retrieved_news = get_news_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
         retrieved_prices = get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
         retrieved_analysis = get_analysis_results(temp_db)
         retrieved_holdings = get_all_holdings(temp_db)
 
-        # 4. VALIDATE ALL FIELD VALUES ARE PRESERVED EXACTLY
+        # ========================================
+        # VALIDATE ALL FIELD VALUES ARE PRESERVED EXACTLY
+        # ========================================
 
         # Verify NewsItems
         assert len(retrieved_news) == 3

@@ -5,7 +5,6 @@ import pytest
 from config.providers.finnhub import FinnhubSettings
 from config.providers.polygon import PolygonSettings
 
-# Automatically mark every test in this package as integration.
 pytestmark = pytest.mark.integration
 
 

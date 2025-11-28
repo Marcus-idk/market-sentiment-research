@@ -14,14 +14,16 @@ class TestDecimalPrecision:
         """Preserves Decimal precision across roundtrip, including edge cases."""
         test_timestamp = datetime(2024, 1, 15, 10, 30, 45, tzinfo=UTC)
 
+        # ========================================
         # EXTREME PRECISION TEST VALUES
-        # These values test the limits of Decimal precision preservation
+        # ========================================
         ultra_precise_price = Decimal("123.456789123456789123")  # 21 decimal places
         ultra_precise_quantity = Decimal("987.654321098765432109")  # 18 decimal places
         ultra_precise_cost = Decimal("121932.631112635269461112")  # Complex calculation result
 
+        # ========================================
         # BOUNDARY CASE VALUES
-        # Very small numbers that would lose precision with float
+        # ========================================
         very_small_price = Decimal("0.000000001")  # 9 decimal places
         very_small_quantity = Decimal("0.0000000000001")  # 13 decimal places
         very_small_cost = Decimal("0.00000000000000001")  # 17 decimal places
@@ -31,12 +33,15 @@ class TestDecimalPrecision:
         very_large_quantity = Decimal("999999999999.999999")  # Even larger with 6 decimal places
         very_large_cost = Decimal("999999999999999.999999999")  # Massive with 9 decimal places
 
+        # ========================================
         # SCIENTIFIC NOTATION EDGE CASES
-        # These test numbers that might be stored in scientific notation
+        # ========================================
         scientific_small = Decimal("1E-15")  # Scientific notation
         scientific_large = Decimal("1.23456789E+12")  # Large scientific
 
+        # ========================================
         # CREATE TEST DATA WITH EXTREME PRECISION VALUES
+        # ========================================
 
         # PriceData with extreme precision testing
         extreme_price_data = [
@@ -126,13 +131,19 @@ class TestDecimalPrecision:
             ),
         ]
 
-        # STORE DATA USING STORAGE FUNCTIONS (Decimal → TEXT conversion)
+        # ========================================
+        # STORE DATA USING STORAGE FUNCTIONS
+        # ========================================
+
         store_price_data(temp_db, extreme_price_data)
 
         for holdings in extreme_holdings:
             upsert_holdings(temp_db, holdings)
 
-        # QUERY DATA BACK (TEXT → string retrieval)
+        # ========================================
+        # QUERY DATA BACK
+        # ========================================
+
         retrieved_prices = get_price_data_since(temp_db, datetime(2024, 1, 1, tzinfo=UTC))
         retrieved_holdings = get_all_holdings(temp_db)
 
@@ -140,7 +151,9 @@ class TestDecimalPrecision:
         assert len(retrieved_prices) == 5
         assert len(retrieved_holdings) == 5
 
+        # ========================================
         # VALIDATE EXACT PRECISION PRESERVATION FOR PRICEDATA
+        # ========================================
 
         # Test ultra-precise value
         ultra_price_result = next(item for item in retrieved_prices if item.symbol == "ULTRA")
@@ -188,7 +201,9 @@ class TestDecimalPrecision:
         sci_large_decimal = sci_large_stored
         assert sci_large_decimal == scientific_large
 
-        # VALIDATE EXACT PRECISION PRESERVATION FOR HOLDINGS (all 3 Decimal fields)
+        # ========================================
+        # VALIDATE EXACT PRECISION PRESERVATION FOR HOLDINGS
+        # ========================================
 
         # Test ultra-precise holdings
         ultra_holdings_result = next(item for item in retrieved_holdings if item.symbol == "ULTRA")
@@ -283,8 +298,9 @@ class TestDecimalPrecision:
         sci_large_cost_decimal = sci_large_cost_stored
         assert sci_large_cost_decimal == Decimal("1.518518518518518518E+24")
 
-        # ADDITIONAL VERIFICATION: Test that these precision levels would fail with float
-        # This demonstrates why Decimal is critical for financial applications
+        # ========================================
+        # ADDITIONAL VERIFICATION: FLOAT PRECISION LOSS DEMONSTRATION
+        # ========================================
 
         # Convert our ultra-precise value to float and back to show precision loss
         ultra_as_float = float(ultra_precise_price)

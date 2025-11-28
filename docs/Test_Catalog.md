@@ -1,13 +1,13 @@
 # Test Catalog — Complete Test Inventory
 
-This document enumerates all tests under `tests/` and what they cover.
+This document enumerates all Python files under `tests/` and what they cover (test modules, fixtures, factories, shared stubs).
 Keep it human-scannable and low-churn; do not duplicate this inventory in other docs.
 
 ## Rules to Follow When Updating This
 - Keep this as the single source for the test inventory.
 - Update when a test file is added/removed, or when tests are added/removed/renamed.
-- For each file, include: Purpose, Tags (optional), key Fixtures (optional), Tests, Notes (optional).
-- List ALL test functions with one-line descriptions of what they validate.
+- For each file in `tests/`, include: Purpose, Tags (optional), key Fixtures/factories (optional), Tests (if any), Notes (optional).
+- List ALL test functions with one-line descriptions of what they validate; for helper-only files (e.g., factories, shared stubs), list the key helpers instead.
 - Structure: File → Class (if exists) → Test functions. If no classes, list tests directly under file.
 - Order: Files mirror the `tests/` tree structure. Within each file, list tests in the order they appear.
 - Use tags consistently (see Tag Legend). Note env vars/time freezing only if relevant.
@@ -42,6 +42,32 @@ Keep it human-scannable and low-churn; do not duplicate this inventory in other 
 ---
 
 The detailed inventory starts below this line (to be populated and maintained).
+
+### `tests/__init__.py`
+- Purpose: Package marker for test suite
+- Tests: (none)
+
+### `tests/conftest.py`
+- Purpose: Project-wide fixtures and SQLite cleanup helpers
+- Fixtures: `temp_db_path`, `temp_db`, `mock_http_client`
+- Helpers: `cleanup_sqlite_artifacts` - checkpoints and removes WAL/journal files
+- Tests: (none)
+
+### `tests/factories/__init__.py`
+- Purpose: Export shared factory helpers for tests
+- Helpers: `make_news_item`, `make_news_entry`, `make_price_data`, `make_analysis_result`, `make_holdings`
+- Tests: (none)
+
+### `tests/factories/models.py`
+- Purpose: Factory implementations for data model instances with sane defaults
+- Helpers: `make_news_item`, `make_news_entry`, `make_price_data`, `make_analysis_result`, `make_holdings`
+- Tests: (none)
+
+### `tests/integration/conftest.py`
+- Purpose: Marks integration suite and provides provider settings
+- Tags: [integration]
+- Fixtures: `finnhub_settings`, `polygon_settings` (skip when env vars missing)
+- Tests: (none)
 
 ### `tests/integration/data/providers/test_finnhub_live.py`
 - Purpose: Verify Finnhub API works as expected with real data
@@ -101,6 +127,19 @@ The detailed inventory starts below this line (to be populated and maintained).
   **TestWALSqlite**
   - `test_wal_mode_functionality` - WAL mode enabled and functional
   - `test_concurrent_operations_with_wal` - Concurrent read/write behavior
+
+### `tests/integration/llm/conftest.py`
+- Purpose: ProviderSpec fixture for LLM integration contracts
+- Tags: [integration]
+- Fixtures: `provider_spec` parametrized over OpenAI and Gemini
+- Helpers: `ProviderSpec` helper with factory methods for code/search tool configs
+- Tests: (none)
+
+### `tests/integration/llm/helpers.py`
+- Purpose: Shared helpers for LLM integration tests
+- Tags: [async]
+- Helpers: `make_base64_blob`, `extract_hex64`, `fetch_featured_wiki`, `normalize_title`
+- Tests: (none)
 
 ### `tests/integration/llm/shared/test_llm_code_tools_shared.py`
 - Purpose: LLM code tools parity across providers
@@ -191,6 +230,12 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_default_instance_immutable` - DEFAULT_DATA_RETRY is immutable
   **TestRetryBusinessRules**
   - `test_different_timeouts` - LLM vs Data default timeout rule
+
+### `tests/unit/data/providers/conftest.py`
+- Purpose: Shared provider specs and client configs for provider contract tests
+- Fixtures: `provider_spec_company`, `provider_spec_macro`, `provider_spec_prices`, `client_spec`
+- Helpers: `CompanyProviderSpec`, `MacroProviderSpec`, `PriceProviderSpec`, `ClientSpec` factories
+- Tests: (none)
 
 ### `tests/unit/data/providers/shared/test_client_shared.py`
 - Purpose: Provider HTTP client shared behaviors
@@ -639,6 +684,7 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_generate_rejects_tool_choice_without_function_declarations` - Raises ValueError when tool_choice is set without function_declarations (built-ins only)
   - `test_generate_uses_default_thinking` - Applies default thinking budget
   - `test_generate_uses_custom_thinking` - Applies custom thinking config
+  - `test_generate_clamps_small_thinking_budget` - Clamps small thinking budgets up to minimum
   - `test_generate_raises_when_no_candidates` - Raises when response has no candidates
   - `test_generate_combines_text_and_code_outputs` - Concatenates text and code outputs
   - `test_generate_handles_none_code_output` - Treats None code output as empty

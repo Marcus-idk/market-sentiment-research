@@ -11,7 +11,8 @@
     "**/*.pyc": true,
     "**/*.pyo": true,
     "**/.coverage": true,
-    "**/htmlcov": true
+    "**/htmlcov": true,
+    "**/.factory": true
   },
   "editor.formatOnSave": true,
   "editor.codeActionsOnSave": {
