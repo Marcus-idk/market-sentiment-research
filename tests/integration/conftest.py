@@ -4,6 +4,7 @@ import pytest
 
 from config.providers.finnhub import FinnhubSettings
 from config.providers.polygon import PolygonSettings
+from config.providers.reddit import RedditSettings
 
 pytestmark = pytest.mark.integration
 
@@ -22,3 +23,11 @@ def polygon_settings() -> PolygonSettings:
         return PolygonSettings.from_env()
     except ValueError as exc:
         pytest.skip(f"POLYGON settings unavailable: {exc}")
+
+
+@pytest.fixture
+def reddit_settings() -> RedditSettings:
+    try:
+        return RedditSettings.from_env()
+    except ValueError as exc:
+        pytest.skip(f"REDDIT settings unavailable: {exc}")

@@ -55,18 +55,18 @@ The detailed inventory starts below this line (to be populated and maintained).
 
 ### `tests/factories/__init__.py`
 - Purpose: Export shared factory helpers for tests
-- Helpers: `make_news_item`, `make_news_entry`, `make_price_data`, `make_analysis_result`, `make_holdings`
+- Helpers: `make_news_item`, `make_news_entry`, `make_price_data`, `make_analysis_result`, `make_holdings`, `make_social_discussion`
 - Tests: (none)
 
 ### `tests/factories/models.py`
 - Purpose: Factory implementations for data model instances with sane defaults
-- Helpers: `make_news_item`, `make_news_entry`, `make_price_data`, `make_analysis_result`, `make_holdings`
+- Helpers: `make_news_item`, `make_news_entry`, `make_price_data`, `make_analysis_result`, `make_holdings`, `make_social_discussion`
 - Tests: (none)
 
 ### `tests/integration/conftest.py`
 - Purpose: Marks integration suite and provides provider settings
 - Tags: [integration]
-- Fixtures: `finnhub_settings`, `polygon_settings` (skip when env vars missing)
+- Fixtures: `finnhub_settings`, `polygon_settings`, `reddit_settings` (skip when env vars missing)
 - Tests: (none)
 
 ### `tests/integration/data/providers/test_finnhub_live.py`
@@ -87,6 +87,14 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_live_multiple_symbols` - Multiple symbols fetch
   - `test_live_error_handling` - Handles invalid symbol gracefully
 - Notes: Requires POLYGON_API_KEY; network access
+
+### `tests/integration/data/providers/test_reddit_live.py`
+- Purpose: Live validation for Reddit social provider
+- Tags: [network] [async]
+- Tests:
+  - `test_live_validate_connection` - Reddit credentials validate against API
+  - `test_live_discussions_fetch` - Fetches recent AAPL discussions with valid fields
+- Notes: Requires REDDIT_CLIENT_ID/SECRET/USER_AGENT; network access
 
 ### `tests/integration/data/test_decimal_precision.py`
 - Purpose: Decimal precision across pipeline
@@ -212,6 +220,16 @@ The detailed inventory starts below this line (to be populated and maintained).
 - Tests:
   - (none)
 - Notes: Common checks live in shared test suite
+
+### `tests/unit/config/providers/test_reddit_settings.py`
+- Purpose: Reddit-specific env loading and defaults
+- Tests:
+  **TestRedditSettings**
+  - `test_from_env_success` - Loads all env vars and keeps default retry config
+  - `test_from_env_missing_client_id` - Missing client id raises ValueError
+  - `test_from_env_missing_client_secret` - Missing client secret raises ValueError
+  - `test_from_env_missing_user_agent` - Missing user agent raises ValueError
+  - `test_from_env_strips_whitespace` - Strips surrounding whitespace
 
 ### `tests/unit/config/test_config_retry.py`
 - Purpose: Retry configuration dataclasses and defaults
@@ -354,6 +372,36 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_extract_cursor_exception_returns_none` - Returns None on invalid next_url
   - `test_non_dict_publisher_defaults_to_polygon` - Defaults publisher to "Polygon"
 
+### `tests/unit/data/providers/test_reddit_client.py`
+- Purpose: RedditClient initialization and validation
+- Tests:
+  **TestRedditClient**
+  - `test_init_sets_read_only_and_creds` - Passes creds to praw.Reddit and sets read_only
+  - `test_validate_connection_success` - Returns True when /me is truthy
+  - `test_validate_connection_praw_error_logs_and_returns_false` - Prawcore errors warn and return False
+  - `test_validate_connection_generic_error_returns_false` - Generic errors warn and return False
+
+### `tests/unit/data/providers/test_reddit_social.py`
+- Purpose: RedditSocialProvider cursor planning, parsing, and content building
+- Tags: [async]
+- Tests:
+  **TestRedditSocialProviderBasics**
+  - `test_symbol_normalization_uppercases_and_filters` - Normalizes and filters symbol list in __init__
+  - `test_validate_connection_delegates_to_client` - validate_connection delegates to the underlying client
+  **TestFetchIncremental**
+  - `test_fetch_incremental_empty_symbols_returns_empty` - No symbols → empty list
+  - `test_fetch_incremental_bootstrap_uses_week_filter` - Bootstrap uses week time_filter and first-run window
+  - `test_fetch_incremental_cursor_uses_hour_with_overlap` - Cursor path uses overlap buffer and hour filter
+  - `test_resolve_symbol_cursor_prefers_symbol_map_over_global` - Per-symbol cursor overrides global
+  - `test_fetch_incremental_praw_error_skips_symbol_not_all` - Praw errors skip only failing symbol
+  **TestParseSubmission**
+  - `test_parse_submission_valid_returns_discussion` - Parses valid submission into SocialDiscussion
+  - `test_parse_submission_invalid_returns_none` - Missing fields/invalid URLs return None
+  - `test_parse_submission_returns_none_when_before_start` - Drops submissions at/before start_time
+  **TestBuildContent**
+  - `test_build_content_combines_selftext_and_comments` - Selftext plus comments combined with separators
+  - `test_build_content_empty_returns_none` - No content/comments returns None
+
 ### `tests/unit/data/schema/test_schema_confidence_and_json.py`
 - Purpose: JSON fields and confidence constraints
 - Tests:
@@ -445,10 +493,14 @@ The detailed inventory starts below this line (to be populated and maintained).
 - Tests:
   - `test_connect_logs_when_foreign_keys_pragma_fails` - Logs when foreign_keys pragma fails
   - `test_connect_logs_when_busy_timeout_pragma_fails` - Logs when busy_timeout pragma fails
+  - `test_connect_logs_when_wal_pragma_fails` - Logs when journal_mode WAL pragma fails
+  - `test_connect_logs_when_sync_pragma_fails` - Logs when synchronous pragma fails
+  - `test_connect_sets_wal_and_synchronous` - Enforces WAL + synchronous=NORMAL on connect
   - `test_check_json1_support_returns_false_when_extension_missing` - Returns False and logs when JSON1 missing
   - `test_init_database_raises_when_json1_missing` - Raises when JSON1 support is unavailable
   - `test_finalize_database_raises_when_path_missing` - Raises FileNotFoundError for missing DB path
   - `test_finalize_database_switches_to_delete_mode` - Journal mode switches to DELETE after finalize
+  - `test_finalize_database_runs_checkpoint` - finalize_database sets synchronous=FULL, checkpoints, and commits
 
 ### `tests/unit/data/storage/test_storage_cutoff.py`
 - Purpose: Time-based cutoff handling
@@ -500,12 +552,20 @@ The detailed inventory starts below this line (to be populated and maintained).
   **TestTimestampCursors**
   - `test_global_timestamp_roundtrip` - Global timestamp stored with __GLOBAL__ symbol and round-trips as UTC
   - `test_symbol_timestamp_roundtrip` - Per-symbol timestamps stored and round-trip correctly
+  - `test_timestamp_upsert_is_monotonic` - Newer timestamps stick; older writes ignored
   **TestSymbolNormalization**
   - `test_symbol_scope_requires_non_empty_value` - Symbol scope rejects None, empty, and reserved __GLOBAL__ sentinel
   - `test_global_scope_rejects_symbols` - Global scope requires None and normalizes to __GLOBAL__; rejects non-None symbols
   **TestIdCursors**
   - `test_global_id_roundtrip` - Global ID watermark stored and retrieved as integer
   - `test_corrupted_id_row_returns_none` - Corrupted/non-integer ID rows are logged and return None
+  - `test_id_upsert_is_monotonic` - Newer IDs replace older values
+  **TestEnumLocks**
+  - `test_provider_enum_reddit_value` - Locks Provider.REDDIT value
+  - `test_stream_enum_social_value` - Locks Stream.SOCIAL value
+  **TestSchemaConstraints**
+  - `test_xor_constraint_blocks_timestamp_and_id` - XOR constraint blocks rows with both timestamp and id
+  - `test_global_scope_defaults_symbol_to_global` - Global scope writes store __GLOBAL__ sentinel
 
 ### `tests/unit/data/storage/test_storage_llm_batch.py`
 - Purpose: LLM batch commit flow
@@ -527,6 +587,19 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_get_news_symbols_filters_by_symbol` - get facade filters by symbol
   - `test_news_symbols_cascade_on_news_deletion` - Cascades on news delete
   - `test_store_news_symbols_conflict_updates_is_important` - Conflict update flips importance flag
+
+### `tests/unit/data/storage/test_storage_social.py`
+- Purpose: Social discussion storage CRUD
+- Tests:
+  **TestStoreSocialDiscussions**
+  - `test_store_social_discussions_inserts` - Inserts unique rows with normalized fields
+  - `test_store_social_discussions_upserts_on_source_id` - Upserts on (source, source_id) conflicts
+  - `test_store_social_discussions_empty_list_noop` - Empty list no-op
+  **TestGetSocialDiscussions**
+  - `test_get_social_discussions_since_filters_by_timestamp` - Filters by published cutoff
+  - `test_get_social_discussions_since_filters_by_symbol_case_insensitive` - Symbol filter uppercases input
+  - `test_get_social_discussions_since_sorted_ascending` - Results ordered ascending by published
+  - `test_store_and_get_preserves_content_and_url_normalization` - Content round-trips; URLs normalized
 
 ### `tests/unit/data/storage/test_storage_prices.py`
 - Purpose: Price storage validation
@@ -596,6 +669,9 @@ The detailed inventory starts below this line (to be populated and maintained).
   **TestPriceDataSourceContract**
   - `test_requires_fetch_incremental` - Enforces fetch_incremental implementation
   - `test_concrete_implementation_satisfies_contract` - Concrete subclass works
+  **TestSocialDataSourceContract**
+  - `test_requires_fetch_incremental` - Enforces social fetch_incremental implementation
+  - `test_concrete_implementation_satisfies_contract` - Concrete subclass handles cursors
   **TestDataSourceErrorContract**
   - `test_exception_inheritance` - DataSourceError hierarchy
 
@@ -603,11 +679,12 @@ The detailed inventory starts below this line (to be populated and maintained).
 - Purpose: Dataclasses and enums validation
 - Tests:
   **TestNewsItem**
-  - `test_newsitem_valid_creation` - Valid creation
-  - `test_newsitem_url_validation` - URL validation
-  - `test_newsitem_empty_field_validation` - Empty field rejection
-  - `test_newsitem_news_type_variants` - Accepts enum or exact string values
-  - `test_newsitem_timezone_normalization` - UTC normalization
+  - `test_newsitem_valid_creation` - Valid NewsItem requires core fields and normalizes to UTC
+  - `test_newsitem_url_validation_accepts_http` - Accepts http/https URLs with valid hosts
+  - `test_newsitem_url_validation_rejects_non_http` - Rejects non-http(s) or malformed URLs
+  - `test_newsitem_empty_field_validation` - Rejects empty headline/source after stripping
+  - `test_newsitem_news_type_variants` - Accepts enum instances or exact NewsType strings
+  - `test_newsitem_timezone_normalization` - Normalizes naive published datetimes to UTC
   **TestNewsEntry**
   - `test_newsentry_symbol_uppercasing_and_passthrough` - Symbol uppercased; article passthrough
   - `test_newsentry_is_important_accepts_bool_or_none` - Bool/None accepted
@@ -640,6 +717,15 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_holdings_timezone_normalization` - UTC normalization
   - `test_holdings_symbol_validation` - Symbol validation
   - `test_holdings_notes_trimming` - Notes trimming
+
+### `tests/unit/data/test_models_social.py`
+- Purpose: SocialDiscussion validation and normalization
+- Tests:
+  **TestSocialDiscussionValidation**
+  - `test_required_fields_raise_value_error` - Empty/invalid fields raise ValueError
+  - `test_non_datetime_published_raises` - Non-datetime published raises ValueError
+  **TestSocialDiscussionNormalization**
+  - `test_normalization_strips_and_uppercases` - Trims fields, uppercases symbol, normalizes published to UTC
 
 ### `tests/unit/llm/test_llm_base.py`
 - Purpose: LLM provider base class contracts
@@ -762,6 +848,13 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_mixed_valid_invalid_tokens_logs_when_validate_true` - Logs on invalid tokens
   - `test_share_class_and_suffix_symbols_allowed` - Accepts share-class suffixes and digits
 
+### `tests/unit/run_poller/test_build_config_reddit.py`
+- Purpose: build_config Reddit credential enforcement
+- Tests:
+  **TestBuildConfigReddit**
+  - `test_build_config_requires_reddit_creds` - Missing Reddit env vars raise ValueError
+  - `test_build_config_succeeds_with_reddit_creds` - Loads reddit_settings when all env vars set
+
 ### `tests/unit/workflows/test_poller.py`
 - Purpose: DataPoller orchestration
 - Tags: [async]
@@ -773,7 +866,9 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_poll_once_collects_price_provider_errors` - Reports price provider failures without aborting
   - `test_fetch_all_data_forwards_cursor_kwargs` - Forwards since/min_id/symbol_since_map into provider fetch calls
   - `test_fetch_all_data_routes_company_and_macro_news` - Routes entries into company vs macro collections based on stream type
+  - `test_fetch_all_data_handles_social_providers` - Passes cursors into social providers and captures errors
   - `test_poll_once_logs_no_price_data` - Logs when no price data is fetched
+  - `test_poll_once_includes_social_stats` - Social counts surfaced in poll stats with errors merged
   - `test_poll_once_catches_cycle_error_and_appends` - Catches cycle error and appends to stats
 
   **TestDataPollerProcessPrices**
@@ -783,6 +878,10 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_process_prices_secondary_missing_symbol_warns` - Warns when secondary lacks symbol; primary stored
   - `test_process_prices_mismatch_logs_error_and_keeps_primary` - Logs mismatch (≥ $0.01); stores primary only
   - `test_process_prices_handles_duplicate_class_instances` - Handles duplicate class instances; primary stored; mismatch logged
+
+  **TestDataPollerSocialProcessing**
+  - `test_process_social_stores_and_commits` - Stores social discussions and commits per-provider watermarks
+  - `test_process_social_logs_when_empty` - Logs notice and returns zero when no social items
 
   **TestDataPollerNewsProcessing**
   - `test_process_news_commits_each_provider` - Commits watermark updates once per provider with that provider's entries
@@ -803,11 +902,13 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_finnhub_macro_plan_uses_id_cursor` - Uses stored ID watermark for Finnhub macro streams
   - `test_finnhub_company_plan_maps_each_symbol` - Builds per-symbol timestamp cursors with bootstrap for new symbols
   - `test_polygon_company_plan_bootstraps_symbols` - Uses global timestamp watermark and per-symbol bootstrap overrides
+  - `test_reddit_social_plan_uses_per_symbol_map` - Per-symbol social cursors use first-run window or stored cursor
   **TestCommitUpdates**
   - `test_symbol_scope_clamps_future` - Clamps per-symbol timestamps slightly in the future
   - `test_global_scope_bootstrap_updates` - Updates global and per-symbol timestamps with clamping and max-of-existing behavior
   - `test_id_scope_writes_last_fetched_max` - Writes last_fetched_max_id for ID-based macro streams
   - `test_id_scope_noop_without_last_fetched` - No-op when last_fetched_max_id is None
+  - `test_social_scope_commits_per_symbol_and_clamps_future` - Social watermarks clamped and monotonic per symbol
   **TestHelpers**
   - `test_get_settings_missing_attribute_raises` - _get_settings raises when provider lacks settings attribute
-  - `test_is_macro_stream_matches_rule` - is_macro_stream returns True only for macro providers
+  - `test_is_macro_stream_matches_rule` - is_macro_stream returns True only for macro providers (False for Reddit)

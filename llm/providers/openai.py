@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from typing import Any
 
 from openai import (
@@ -29,7 +30,7 @@ class OpenAIProvider(LLMProvider):
         model_name: str,
         *,
         temperature: float | None = None,
-        reasoning: dict[str, Any] | None = None,
+        reasoning: Mapping[str, Any] | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | dict[str, Any] | None = None,
         **kwargs,
@@ -168,6 +169,7 @@ class OpenAIProvider(LLMProvider):
         return LLMError(f"Unexpected error: {str(e)}")
 
     async def validate_connection(self) -> bool:
+        """Return True when OpenAI models.list succeeds; False when API errors."""
         try:
             await self.client.models.list()
             return True

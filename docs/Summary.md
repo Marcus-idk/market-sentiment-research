@@ -100,17 +100,17 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 - `data/schema.sql` - SQLite schema definition with constraints
 
 - `data/base.py` - Abstract base classes for data sources
-  - `DataSource` - Base class for all data sources
+  - `DataSource` - Base class for all data sources; constructor enforces `source_name` as a non-empty string (≤100 chars) and strips whitespace
   - `DataSourceError` - Exception for data source failures
   - `NewsDataSource` - Abstract class for news providers
-    - `fetch_incremental(*, since: datetime | None = None, min_id: int | None = None, symbol_since_map: dict[str, datetime | None] | None = None) -> list[NewsEntry]` — unified cursor interface
+    - `fetch_incremental(*, since: datetime | None = None, min_id: int | None = None, symbol_since_map: Mapping[str, datetime] | None = None) -> list[NewsEntry]` — unified cursor interface
       - Date-based providers use `since` (ignore `min_id`)
       - ID-based providers use `min_id` (ignore `since`)
       - `symbol_since_map` allows per-symbol cursors that override the global `since` where supported
   - `PriceDataSource` - Abstract class for price providers
     - `fetch_incremental() -> list[PriceData]` — snapshot price fetch (no incremental cursors yet)
   - `SocialDataSource` - Abstract class for social providers
-    - `fetch_incremental(*, since: datetime | None = None, symbol_since_map: dict[str, datetime | None] | None = None) -> list[SocialDiscussion]` — timestamp cursors (per-symbol or global)
+    - `fetch_incremental(*, since: datetime | None = None, symbol_since_map: Mapping[str, datetime] | None = None) -> list[SocialDiscussion]` — timestamp cursors (per-symbol or global)
 
 - `data/models.py` - Core dataclasses and enums
   **Enums**:
@@ -191,6 +191,7 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
       - `__init__()` - Initialize with settings
       - `get()` - Make authenticated GET request with retry logic (path, optional params)
       - `validate_connection()` - API validation using market status endpoint
+      - `_extract_cursor_from_next_url(next_url)` - Helper to extract `cursor` query param from Polygon `next_url` pagination links
     - `PolygonNewsProvider` - Company news fetching implementation (global cursor with symbol overrides)
       - `__init__()` - Initialize with settings and symbols
       - `validate_connection()` - Delegates to client
@@ -243,8 +244,8 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
   - `llm/providers/gemini.py`
     - `GeminiProvider` - Google Gemini implementation
       - `__init__()` - Configure with model, temperature, tools, tool_choice, thinking_config
-        - `tool_choice`: maps to Gemini function-calling modes — `none→NONE`, `auto→AUTO`, `any→ANY`; "any" requires `tools` to be provided
-        - Defaults: if `thinking_config` is not provided, the provider sets `{"thinking_budget_token_limit": 128}` (small but non‑zero reasoning budget for thinking models that support it)
+        - `tool_choice`: maps to Gemini function-calling modes — `none→NONE`, `auto→AUTO`, `any→ANY`; `"any"` requires `tools` to be provided and any `tool_choice` requires tools with `function_declarations` (built-in tools alone are not enough)
+        - Defaults: if `thinking_config` is not provided, the provider sets `{"thinking_budget_token_limit": 128}`; when provided, budgets below 128 are clamped up to 128 to keep a minimum reasoning budget
         - Code execution is opt‑in via `tools=[{"code_execution": {}}]`
       - `generate()` - Send prompt and get response
       - `validate_connection()` - Test API connectivity

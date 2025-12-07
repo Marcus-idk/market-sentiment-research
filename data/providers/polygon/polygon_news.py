@@ -1,7 +1,7 @@
 """Polygon.io company news provider implementation."""
 
 import logging
-import urllib.parse
+from collections.abc import Mapping
 from datetime import (
     UTC,
     datetime,
@@ -13,7 +13,12 @@ from typing import Any
 from config.providers.polygon import PolygonSettings
 from data import DataSourceError, NewsDataSource
 from data.models import NewsEntry, NewsItem, NewsType
-from data.providers.polygon.polygon_client import NEWS_LIMIT, NEWS_ORDER, PolygonClient
+from data.providers.polygon.polygon_client import (
+    NEWS_LIMIT,
+    NEWS_ORDER,
+    PolygonClient,
+    _extract_cursor_from_next_url,
+)
 from data.storage.storage_utils import _datetime_to_iso
 from utils.datetime_utils import parse_rfc3339
 from utils.retry import RetryableError
@@ -39,7 +44,7 @@ class PolygonNewsProvider(NewsDataSource):
         self,
         *,
         since: datetime | None = None,
-        symbol_since_map: dict[str, datetime | None] | None = None,
+        symbol_since_map: Mapping[str, datetime] | None = None,
     ) -> list[NewsEntry]:
         """Fetch company news per symbol with overlap handling and pagination."""
         if not self.symbols:
@@ -76,7 +81,7 @@ class PolygonNewsProvider(NewsDataSource):
     def _resolve_symbol_cursor(
         self,
         symbol: str,
-        symbol_since_map: dict[str, datetime | None] | None,
+        symbol_since_map: Mapping[str, datetime] | None,
         global_since: datetime | None,
     ) -> datetime | None:
         """Return per-symbol cursor when available, else fall back to global."""
@@ -142,7 +147,7 @@ class PolygonNewsProvider(NewsDataSource):
                     break
 
                 # Extract cursor from next_url
-                cursor = self._extract_cursor(next_url)
+                cursor = _extract_cursor_from_next_url(next_url)
                 if not cursor:
                     break
 
@@ -158,17 +163,12 @@ class PolygonNewsProvider(NewsDataSource):
 
         return news_entries
 
-    # Duplicated from polygon_macro_news.py; could be refactored to a common base class
-    def _extract_cursor(self, next_url: str) -> str | None:
-        """Extract cursor parameter from Polygon next_url."""
-        try:
-            parsed = urllib.parse.urlparse(next_url)
-            query_params = urllib.parse.parse_qs(parsed.query)
-            cursor = query_params.get("cursor", [None])[0]
-            return cursor
-        except (ValueError, TypeError, KeyError, AttributeError) as exc:
-            logger.debug(f"Failed to extract cursor from next_url: {exc}")
+    @staticmethod
+    def _extract_cursor(next_url: str | None) -> str | None:
+        """Extract cursor parameter from Polygon next_url (legacy wrapper for tests)."""
+        if next_url is None:
             return None
+        return _extract_cursor_from_next_url(next_url)
 
     def _parse_article(
         self,

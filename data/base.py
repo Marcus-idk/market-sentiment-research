@@ -1,6 +1,7 @@
 """Core abstract base classes for data providers."""
 
 from abc import ABC, abstractmethod
+from collections.abc import Mapping
 from datetime import datetime
 
 from data.models import NewsEntry, PriceData, SocialDiscussion
@@ -42,7 +43,7 @@ class NewsDataSource(DataSource):
         *,
         since: datetime | None = None,
         min_id: int | None = None,
-        symbol_since_map: dict[str, datetime | None] | None = None,
+        symbol_since_map: Mapping[str, datetime] | None = None,
     ) -> list[NewsEntry]:
         """Fetch new news items using incremental cursors.
 
@@ -65,7 +66,7 @@ class SocialDataSource(DataSource):
         self,
         *,
         since: datetime | None = None,
-        symbol_since_map: dict[str, datetime | None] | None = None,
+        symbol_since_map: Mapping[str, datetime] | None = None,
     ) -> list[SocialDiscussion]:
         """Fetch new social discussion items using incremental cursors."""
         raise NotImplementedError(

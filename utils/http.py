@@ -1,3 +1,4 @@
+from collections.abc import Mapping
 from typing import Any
 
 import httpx
@@ -9,8 +10,8 @@ from utils.retry import RetryableError, parse_retry_after, retry_and_call
 async def get_json_with_retry(
     url: str,
     *,
-    params: dict[str, Any] | None = None,
-    headers: dict[str, str] | None = None,
+    params: Mapping[str, Any] | None = None,
+    headers: Mapping[str, str] | None = None,
     timeout: float,
     max_retries: int,
     base: float = 0.25,

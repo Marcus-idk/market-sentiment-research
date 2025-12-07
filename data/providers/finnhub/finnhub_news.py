@@ -1,6 +1,7 @@
 """Company news provider implementation."""
 
 import logging
+from collections.abc import Mapping
 from datetime import (
     UTC,
     datetime,
@@ -37,7 +38,7 @@ class FinnhubNewsProvider(NewsDataSource):
         self,
         *,
         since: datetime | None = None,
-        symbol_since_map: dict[str, datetime | None] | None = None,
+        symbol_since_map: Mapping[str, datetime] | None = None,
     ) -> list[NewsEntry]:
         """Fetch company news for tracked symbols using overlap cursors."""
         if not self.symbols:
@@ -98,7 +99,7 @@ class FinnhubNewsProvider(NewsDataSource):
     def _resolve_symbol_cursor(
         self,
         symbol: str,
-        symbol_since_map: dict[str, datetime | None] | None,
+        symbol_since_map: Mapping[str, datetime] | None,
         global_since: datetime | None,
     ) -> datetime | None:
         """Pick the most specific cursor for a symbol (per-symbol over global)."""

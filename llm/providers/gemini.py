@@ -1,4 +1,5 @@
 import logging
+from collections.abc import Mapping
 from typing import Any, cast
 
 from google import genai
@@ -21,7 +22,7 @@ class GeminiProvider(LLMProvider):
         temperature: float | None = None,
         tools: list[dict[str, Any]] | None = None,
         tool_choice: str | None = None,
-        thinking_config: dict[str, Any] | None = None,
+        thinking_config: Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
         super().__init__(**kwargs)
@@ -200,6 +201,7 @@ class GeminiProvider(LLMProvider):
             return LLMError(f"Unexpected error: {error_msg}")
 
     async def validate_connection(self) -> bool:
+        """Return True when Gemini API responds to models.list; False on failure."""
         try:
             await self.client.aio.models.list()
             return True

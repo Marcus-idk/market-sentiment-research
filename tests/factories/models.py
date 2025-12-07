@@ -14,6 +14,7 @@ from data.models import (
     NewsType,
     PriceData,
     Session,
+    SocialDiscussion,
     Stance,
 )
 
@@ -29,6 +30,7 @@ def make_news_item(
     news_type: NewsType = NewsType.COMPANY_SPECIFIC,
     content: str | None = None,
 ) -> NewsItem:
+    """Build a NewsItem instance with sensible defaults for tests."""
     published_at = published or _DEFAULT_TIME
     return NewsItem(
         url=url,
@@ -51,6 +53,7 @@ def make_news_entry(
     content: str | None = None,
     is_important: bool | None = None,
 ) -> NewsEntry:
+    """Build a NewsEntry (NewsItem + symbol/importance) for tests."""
     article = make_news_item(
         url=url,
         headline=headline,
@@ -70,6 +73,7 @@ def make_price_data(
     volume: int | None = None,
     session: Session = Session.REG,
 ) -> PriceData:
+    """Build a PriceData instance representing a single price point."""
     timestamp_dt = timestamp or _DEFAULT_TIME
     return PriceData(
         symbol=symbol,
@@ -91,6 +95,7 @@ def make_analysis_result(
     created_at: datetime | None = None,
     result_json: str = '{"status": "ok"}',
 ) -> AnalysisResult:
+    """Build an AnalysisResult instance with default model output."""
     return AnalysisResult(
         symbol=symbol,
         analysis_type=analysis_type,
@@ -113,6 +118,7 @@ def make_holdings(
     updated_at: datetime | None = None,
     notes: str | None = None,
 ) -> Holdings:
+    """Build a Holdings instance representing a position in a symbol."""
     return Holdings(
         symbol=symbol,
         quantity=quantity,
@@ -121,4 +127,28 @@ def make_holdings(
         created_at=created_at or _DEFAULT_TIME,
         updated_at=updated_at or _DEFAULT_TIME,
         notes=notes,
+    )
+
+
+def make_social_discussion(
+    *,
+    source: str = "reddit",
+    source_id: str = "t3_1",
+    symbol: str = "AAPL",
+    community: str = "stocks",
+    title: str = "Title",
+    url: str = "https://reddit.com/r/stocks/comments/1",
+    published: datetime | None = None,
+    content: str | None = "Body",
+) -> SocialDiscussion:
+    """Build a SocialDiscussion with sane defaults."""
+    return SocialDiscussion(
+        source=source,
+        source_id=source_id,
+        symbol=symbol,
+        community=community,
+        title=title,
+        url=url,
+        published=published or _DEFAULT_TIME,
+        content=content,
     )

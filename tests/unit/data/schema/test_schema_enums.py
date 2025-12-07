@@ -68,11 +68,13 @@ class TestEnumValueLocks:
         """Lock Provider/Stream/Scope enum values used in last_seen_state."""
         assert Provider.FINNHUB.value == "FINNHUB"
         assert Provider.POLYGON.value == "POLYGON"
-        assert set(p.value for p in Provider) == {"FINNHUB", "POLYGON"}
+        assert Provider.REDDIT.value == "REDDIT"
+        assert set(p.value for p in Provider) == {"FINNHUB", "POLYGON", "REDDIT"}
 
         assert Stream.COMPANY.value == "COMPANY"
         assert Stream.MACRO.value == "MACRO"
-        assert set(s.value for s in Stream) == {"COMPANY", "MACRO"}
+        assert Stream.SOCIAL.value == "SOCIAL"
+        assert set(s.value for s in Stream) == {"COMPANY", "MACRO", "SOCIAL"}
 
         assert Scope.GLOBAL.value == "GLOBAL"
         assert Scope.SYMBOL.value == "SYMBOL"
@@ -330,11 +332,19 @@ class TestEnumConstraints:
     def test_last_seen_state_constraints(self, temp_db):
         """Test last_seen_state provider/stream/scope CHECK constraints."""
         with _cursor_context(temp_db) as cursor:
-            # Valid values
+            # Valid values - timestamp only
             cursor.execute(
                 """
                 INSERT INTO last_seen_state (provider, stream, scope, symbol, timestamp, id)
-                VALUES ('FINNHUB', 'COMPANY', 'GLOBAL', '__GLOBAL__', '2024-01-01T00:00:00Z', 1)
+                VALUES ('FINNHUB', 'COMPANY', 'GLOBAL', '__GLOBAL__', '2024-01-01T00:00:00Z', NULL)
+            """
+            )
+
+            # Valid values - id only
+            cursor.execute(
+                """
+                INSERT INTO last_seen_state (provider, stream, scope, symbol, timestamp, id)
+                VALUES ('POLYGON', 'MACRO', 'SYMBOL', 'AAPL', NULL, 5)
             """
             )
 

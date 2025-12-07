@@ -4,6 +4,7 @@ from __future__ import annotations
 
 import asyncio
 import logging
+from collections.abc import Mapping
 from datetime import UTC, datetime, timedelta
 from typing import Any
 
@@ -39,7 +40,7 @@ class RedditSocialProvider(SocialDataSource):
         self,
         *,
         since: datetime | None = None,
-        symbol_since_map: dict[str, datetime | None] | None = None,
+        symbol_since_map: Mapping[str, datetime] | None = None,
     ) -> list[SocialDiscussion]:
         """Fetch Reddit discussions for tracked symbols using incremental cursors."""
         if not self.symbols:
@@ -81,7 +82,7 @@ class RedditSocialProvider(SocialDataSource):
     def _resolve_symbol_cursor(
         self,
         symbol: str,
-        symbol_since_map: dict[str, datetime | None] | None,
+        symbol_since_map: Mapping[str, datetime] | None,
         global_since: datetime | None,
     ) -> datetime | None:
         """Return per-symbol cursor when available, else fall back to global."""
@@ -137,11 +138,9 @@ class RedditSocialProvider(SocialDataSource):
             # defensive conversion float()
             published = datetime.fromtimestamp(float(created_utc), tz=UTC)
         except (ValueError, OSError, TypeError) as exc:
+            submission_id = getattr(submission, "id", "unknown")
             logger.debug(
-                "Failed to parse timestamp %r for submission %s: %s",
-                created_utc,
-                getattr(submission, "id", "unknown"),
-                exc,
+                f"Failed to parse timestamp {created_utc!r} for submission {submission_id}: {exc}"
             )
             return None
 

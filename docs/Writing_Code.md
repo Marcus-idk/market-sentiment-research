@@ -225,6 +225,9 @@ def process(items: list[str]) -> dict[str, int | None]:
 # Keep from typing: Mapping, Any, Callable, Awaitable, Iterator, TypeVar
 ```
 
+### MAPPING_VS_DICT
+Use `Mapping` for read-only inputs; `dict` for mutable locals/returns.
+
 ### KEYWORD_ONLY_ARGS
 Use `*` for clarity when needed.
 

@@ -15,6 +15,7 @@ from data.models import (
     NewsType,
     PriceData,
     Session,
+    SocialDiscussion,
     Stance,
 )
 
@@ -39,51 +40,69 @@ class TestNewsItem:
         assert item.content == "Optional content here"
         assert item.news_type is NewsType.COMPANY_SPECIFIC
 
-    def test_newsitem_url_validation(self):
-        """URL must be http(s)."""
-        base_kwargs = {
+    @pytest.mark.parametrize(
+        "url",
+        [
+            "http://example.com",
+            "https://example.com",
+            "https://example.com/path?param=value",
+        ],
+    )
+    def test_newsitem_url_validation_accepts_http(self, url):
+        """URL must allow http/https."""
+        base = {
             "headline": "Test",
             "source": "Test Source",
             "published": datetime.now(),
             "news_type": NewsType.COMPANY_SPECIFIC,
         }
+        item = NewsItem(url=url, **base)
+        assert item.url == url
 
-        for url in [
-            "http://example.com",
-            "https://example.com",
-            "https://example.com/path?param=value",
-        ]:
-            item = NewsItem(url=url, **base_kwargs)
-            assert item.url == url
-
-        for url in [
+    @pytest.mark.parametrize(
+        "url",
+        [
             "ftp://example.com",
             "file:///path/to/file",
             "data:text/plain;base64,SGVsbG8=",
             "javascript:alert(1)",
             "invalid-url",
             "",
-        ]:
-            with pytest.raises(ValueError, match="url must be http\\(s\\)"):
-                NewsItem(url=url, **base_kwargs)
-
-    def test_newsitem_empty_field_validation(self):
-        """headline, source, and news_type required after strip()."""
-        base_kwargs = {
-            "url": "https://example.com",
+        ],
+    )
+    def test_newsitem_url_validation_rejects_non_http(self, url):
+        """URL must be http(s)."""
+        base = {
             "headline": "Test Headline",
             "source": "Test Source",
             "published": datetime.now(),
             "news_type": NewsType.MACRO,
         }
+        with pytest.raises(ValueError, match="url must be http\\(s\\)"):
+            NewsItem(url=url, **base)
 
-        with pytest.raises(ValueError, match="headline cannot be empty"):
-            NewsItem(**{**base_kwargs, "headline": "\t\n"})
+    @pytest.mark.parametrize(
+        "field, value, message",
+        [
+            ("headline", "\t\n", "headline cannot be empty"),
+            ("source", "", "source cannot be empty"),
+        ],
+    )
+    def test_newsitem_empty_field_validation(self, field, value, message):
+        """headline and source required after strip()."""
+        base = {
+            "url": "https://example.com",
+            "headline": "Test Headline",
+            "source": "Test Source",
+            "published": datetime.now(),
+            "news_type": NewsType.MACRO,
+            "content": "  \n  ",
+        }
+        base[field] = value
+        with pytest.raises(ValueError, match=message):
+            NewsItem(**base)
 
-        with pytest.raises(ValueError, match="source cannot be empty"):
-            NewsItem(**{**base_kwargs, "source": ""})
-
-        item = NewsItem(**{**base_kwargs, "content": "  \n  "})
+        item = NewsItem(**{**base, field: "Ok"})
         assert item.content == "  \n  "
 
     def test_newsitem_news_type_variants(self):
@@ -228,21 +247,19 @@ class TestPriceData:
         )
         assert price2.symbol == "MSFT"
 
-    def test_pricedata_price_must_be_positive(self):
-        """Test price > 0 validation (not >= 0)"""
-        base_data = {"symbol": "AAPL", "timestamp": datetime.now(), "price": Decimal("150.00")}
-
-        # Valid positive price
-        item = PriceData(**base_data)
-        assert item.price == Decimal("150.00")
-
-        # Zero price should raise ValueError
-        with pytest.raises(ValueError, match="price must be > 0"):
-            PriceData(**{**base_data, "price": Decimal("0")})
-
-        # Negative price should raise ValueError
-        with pytest.raises(ValueError, match="price must be > 0"):
-            PriceData(**{**base_data, "price": Decimal("-10.50")})
+    @pytest.mark.parametrize(
+        "price",
+        [Decimal("150.00"), Decimal("0"), Decimal("-10.50")],
+    )
+    def test_pricedata_price_must_be_positive(self, price):
+        """price must be > 0."""
+        base = {"symbol": "AAPL", "timestamp": datetime.now()}
+        if price > 0:
+            item = PriceData(**{**base, "price": price})
+            assert item.price == price
+        else:
+            with pytest.raises(ValueError, match="price must be > 0"):
+                PriceData(**{**base, "price": price})
 
     def test_pricedata_volume_validation(self):
         """Test volume >= 0 validation (can be None)"""
@@ -273,13 +290,9 @@ class TestPriceData:
             item = PriceData(**{**base_data, "session": session})
             assert item.session == session
 
-        # Invalid values (string instead of enum)
-        with pytest.raises(ValueError, match="session must be a Session enum value"):
-            PriceData(**{**base_data, "session": "REG"})
-
-        # Invalid enum-like object
-        with pytest.raises(ValueError, match="session must be a Session enum value"):
-            PriceData(**{**base_data, "session": "INVALID"})
+        for bad_session in ["REG", "INVALID"]:
+            with pytest.raises(ValueError, match="session must be a Session enum value"):
+                PriceData(**{**base_data, "session": bad_session})
 
     def test_pricedata_decimal_precision(self):
         """Test Decimal type preservation"""
@@ -357,20 +370,12 @@ class TestAnalysisResult:
         item = AnalysisResult(**base_data)
         assert item.result_json == '{"key": "value"}'
 
-        # Malformed JSON should raise ValueError
         with pytest.raises(ValueError, match="result_json must be valid JSON"):
             AnalysisResult(**{**base_data, "result_json": '{"invalid": json}'})
 
-        # Non-object JSON (array) should raise ValueError
-        with pytest.raises(ValueError, match="result_json must be a JSON object"):
-            AnalysisResult(**{**base_data, "result_json": '["not", "an", "object"]'})
-
-        # Non-object JSON (primitive) should raise ValueError
-        with pytest.raises(ValueError, match="result_json must be a JSON object"):
-            AnalysisResult(**{**base_data, "result_json": '"just a string"'})
-
-        with pytest.raises(ValueError, match="result_json must be a JSON object"):
-            AnalysisResult(**{**base_data, "result_json": "42"})
+        for bad_json in ['["not", "an", "object"]', '"just a string"', "42"]:
+            with pytest.raises(ValueError, match="result_json must be a JSON object"):
+                AnalysisResult(**{**base_data, "result_json": bad_json})
 
     def test_analysisresult_confidence_range(self):
         """Test confidence_score must be 0.0 <= score <= 1.0"""
@@ -391,8 +396,7 @@ class TestAnalysisResult:
             assert item.confidence_score == score
 
         # Invalid values outside range
-        invalid_scores = [-0.1, -1.0, 1.1, 2.0]
-        for score in invalid_scores:
+        for score in [-0.1, -1.0, 1.1, 2.0]:
             with pytest.raises(ValueError, match="confidence_score must be between 0.0 and 1.0"):
                 AnalysisResult(**{**base_data, "confidence_score": score})
 
@@ -423,11 +427,9 @@ class TestAnalysisResult:
             item = AnalysisResult(**{**base_data, "stance": stance})
             assert item.stance == stance
 
-        # Invalid AnalysisType
         with pytest.raises(ValueError, match="analysis_type must be an AnalysisType enum value"):
             AnalysisResult(**{**base_data, "analysis_type": "news_analysis"})
 
-        # Invalid Stance
         with pytest.raises(ValueError, match="stance must be a Stance enum value"):
             AnalysisResult(**{**base_data, "stance": "BULL"})
 
@@ -472,7 +474,6 @@ class TestAnalysisResult:
         item = AnalysisResult(symbol="  AAPL  ", **base_data)
         assert item.symbol == "AAPL"
 
-        # Empty symbol after strip should raise ValueError
         with pytest.raises(ValueError, match="symbol cannot be empty"):
             AnalysisResult(symbol="   ", **base_data)
 
@@ -486,11 +487,9 @@ class TestAnalysisResult:
             "last_updated": datetime.now(),
         }
 
-        # Empty model_name after strip should raise ValueError
         with pytest.raises(ValueError, match="model_name cannot be empty"):
             AnalysisResult(**{**base_data, "model_name": "   ", "result_json": '{"key": "value"}'})
 
-        # Empty result_json after strip should raise ValueError
         with pytest.raises(ValueError, match="result_json cannot be empty"):
             AnalysisResult(**{**base_data, "model_name": "gpt-4", "result_json": "   "})
 
@@ -533,29 +532,16 @@ class TestHoldings:
         assert item.break_even_price == Decimal("150.00")
         assert item.total_cost == Decimal("15000.00")
 
-        # Zero quantity should raise ValueError
-        with pytest.raises(ValueError, match="quantity must be > 0"):
-            Holdings(**{**base_data, "quantity": Decimal("0")})
-
-        # Negative quantity should raise ValueError
-        with pytest.raises(ValueError, match="quantity must be > 0"):
-            Holdings(**{**base_data, "quantity": Decimal("-10")})
-
-        # Zero break_even_price should raise ValueError
-        with pytest.raises(ValueError, match="break_even_price must be > 0"):
-            Holdings(**{**base_data, "break_even_price": Decimal("0")})
-
-        # Negative break_even_price should raise ValueError
-        with pytest.raises(ValueError, match="break_even_price must be > 0"):
-            Holdings(**{**base_data, "break_even_price": Decimal("-50.00")})
-
-        # Zero total_cost should raise ValueError
-        with pytest.raises(ValueError, match="total_cost must be > 0"):
-            Holdings(**{**base_data, "total_cost": Decimal("0")})
-
-        # Negative total_cost should raise ValueError
-        with pytest.raises(ValueError, match="total_cost must be > 0"):
-            Holdings(**{**base_data, "total_cost": Decimal("-1000.00")})
+        for field, value in [
+            ("quantity", Decimal("0")),
+            ("quantity", Decimal("-10")),
+            ("break_even_price", Decimal("0")),
+            ("break_even_price", Decimal("-50.00")),
+            ("total_cost", Decimal("0")),
+            ("total_cost", Decimal("-1000.00")),
+        ]:
+            with pytest.raises(ValueError, match=f"{field} must be > 0"):
+                Holdings(**{**base_data, field: value})
 
     def test_holdings_decimal_precision(self):
         """Test all financial fields maintain Decimal precision"""
@@ -639,3 +625,71 @@ class TestHoldings:
 
         # Notes should be trimmed
         assert item.notes == "Buy more shares"
+
+
+class TestSocialDiscussion:
+    """SocialDiscussion model validation and normalization."""
+
+    @pytest.mark.parametrize(
+        "field, value, message",
+        [
+            ("source", "  ", "source cannot be empty"),
+            ("source_id", "", "source_id cannot be empty"),
+            ("symbol", " ", "symbol cannot be empty"),
+            ("community", "", "community cannot be empty"),
+            ("title", " ", "title cannot be empty"),
+            ("url", "not-a-url", "url must be http"),
+        ],
+    )
+    def test_required_fields_raise_value_error(self, field, value, message):
+        """Empty or invalid fields raise ValueError."""
+        kwargs = {
+            "source": "reddit",
+            "source_id": "t3_1",
+            "symbol": "AAPL",
+            "community": "stocks",
+            "title": "Title",
+            "url": "https://reddit.com",
+            "published": datetime(2024, 1, 15, 12, 0),
+            "content": "Body",
+        }
+        kwargs[field] = value
+
+        with pytest.raises(ValueError, match=message):
+            SocialDiscussion(**kwargs)  # type: ignore[arg-type]
+
+    def test_non_datetime_published_raises(self):
+        """Non-datetime published values raise ValueError."""
+        with pytest.raises(ValueError):
+            SocialDiscussion(
+                source="reddit",
+                source_id="t3_1",
+                symbol="AAPL",
+                community="stocks",
+                title="Title",
+                url="https://reddit.com",
+                published="2024-01-01",  # type: ignore[arg-type]
+            )
+
+    def test_normalization_strips_and_uppercases(self):
+        """Whitespace trimmed; symbol uppercased; published normalized to UTC."""
+        naive_time = datetime(2024, 1, 15, 9, 30)
+        discussion = SocialDiscussion(
+            source=" reddit ",
+            source_id=" t3_123 ",
+            symbol="aapl",
+            community=" stocks ",
+            title=" Title ",
+            url=" https://reddit.com/r/stocks ",
+            published=naive_time,
+            content=" Keep spacing ",
+        )
+
+        assert discussion.source == "reddit"
+        assert discussion.source_id == "t3_123"
+        assert discussion.symbol == "AAPL"
+        assert discussion.community == "stocks"
+        assert discussion.title == "Title"
+        assert discussion.url == "https://reddit.com/r/stocks"
+        assert discussion.published.tzinfo is UTC
+        assert discussion.content == " Keep spacing "

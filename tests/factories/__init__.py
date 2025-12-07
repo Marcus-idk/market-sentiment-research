@@ -6,6 +6,7 @@ from tests.factories.models import (
     make_news_entry,
     make_news_item,
     make_price_data,
+    make_social_discussion,
 )
 
 __all__ = [
@@ -14,4 +15,5 @@ __all__ = [
     "make_news_entry",
     "make_news_item",
     "make_price_data",
+    "make_social_discussion",
 ]

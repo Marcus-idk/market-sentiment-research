@@ -1,11 +1,12 @@
 """Contract tests for data provider ABCs and exceptions."""
 
+from collections.abc import Mapping
 from datetime import datetime
 
 import pytest
 
-from data.base import DataSource, DataSourceError, NewsDataSource, PriceDataSource
-from data.models import NewsEntry, PriceData
+from data.base import DataSource, DataSourceError, NewsDataSource, PriceDataSource, SocialDataSource
+from data.models import NewsEntry, PriceData, SocialDiscussion
 
 
 class TestDataSourceContract:
@@ -160,3 +161,37 @@ class TestDataSourceErrorContract:
         error = DataSourceError("Test error")
         assert isinstance(error, DataSourceError)
         assert isinstance(error, Exception)
+
+
+class TestSocialDataSourceContract:
+    """Contract tests for the SocialDataSource abstract base class."""
+
+    def test_requires_fetch_incremental(self):
+        """SocialDataSource must define fetch_incremental."""
+        with pytest.raises(TypeError, match="fetch_incremental"):
+
+            class IncompleteSocial(SocialDataSource):
+                async def validate_connection(self):
+                    return True
+
+            IncompleteSocial("Test")  # type: ignore[reportAbstractUsage]
+
+    def test_concrete_implementation_satisfies_contract(self):
+        """Concrete implementation accepts optional cursors."""
+
+        class ConcreteSocial(SocialDataSource):
+            async def validate_connection(self) -> bool:
+                return True
+
+            async def fetch_incremental(
+                self,
+                *,
+                since=None,
+                symbol_since_map=None,
+            ) -> list[SocialDiscussion]:
+                assert since is None or isinstance(since, datetime)
+                assert symbol_since_map is None or isinstance(symbol_since_map, Mapping)
+                return []
+
+        social = ConcreteSocial("SocialTest")
+        assert social.source_name == "SocialTest"

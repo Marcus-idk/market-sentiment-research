@@ -1,6 +1,7 @@
 """Polygon.io API client wrapper."""
 
 import logging
+import urllib.parse
 from typing import Any
 
 from config.providers.polygon import PolygonSettings
@@ -12,6 +13,17 @@ logger = logging.getLogger(__name__)
 
 NEWS_LIMIT = 100
 NEWS_ORDER = "asc"
+
+
+def _extract_cursor_from_next_url(next_url: str) -> str | None:
+    """Extract cursor parameter value from a Polygon next_url pagination link."""
+    try:
+        parsed = urllib.parse.urlparse(next_url)
+        query_params = urllib.parse.parse_qs(parsed.query)
+        return query_params.get("cursor", [None])[0]
+    except (ValueError, TypeError, KeyError, AttributeError) as exc:
+        logger.debug(f"Failed to extract cursor from next_url: {exc}")
+        return None
 
 
 class PolygonClient:

@@ -73,6 +73,8 @@ class NewsItem:
             self.news_type = NewsType(self.news_type)
         if not isinstance(self.news_type, NewsType):
             raise ValueError("news_type must be a NewsType enum value")
+        if not isinstance(self.published, datetime):
+            raise ValueError("published must be a datetime")
         self.published = normalize_to_utc(self.published)
 
 
@@ -172,6 +174,8 @@ class SocialDiscussion:
             raise ValueError("title cannot be empty")
         if not _valid_http_url(self.url):
             raise ValueError("url must be http(s)")
+        if not isinstance(self.published, datetime):
+            raise ValueError("published must be a datetime")
 
         self.published = normalize_to_utc(self.published)
 
@@ -191,6 +195,8 @@ class PriceData:
         self.symbol = self.symbol.strip().upper()
         if not self.symbol:
             raise ValueError("symbol cannot be empty")
+        if not isinstance(self.timestamp, datetime):
+            raise ValueError("timestamp must be a datetime")
         self.timestamp = normalize_to_utc(self.timestamp)
         if self.price <= 0:
             raise ValueError("price must be > 0")
@@ -236,8 +242,12 @@ class AnalysisResult:
             raise ValueError("stance must be a Stance enum value")
         if not (0.0 <= self.confidence_score <= 1.0):
             raise ValueError("confidence_score must be between 0.0 and 1.0")
+        if not isinstance(self.last_updated, datetime):
+            raise ValueError("last_updated must be a datetime")
         self.last_updated = normalize_to_utc(self.last_updated)
         if self.created_at is not None:
+            if not isinstance(self.created_at, datetime):
+                raise ValueError("created_at must be a datetime")
             self.created_at = normalize_to_utc(self.created_at)
 
 
@@ -267,6 +277,10 @@ class Holdings:
         if self.total_cost <= 0:
             raise ValueError("total_cost must be > 0")
         if self.created_at is not None:
+            if not isinstance(self.created_at, datetime):
+                raise ValueError("created_at must be a datetime")
             self.created_at = normalize_to_utc(self.created_at)
         if self.updated_at is not None:
+            if not isinstance(self.updated_at, datetime):
+                raise ValueError("updated_at must be a datetime")
             self.updated_at = normalize_to_utc(self.updated_at)

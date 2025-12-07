@@ -2,6 +2,7 @@
 
 from __future__ import annotations
 
+import sqlite3
 from datetime import UTC, datetime
 
 import pytest
@@ -115,6 +116,44 @@ class TestTimestampCursors:
             == tsla
         )
 
+    def test_timestamp_upsert_is_monotonic(self, temp_db):
+        """Newer timestamps stick; older writes ignored."""
+        first = datetime(2024, 3, 1, 12, 0, tzinfo=UTC)
+        newer = first.replace(hour=13)
+        older = first.replace(hour=11)
+
+        set_last_seen_timestamp(
+            temp_db,
+            Provider.FINNHUB,
+            Stream.MACRO,
+            Scope.GLOBAL,
+            first,
+        )
+        set_last_seen_timestamp(
+            temp_db,
+            Provider.FINNHUB,
+            Stream.MACRO,
+            Scope.GLOBAL,
+            newer,
+        )
+        set_last_seen_timestamp(
+            temp_db,
+            Provider.FINNHUB,
+            Stream.MACRO,
+            Scope.GLOBAL,
+            older,
+        )
+
+        assert (
+            get_last_seen_timestamp(
+                temp_db,
+                Provider.FINNHUB,
+                Stream.MACRO,
+                Scope.GLOBAL,
+            )
+            == newer
+        )
+
 
 class TestSymbolNormalization:
     """_normalize_symbol enforces scope-specific requirements."""
@@ -186,3 +225,56 @@ class TestIdCursors:
             Scope.GLOBAL,
         )
         assert result is None
+
+    def test_id_upsert_is_monotonic(self, temp_db):
+        """Newer IDs replace older; older writes ignored."""
+        set_last_seen_id(temp_db, Provider.FINNHUB, Stream.MACRO, Scope.GLOBAL, 50)
+        set_last_seen_id(temp_db, Provider.FINNHUB, Stream.MACRO, Scope.GLOBAL, 40)
+
+        assert (
+            get_last_seen_id(
+                temp_db,
+                Provider.FINNHUB,
+                Stream.MACRO,
+                Scope.GLOBAL,
+            )
+            == 50
+        )
+
+
+class TestSchemaConstraints:
+    """Schema-level invariants enforced by storage helpers."""
+
+    def test_xor_constraint_blocks_timestamp_and_id(self, temp_db):
+        """Cannot store both timestamp and id in same row."""
+        with pytest.raises(sqlite3.IntegrityError):
+            with _cursor_context(temp_db) as cursor:
+                cursor.execute(
+                    """
+                    INSERT INTO last_seen_state (provider, stream, scope, symbol, timestamp, id)
+                    VALUES (?, ?, ?, ?, ?, ?)
+                    """,
+                    (
+                        Provider.FINNHUB.value,
+                        Stream.MACRO.value,
+                        Scope.GLOBAL.value,
+                        "__GLOBAL__",
+                        "2024-01-01T00:00:00Z",
+                        1,
+                    ),
+                )
+
+    def test_global_scope_defaults_symbol_to_global(self, temp_db):
+        """Global scope writes store the __GLOBAL__ sentinel."""
+        set_last_seen_id(temp_db, Provider.FINNHUB, Stream.MACRO, Scope.GLOBAL, 5)
+
+        with _cursor_context(temp_db, commit=False) as cursor:
+            cursor.execute(
+                """
+                SELECT symbol FROM last_seen_state
+                WHERE provider=? AND stream=? AND scope=?
+                """,
+                (Provider.FINNHUB.value, Stream.MACRO.value, Scope.GLOBAL.value),
+            )
+            row = cursor.fetchone()
+            assert row["symbol"] == "__GLOBAL__"
