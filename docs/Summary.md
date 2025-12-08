@@ -311,9 +311,9 @@ Framework for US equities data collection and LLM-ready storage. Current scope: 
 **Purpose**: Stubs for news labeling and urgency analysis (LLM-backed flow planned for v0.5)
 
 **Files**:
-- `analysis/__init__.py` - Public facade (re-exports news_classifier, urgency_detector submodules)
-- `analysis/news_classifier.py` - News classification stub
-  - `classify(news_entries)` - Accepts list[NewsEntry] and returns [] while logging a debug hint; importance flags now come from persisted `news_symbols`
+- `analysis/__init__.py` - Public facade (re-exports news_importance, urgency_detector submodules)
+- `analysis/news_importance.py` - News importance stub
+  - `label_importance(news_entries)` - Marks all entries as important (stub) and returns the list
 - `analysis/urgency_detector.py` - Urgency detection module
   - `UrgencyInput` - Normalized text+metadata payload used for urgency scoring
   - `detect_news_urgency(news_entries)` - Normalizes headline/body and logs stub stats; returns empty list for now

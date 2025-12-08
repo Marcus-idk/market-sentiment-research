@@ -18,6 +18,14 @@ from workflows.poller import DataPoller
 from workflows.watermarks import CursorPlan
 
 
+@pytest.fixture(autouse=True)
+def immediate_to_thread(monkeypatch):
+    async def _immediate(func, *args, **kwargs):
+        return func(*args, **kwargs)
+
+    monkeypatch.setattr(asyncio, "to_thread", _immediate)
+
+
 class StubNews(NewsDataSource):
     def __init__(self, items: list[NewsEntry]):
         super().__init__("StubNews")
@@ -357,13 +365,9 @@ class TestDataPollerProcessPrices:
         poller = DataPoller(temp_db, [StubNews([])], [], [StubPrice([])], poll_interval=300)
         stored: list[PriceData] = []
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
         def fake_store(_db_path, prices):
             stored.extend(prices)
 
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr("workflows.poller.store_price_data", fake_store)
 
         result = await poller._process_prices({})
@@ -384,14 +388,10 @@ class TestDataPollerProcessPrices:
         )
         stored: list[PriceData] = []
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
         def fake_store(_db_path, prices):
             stored.extend(prices)
 
         caplog.set_level(logging.WARNING)
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr("workflows.poller.store_price_data", fake_store)
 
         secondary_price = make_price_data(
@@ -424,13 +424,9 @@ class TestDataPollerProcessPrices:
         )
         stored: list[PriceData] = []
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
         def fake_store(_db_path, prices):
             stored.extend(prices)
 
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr("workflows.poller.store_price_data", fake_store)
 
         primary_price = make_price_data(
@@ -459,14 +455,10 @@ class TestDataPollerProcessPrices:
         )
         stored: list[PriceData] = []
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
         def fake_store(_db_path, prices):
             stored.extend(prices)
 
         caplog.set_level(logging.WARNING)
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr("workflows.poller.store_price_data", fake_store)
 
         primary_price = make_price_data(
@@ -501,14 +493,10 @@ class TestDataPollerProcessPrices:
         )
         stored: list[PriceData] = []
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
         def fake_store(_db_path, prices):
             stored.extend(prices)
 
         caplog.set_level(logging.ERROR)
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr("workflows.poller.store_price_data", fake_store)
 
         primary_price = make_price_data(
@@ -566,13 +554,9 @@ class TestDataPollerProcessPrices:
 
         stored: list[PriceData] = []
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
         def fake_store(_db_path, prices):
             stored.extend(prices)
 
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr("workflows.poller.store_price_data", fake_store)
         caplog.set_level(logging.ERROR)
 
@@ -602,16 +586,12 @@ class TestDataPollerSocialProcessing:
         stored: list[SocialDiscussion] = []
         commits: list[tuple[SocialDataSource, list[SocialDiscussion]]] = []
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
         def fake_store(_db_path, items):
             stored.extend(items)
 
         def fake_commit(src, items):
             commits.append((src, items))
 
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr("workflows.poller.store_social_discussions", fake_store)
         monkeypatch.setattr(poller.watermarks, "commit_updates", fake_commit)
 
@@ -626,10 +606,6 @@ class TestDataPollerSocialProcessing:
         """Empty social list logs a notice and returns zero."""
         poller = DataPoller(temp_db, [], [], [], poll_interval=300)
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr(poller.watermarks, "commit_updates", lambda *_: None)
         caplog.set_level(logging.INFO)
 
@@ -655,11 +631,6 @@ class TestDataPollerNewsProcessing:
         company_news = provider_one._items
         macro_news = provider_two._items
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
-
         calls: list[tuple[NewsDataSource, list[NewsEntry]]] = []
 
         def fake_commit(provider, entries):
@@ -684,10 +655,6 @@ class TestDataPollerNewsProcessing:
         provider = StubNews([entry])
         news_by_provider: dict[NewsDataSource, list[NewsEntry]] = {provider: [entry]}
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr("workflows.poller.store_news_items", lambda *_args: None)
         monkeypatch.setattr(poller.watermarks, "commit_updates", lambda *_: None)
 
@@ -707,10 +674,6 @@ class TestDataPollerNewsProcessing:
         """Test process news logs when empty."""
         poller = DataPoller(temp_db, [StubNews([])], [], [StubPrice([])], poll_interval=300)
 
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr(poller.watermarks, "commit_updates", lambda *_: None)
         caplog.set_level(logging.INFO)
 
@@ -718,6 +681,32 @@ class TestDataPollerNewsProcessing:
 
         assert count == 0
         assert "No news items to process" in caplog.text
+
+    @pytest.mark.asyncio
+    async def test_process_news_labels_importance_before_store(self, temp_db, monkeypatch):
+        """News entries are marked important by the importance stub before storage."""
+
+        poller = DataPoller(temp_db, [StubNews([])], [], [StubPrice([])], poll_interval=300)
+        entry_one = make_news_entry(symbol="AAPL", is_important=None)
+        entry_two = make_news_entry(symbol="MSFT", is_important=False)
+        news_by_provider: dict[NewsDataSource, list[NewsEntry]] = {
+            poller.news_providers[0]: [entry_one, entry_two]
+        }
+        company_news = [entry_one]
+        macro_news = [entry_two]
+
+        captured: list[list[NewsEntry]] = []
+
+        def fake_store(_db_path, items):
+            captured.append(items)
+
+        monkeypatch.setattr("workflows.poller.store_news_items", fake_store)
+        monkeypatch.setattr(poller.watermarks, "commit_updates", lambda *_: None)
+
+        count = await poller._process_news(news_by_provider, company_news, macro_news)
+
+        assert count == 2
+        assert captured and all(item.is_important is True for item in captured[0])
 
     def test_log_urgent_items_logs_summary(self, temp_db, caplog):
         """Test log urgent items logs summary."""
@@ -750,11 +739,6 @@ class TestDataPollerNewsProcessing:
         social_by_provider: dict[SocialDataSource, list[SocialDiscussion]] = {
             provider: [social_item]
         }
-
-        async def immediate_to_thread(func, *args, **kwargs):
-            return func(*args, **kwargs)
-
-        monkeypatch.setattr(asyncio, "to_thread", immediate_to_thread)
         monkeypatch.setattr(poller.watermarks, "commit_updates", lambda *_: None)
 
         def raising_detect(_entries):

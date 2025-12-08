@@ -173,11 +173,11 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_web_search_disabled_does_not_find_title` - Does not find title when disabled
 - Notes: Requires network; Wikipedia access
 
-### `tests/unit/analysis/test_news_classifier.py`
-- Purpose: News classification stub behavior
+### `tests/unit/analysis/test_news_importance.py`
+- Purpose: News importance stub behavior
 - Tests:
-  - `test_classify_returns_empty_list_for_any_input` - Stub returns empty list for any entries
-  - `test_classify_handles_empty_list` - Handles empty input list
+  - `test_label_importance_marks_all_entries_true` - Marks every entry important
+  - `test_label_importance_handles_empty_list` - Handles empty input list
 
 ### `tests/unit/analysis/test_urgency_detector.py`
 - Purpose: Urgency detector stubs for news and social inputs
@@ -888,6 +888,7 @@ The detailed inventory starts below this line (to be populated and maintained).
   - `test_process_news_commits_each_provider` - Commits watermark updates once per provider with that provider's entries
   - `test_process_news_logs_urgency_detection_failures` - Logs urgency detection failures but still returns correct count
   - `test_process_news_logs_when_empty` - Logs when there are no news items to process
+  - `test_process_news_labels_importance_before_store` - Marks news entries important via stub before storage
   - `test_log_urgent_items_logs_summary` - Logs bounded urgent-items summary with ellipsis
   - `test_process_social_logs_urgency_detection_failures` - Logs social urgency detection failures but still returns correct count
   - `test_log_urgent_social_logs_summary` - Logs bounded urgent-social summary with ellipsis

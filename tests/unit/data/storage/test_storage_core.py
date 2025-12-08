@@ -1,6 +1,7 @@
 """Edge-case coverage for data.storage.storage_core."""
 
 import sqlite3
+from contextlib import closing
 from typing import cast
 
 import pytest
@@ -146,7 +147,7 @@ def test_finalize_database_switches_to_delete_mode(temp_db):
     finalize_database(temp_db)
 
     # Check raw mode without re-enabling WAL
-    with sqlite3.connect(temp_db) as conn:
+    with closing(sqlite3.connect(temp_db)) as conn:
         cursor = conn.cursor()
         cursor.execute("PRAGMA journal_mode")
         mode = cursor.fetchone()[0]

@@ -83,7 +83,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 **Achieves**:
 - Run a minimal Streamlit UI for quick local inspection
-- Classification extension point stub kept for future LLM use (no label storage)
+- Simple news-importance stub marks all news entries important before storage; full LLM-based classification remains planned for v0.5
 
 **Notes**:
 - Dev UX: `pip install streamlit` (or `pip install -r requirements-dev.txt`)

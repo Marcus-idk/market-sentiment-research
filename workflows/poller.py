@@ -11,6 +11,7 @@ import logging
 from decimal import Decimal
 from typing import Any, TypedDict, cast
 
+from analysis.news_importance import label_importance
 from analysis.urgency_detector import detect_news_urgency, detect_social_urgency
 from data import DataSourceError, NewsDataSource, PriceDataSource, SocialDataSource
 from data.models import NewsEntry, PriceData, SocialDiscussion
@@ -282,7 +283,8 @@ class DataPoller:
         if not all_news:
             logger.info("No news items to process")
         else:
-            await asyncio.to_thread(store_news_items, self.db_path, all_news)
+            labeled_news = label_importance(all_news)
+            await asyncio.to_thread(store_news_items, self.db_path, labeled_news)
 
             try:
                 self._log_urgent_items(detect_news_urgency(all_news))

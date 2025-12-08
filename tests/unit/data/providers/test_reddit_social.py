@@ -43,13 +43,12 @@ class FakeComments(list):
 
 
 class TestRedditSocialProviderBasics:
-    pytestmark = pytest.mark.asyncio
-
     def test_symbol_normalization_uppercases_and_filters(self, settings):
         provider = RedditSocialProvider(settings, ["aapl", " TSLA ", ""])
 
         assert provider.symbols == ["AAPL", "TSLA"]
 
+    @pytest.mark.asyncio
     async def test_validate_connection_delegates_to_client(self, settings):
         provider = RedditSocialProvider(settings, ["AAPL"])
         calls = {"count": 0}
@@ -67,8 +66,7 @@ class TestRedditSocialProviderBasics:
 
 
 class TestFetchIncremental:
-    pytestmark = pytest.mark.asyncio
-
+    @pytest.mark.asyncio
     async def test_fetch_incremental_empty_symbols_returns_empty(self, settings):
         provider = RedditSocialProvider(settings, [])
 
@@ -76,6 +74,7 @@ class TestFetchIncremental:
 
         assert result == []
 
+    @pytest.mark.asyncio
     async def test_fetch_incremental_bootstrap_uses_week_filter(self, settings, monkeypatch):
         provider = RedditSocialProvider(settings, ["AAPL"])
         fixed_now = datetime(2024, 4, 1, 12, 0, tzinfo=UTC)
@@ -96,6 +95,7 @@ class TestFetchIncremental:
         assert captured["start_time"] == expected_start
         assert captured["time_filter"] == settings.bootstrap_time_filter
 
+    @pytest.mark.asyncio
     async def test_fetch_incremental_cursor_uses_hour_with_overlap(self, settings, monkeypatch):
         provider = RedditSocialProvider(settings, ["AAPL"])
         fixed_now = datetime(2024, 4, 1, 12, 0, tzinfo=UTC)
@@ -126,6 +126,7 @@ class TestFetchIncremental:
 
         assert result == symbol_map["AAPL"]
 
+    @pytest.mark.asyncio
     async def test_fetch_incremental_praw_error_skips_symbol_not_all(self, settings, monkeypatch):
         provider = RedditSocialProvider(settings, ["AAPL", "TSLA"])
         fixed_now = datetime(2024, 4, 1, 12, 0, tzinfo=UTC)
