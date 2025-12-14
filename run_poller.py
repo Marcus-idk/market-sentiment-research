@@ -64,7 +64,7 @@ def setup_environment() -> None:
 def build_config(with_viewer: bool) -> PollerConfig:
     """Parse environment variables and build configuration object."""
     # Get database path and ensure directory exists
-    db_path = os.getenv("DATABASE_PATH", "data/trading_bot.db")
+    db_path = os.getenv("DATABASE_PATH", "data/database/trading_bot.db")
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
     # Get and validate symbols
@@ -157,7 +157,12 @@ def initialize_database(db_path: str) -> bool:
 
 
 def launch_ui_process(config: PollerConfig) -> subprocess.Popen | None:
-    """Launch Streamlit UI process, return process handle or None."""
+    """Launch Streamlit UI when enabled (``-v``), returning the child process.
+
+    Notes:
+        Only runs when the UI is enabled (``-v``), which sets ``config.ui_port``.
+        The child process receives ``DATABASE_PATH`` and an extended ``PYTHONPATH``.
+    """
     if config.ui_port is None:
         return None
 
@@ -250,7 +255,11 @@ async def create_and_validate_providers(
 
 
 def cleanup_ui_process(ui_process: subprocess.Popen | None) -> None:
-    """Clean up UI process if running."""
+    """Terminate Streamlit UI process (graceful then forced).
+
+    Notes:
+        Sends terminate(), waits up to 5 seconds, then kill()s as a last resort.
+    """
     if ui_process and ui_process.poll() is None:
         ui_process.terminate()
         try:

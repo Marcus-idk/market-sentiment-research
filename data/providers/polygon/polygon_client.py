@@ -30,6 +30,7 @@ class PolygonClient:
     """Minimal async HTTP client wrapper for Polygon.io API calls."""
 
     def __init__(self, settings: PolygonSettings) -> None:
+        """Store Polygon API settings."""
         self.settings = settings
 
     async def get(self, path: str, params: dict[str, Any] | None = None) -> Any:

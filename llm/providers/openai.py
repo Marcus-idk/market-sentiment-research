@@ -1,3 +1,5 @@
+"""OpenAI LLM provider implementation."""
+
 import logging
 from collections.abc import Mapping
 from typing import Any
@@ -24,6 +26,8 @@ logger = logging.getLogger(__name__)
 
 
 class OpenAIProvider(LLMProvider):
+    """Generate text with the OpenAI API."""
+
     def __init__(
         self,
         settings: OpenAISettings,
@@ -35,6 +39,14 @@ class OpenAIProvider(LLMProvider):
         tool_choice: str | dict[str, Any] | None = None,
         **kwargs,
     ) -> None:
+        """Configure OpenAI defaults; reasoning=low by default (avoid minimal+code_interpreter).
+
+        Notes:
+            If ``reasoning`` is not provided, defaults to ``{"effort": "low"}``.
+
+            Tool caveat: OpenAI rejects ``{"type": "code_interpreter"}`` when
+            ``reasoning={"effort":"minimal"}``, so avoid that combination.
+        """
         super().__init__(**kwargs)
         self.settings = settings
         self.model_name = model_name
@@ -47,7 +59,12 @@ class OpenAIProvider(LLMProvider):
         )
 
     async def generate(self, prompt: str) -> str:
-        """Generate a text response from OpenAI for the given prompt."""
+        """Generate a text response from OpenAI (with retry mapping).
+
+        Notes:
+            For model names starting with ``gpt-5``, string ``tool_choice`` values
+            other than ``"auto"`` are coerced to ``"auto"`` to avoid 400 errors.
+        """
         args = {"model": self.model_name, "input": prompt, **self.config}
 
         if self.temperature is not None:

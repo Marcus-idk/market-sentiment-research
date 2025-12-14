@@ -25,6 +25,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
     def __init__(
         self, settings: FinnhubSettings, symbols: list[str], source_name: str = "Finnhub Macro"
     ) -> None:
+        """Initialize the Finnhub macro news provider."""
         super().__init__(source_name)
         self.settings = settings
         self.symbols = [s.strip().upper() for s in symbols if s.strip()]
@@ -32,6 +33,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         self.last_fetched_max_id: int | None = None
 
     async def validate_connection(self) -> bool:
+        """Return True when the Finnhub API is reachable."""
         return await self.client.validate_connection()
 
     async def fetch_incremental(
@@ -139,7 +141,12 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         article: dict[str, Any],
         buffer_time: datetime | None,
     ) -> list[NewsEntry]:
-        """Parse Finnhub macro news article into one or more NewsEntry objects."""
+        """Parse Finnhub macro news article into one or more NewsEntry objects.
+
+        Notes:
+            Returns an empty list when required fields are missing/invalid or the article is
+            at/before the buffer cutoff.
+        """
         headline = article.get("headline", "").strip()
         url = article.get("url", "").strip()
         datetime_epoch = article.get("datetime", 0)
@@ -159,8 +166,9 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         # Drop this article if it's older than the bootstrap/lookback cutoff
         if buffer_time and published <= buffer_time:
             cutoff_iso = _datetime_to_iso(buffer_time)
+            published_iso = _datetime_to_iso(published)
             logger.warning(
-                f"Finnhub API returned article with published={published.isoformat()} "
+                f"Finnhub API returned article with published={published_iso} "
                 f"at/before cutoff {cutoff_iso} despite default lookback window"
             )
             return []

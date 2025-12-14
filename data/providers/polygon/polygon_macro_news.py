@@ -32,12 +32,14 @@ class PolygonMacroNewsProvider(NewsDataSource):
     def __init__(
         self, settings: PolygonSettings, symbols: list[str], source_name: str = "Polygon Macro"
     ) -> None:
+        """Initialize the Polygon macro news provider."""
         super().__init__(source_name)
         self.settings = settings
         self.symbols = [s.strip().upper() for s in symbols if s.strip()]
         self.client = PolygonClient(settings)
 
     async def validate_connection(self) -> bool:
+        """Return True when the Polygon API is reachable."""
         return await self.client.validate_connection()
 
     async def fetch_incremental(
@@ -129,7 +131,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
 
     @staticmethod
     def _extract_cursor(next_url: str | None) -> str | None:
-        """Extract cursor parameter from Polygon next_url (legacy wrapper for tests)."""
+        """Extract cursor parameter from a Polygon next_url pagination link."""
         if next_url is None:
             return None
         return _extract_cursor_from_next_url(next_url)
@@ -139,7 +141,12 @@ class PolygonMacroNewsProvider(NewsDataSource):
         article: dict[str, Any],
         buffer_time: datetime | None,
     ) -> list[NewsEntry]:
-        """Parse Polygon news article into multiple NewsItems (one per matching symbol)."""
+        """Parse Polygon news article into multiple NewsItems (one per matching symbol).
+
+        Notes:
+            Returns an empty list when required fields are missing/invalid or the article is
+            at/before the buffer cutoff.
+        """
         title = article.get("title", "").strip()
         article_url = article.get("article_url", "").strip()
         published_utc = article.get("published_utc", "").strip()
@@ -159,8 +166,9 @@ class PolygonMacroNewsProvider(NewsDataSource):
         # Apply buffer filter (defensive check - API should already filter via published_utc.gt)
         if buffer_time and published <= buffer_time:
             cutoff_iso = _datetime_to_iso(buffer_time)
+            published_iso = _datetime_to_iso(published)
             logger.warning(
-                f"Polygon API returned article with published={published.isoformat()} "
+                f"Polygon API returned article with published={published_iso} "
                 f"despite published_utc.gt={cutoff_iso} filter - possible API contract violation"
             )
             return []

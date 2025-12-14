@@ -25,11 +25,13 @@ class FinnhubPriceProvider(PriceDataSource):
     def __init__(
         self, settings: FinnhubSettings, symbols: list[str], source_name: str = "Finnhub"
     ) -> None:
+        """Initialize the Finnhub price provider."""
         super().__init__(source_name)
         self.symbols = [s.strip().upper() for s in symbols if s.strip()]
         self.client = FinnhubClient(settings)
 
     async def validate_connection(self) -> bool:
+        """Return True when the Finnhub API is reachable."""
         return await self.client.validate_connection()
 
     async def fetch_incremental(self) -> list[PriceData]:
@@ -44,7 +46,9 @@ class FinnhubPriceProvider(PriceDataSource):
                 quote = await self.client.get("/quote", {"symbol": symbol})
 
                 if not isinstance(quote, dict):
-                    continue
+                    raise DataSourceError(
+                        f"Finnhub /quote expected dict for {symbol}, got {type(quote).__name__}"
+                    )
 
                 price_item = self._parse_quote(quote, symbol)
                 if price_item:
@@ -62,7 +66,11 @@ class FinnhubPriceProvider(PriceDataSource):
         return price_data
 
     def _parse_quote(self, quote: dict[str, Any], symbol: str) -> PriceData | None:
-        """Convert Finnhub /quote payload into PriceData."""
+        """Convert Finnhub /quote payload into PriceData.
+
+        Notes:
+            Returns None when required fields are missing/invalid or price is non-positive.
+        """
         raw_price = quote.get("c")
         if raw_price is None:
             return None

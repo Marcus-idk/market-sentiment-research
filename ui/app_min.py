@@ -1,5 +1,8 @@
+"""Minimal Streamlit UI for browsing the TradingBot database."""
+
 import os
 import re
+from pathlib import Path
 
 import pandas as pd
 import streamlit as st
@@ -34,7 +37,8 @@ def build_display_map(names: list[str]) -> dict[str, str]:
 
 st.set_page_config(page_title="TradingBot DB", layout="wide", initial_sidebar_state="expanded")
 
-DB_PATH = os.getenv("DATABASE_PATH", "data/trading_bot.db")
+DB_PATH = os.getenv("DATABASE_PATH", "data/database/trading_bot.db")
+Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 table_names = fetch_table_names(DB_PATH)
 
 if not table_names:

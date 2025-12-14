@@ -1,3 +1,5 @@
+"""Async HTTP helpers with retry and JSON parsing."""
+
 from collections.abc import Mapping
 from typing import Any
 

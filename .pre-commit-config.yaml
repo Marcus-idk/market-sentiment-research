@@ -15,6 +15,12 @@ repos:
       - id: pylint        # cyclic-import checker, run fourth
   - repo: local
     hooks:
+      - id: generate-summary
+        name: Generate Summary
+        entry: python tools/generate_summary.py
+        language: system
+        pass_filenames: false
+        stages: [pre-commit]
       - id: generate-test-catalog
         name: Generate Test Catalog
         entry: python tools/generate_test_catalog.py

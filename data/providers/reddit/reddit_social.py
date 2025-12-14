@@ -27,12 +27,14 @@ class RedditSocialProvider(SocialDataSource):
     def __init__(
         self, settings: RedditSettings, symbols: list[str], source_name: str = "Reddit"
     ) -> None:
+        """Initialize the Reddit social provider."""
         super().__init__(source_name)
         self.settings = settings
         self.symbols = [s.strip().upper() for s in symbols if s.strip()]
         self.client = RedditClient(settings)
 
     async def validate_connection(self) -> bool:
+        """Return True when Reddit API credentials are valid."""
         # PRAW is synchronous - wrap in thread
         return await asyncio.to_thread(self.client.validate_connection)
 

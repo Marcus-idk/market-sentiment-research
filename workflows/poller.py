@@ -179,13 +179,15 @@ class DataPoller:
     async def _process_prices(
         self, prices_by_provider: dict[PriceDataSource, dict[str, PriceData]]
     ) -> int:
-        """Deduplicate and store price data from multiple providers.
+        """Store only primary-provider prices; log mismatches >= $0.01.
 
         Notes:
-            Compares prices by symbol across providers. If prices differ by
-            at least ``$0.01``, logs an error. Always stores the primary
-            provider's price (first in order). Returns the number of prices
-            stored.
+            Uses the first configured price provider as the primary source.
+            For each symbol, stores only the primary provider's price.
+
+            If other providers disagree with the primary by at least ``$0.01``,
+            logs an error. If the primary provider has no price for a symbol,
+            that symbol is skipped (intentional).
         """
         if not prices_by_provider:
             return 0
@@ -251,7 +253,11 @@ class DataPoller:
         return len(deduplicated_prices)
 
     def _log_urgent_items(self, urgent_items: list[NewsEntry]) -> None:
-        """Summarize urgency detection results with bounded detail."""
+        """Log up to 10 urgent news items (then a remainder count).
+
+        Notes:
+            Logs up to 10 urgent items (then a single "... N more" line).
+        """
         if not urgent_items:
             logger.debug("No urgent news items detected")
             return
@@ -262,7 +268,11 @@ class DataPoller:
             logger.warning(f"... {len(urgent_items) - 10} more")
 
     def _log_urgent_social(self, urgent_items: list[SocialDiscussion]) -> None:
-        """Summarize urgent social items with bounded detail."""
+        """Log up to 10 urgent social items (then a remainder count).
+
+        Notes:
+            Logs up to 10 urgent items (then a single "... N more" line).
+        """
         if not urgent_items:
             logger.debug("No urgent social items detected")
             return

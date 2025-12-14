@@ -1,3 +1,5 @@
+"""Gemini LLM provider implementation."""
+
 import logging
 from collections.abc import Mapping
 from typing import Any, cast
@@ -14,6 +16,8 @@ logger = logging.getLogger(__name__)
 
 
 class GeminiProvider(LLMProvider):
+    """Generate text with the Gemini API."""
+
     def __init__(
         self,
         settings: GeminiSettings,
@@ -25,6 +29,13 @@ class GeminiProvider(LLMProvider):
         thinking_config: Mapping[str, Any] | None = None,
         **kwargs,
     ) -> None:
+        """Configure Gemini defaults; clamps minimum thinking budget.
+
+        Notes:
+            If ``thinking_config`` is not provided, defaults to
+            ``{"thinking_budget_token_limit": 128}``. When provided, budgets below
+            128 are clamped up to 128.
+        """
         super().__init__(**kwargs)
         self.settings = settings
         self.model_name = model_name
@@ -49,7 +60,16 @@ class GeminiProvider(LLMProvider):
         )
 
     async def generate(self, prompt: str) -> str:
-        """Generate a text response from Gemini for the given prompt."""
+        """Generate a text response from Gemini; tool_choice requires function_declarations.
+
+        Notes:
+            ``tool_choice`` maps to Gemini function-calling modes:
+            ``none→NONE``, ``auto→AUTO``, ``any→ANY``.
+
+            Any ``tool_choice`` requires tools with ``function_declarations``.
+            Built-in tools (``code_execution``, ``google_search``, ``url_context``)
+            do not support ``tool_choice`` by themselves.
+        """
         args = {"candidate_count": 1, **self.config}
 
         if self.temperature is not None:

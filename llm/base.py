@@ -1,3 +1,5 @@
+"""Base interfaces and errors for LLM providers."""
+
 from abc import ABC, abstractmethod
 
 

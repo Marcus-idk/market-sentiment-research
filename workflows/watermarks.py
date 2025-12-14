@@ -23,6 +23,7 @@ from data.storage import (
 from data.storage.state_enums import Provider as ProviderEnum
 from data.storage.state_enums import Scope as ScopeEnum
 from data.storage.state_enums import Stream as StreamEnum
+from data.storage.storage_utils import _datetime_to_iso
 from utils.datetime_utils import normalize_to_utc
 
 logger = logging.getLogger(__name__)
@@ -93,6 +94,8 @@ CURSOR_RULES: dict[type[NewsDataSource | SocialDataSource], CursorRule] = {
 
 @dataclass(frozen=True)
 class CursorPlan:
+    """Hold cursor inputs for incremental fetches."""
+
     since: datetime | None = None
     min_id: int | None = None
     symbol_since_map: dict[str, datetime] | None = None
@@ -151,10 +154,20 @@ def _is_global_bootstrap_symbol(
 
 @dataclass
 class WatermarkEngine:
+    """Build fetch plans and persist provider watermarks."""
+
     db_path: str
 
     def build_plan(self, provider: NewsDataSource | SocialDataSource) -> CursorPlan:
-        """Derive cursor plan for the provider based on stored watermarks and settings."""
+        """Build cursor plan using first-run lookbacks and stored watermarks.
+
+        Notes:
+            - First run: uses ``*_news_first_run_days`` from the provider settings.
+            - Overlap: providers apply ``*_news_overlap_minutes`` when fetching; the plan
+              returns base cursor positions (watermark values) only.
+            - GLOBAL+bootstrap providers (e.g., Polygon company) may return
+              ``symbol_since_map`` overrides for newly added/stale symbols.
+        """
         rule = CURSOR_RULES.get(type(provider))
         if not rule:
             logger.debug(
@@ -229,7 +242,12 @@ class WatermarkEngine:
         provider: NewsDataSource | SocialDataSource,
         entries: Sequence[NewsEntry | SocialDiscussion],
     ) -> None:
-        """Persist updated watermarks based on fetched entries."""
+        """Persist updated watermarks; ID streams use ``last_fetched_max_id``.
+
+        Notes:
+            ID-based streams (Finnhub macro) advance using the provider's
+            ``last_fetched_max_id`` field.
+        """
         rule = CURSOR_RULES.get(type(provider))
         if not rule:
             logger.debug(
@@ -272,8 +290,8 @@ class WatermarkEngine:
                         rule.provider.value,
                         rule.stream.value,
                         symbol,
-                        ts.isoformat(),
-                        clamped.isoformat(),
+                        _datetime_to_iso(ts),
+                        _datetime_to_iso(clamped),
                     )
                 set_last_seen_timestamp(
                     self.db_path,
@@ -293,8 +311,8 @@ class WatermarkEngine:
                 "scope=GLOBAL symbol=None original=%s clamped=%s",
                 rule.provider.value,
                 rule.stream.value,
-                max_ts.isoformat(),
-                clamped.isoformat(),
+                _datetime_to_iso(max_ts),
+                _datetime_to_iso(clamped),
             )
 
         # SQL upsert is monotonic - only advances forward, so no need to read first

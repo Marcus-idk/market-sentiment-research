@@ -11,6 +11,8 @@ from utils.datetime_utils import normalize_to_utc
 
 
 class Session(Enum):
+    """Define trading session labels."""
+
     REG = "REG"  # Regular trading session (09:30–16:00 ET / 22:30–05:00 SGT)
     PRE = "PRE"  # Pre-market session (04:00–09:30 ET / 17:00–22:30 SGT)
     POST = "POST"  # After-hours session (16:00–20:00 ET / 05:00–09:00 SGT)
@@ -18,12 +20,16 @@ class Session(Enum):
 
 
 class Stance(Enum):
+    """Define stance labels for model outputs."""
+
     BULL = "BULL"  # Up
     BEAR = "BEAR"  # Down
     NEUTRAL = "NEUTRAL"  # Sideways
 
 
 class AnalysisType(Enum):
+    """Define analysis type identifiers."""
+
     NEWS_ANALYSIS = "news_analysis"
     SENTIMENT_ANALYSIS = "sentiment_analysis"
     SEC_FILINGS = "sec_filings"
@@ -31,11 +37,15 @@ class AnalysisType(Enum):
 
 
 class Urgency(Enum):
+    """Define urgency levels for notifications."""
+
     URGENT = "URGENT"
     NOT_URGENT = "NOT_URGENT"
 
 
 class NewsType(Enum):
+    """Define news category labels."""
+
     MACRO = "macro"
     COMPANY_SPECIFIC = "company_specific"
 
@@ -116,26 +126,32 @@ class NewsEntry:
 
     @property
     def url(self) -> str:
+        """Return the article URL."""
         return self.article.url
 
     @property
     def headline(self) -> str:
+        """Return the article headline."""
         return self.article.headline
 
     @property
     def published(self) -> datetime:
+        """Return the article published timestamp."""
         return self.article.published
 
     @property
     def source(self) -> str:
+        """Return the article source name."""
         return self.article.source
 
     @property
     def content(self) -> str | None:
+        """Return the article content, when available."""
         return self.article.content
 
     @property
     def news_type(self) -> NewsType:
+        """Return the article news type as a NewsType."""
         nt = self.article.news_type
         return nt if isinstance(nt, NewsType) else NewsType(nt)
 

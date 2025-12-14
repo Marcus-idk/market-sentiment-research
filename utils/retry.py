@@ -1,3 +1,5 @@
+"""Retry utilities with exponential backoff and Retry-After support."""
+
 import asyncio
 import logging
 import random
@@ -45,7 +47,10 @@ def parse_retry_after(value: str | float | int | None) -> float | None:
 
 
 class RetryableError(Exception):
+    """Signal that an operation should be retried."""
+
     def __init__(self, message: str, retry_after: float | None = None) -> None:
+        """Create a retryable error with an optional retry-after delay."""
         super().__init__(message)
         self.retry_after = retry_after
 

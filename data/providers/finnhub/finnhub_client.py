@@ -15,6 +15,7 @@ class FinnhubClient:
     """Minimal async HTTP client wrapper for Finnhub API calls."""
 
     def __init__(self, settings: FinnhubSettings) -> None:
+        """Store Finnhub API settings."""
         self.settings = settings
 
     async def get(self, path: str, params: dict[str, Any] | None = None) -> Any:

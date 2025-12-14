@@ -36,6 +36,7 @@ def detect_social_urgency(social_items: Sequence[SocialDiscussion]) -> list[Soci
 
 
 def _build_news_inputs(entries: Iterable[NewsEntry]) -> list[UrgencyInput]:
+    """Normalize news entries into urgency-scoring inputs."""
     inputs: list[UrgencyInput] = []
     for entry in entries:
         title = entry.headline.strip()
@@ -56,6 +57,7 @@ def _build_news_inputs(entries: Iterable[NewsEntry]) -> list[UrgencyInput]:
 
 
 def _build_social_inputs(items: Iterable[SocialDiscussion]) -> list[UrgencyInput]:
+    """Normalize social discussions into urgency-scoring inputs."""
     inputs: list[UrgencyInput] = []
     for discussion in items:
         title = discussion.title.strip()
@@ -76,6 +78,7 @@ def _build_social_inputs(items: Iterable[SocialDiscussion]) -> list[UrgencyInput
 
 
 def _log_stub_stats(inputs: Sequence[UrgencyInput], stream: str) -> None:
+    """Log basic stats for stub urgency detection."""
     if not inputs:
         logger.debug(f"No {stream} items to analyze for urgency (stub)")
         return

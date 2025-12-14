@@ -188,7 +188,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 ## Runtime Flow Snapshot
 - Startup
-  - Loads `.env`, configures logging, and reads `SYMBOLS`, `POLL_INTERVAL`, `DATABASE_PATH` (default `data/trading_bot.db`), and provider keys (`FINNHUB_API_KEY`, `POLYGON_API_KEY`, Reddit credentials); if `-v`, also reads `STREAMLIT_PORT`.
+  - Loads `.env`, configures logging, and reads `SYMBOLS`, `POLL_INTERVAL`, `DATABASE_PATH` (default `data/database/trading_bot.db`), and provider keys (`FINNHUB_API_KEY`, `POLYGON_API_KEY`, Reddit credentials); if `-v`, also reads `STREAMLIT_PORT`.
   - Ensures the database directory exists and runs `init_database`, which enforces SQLite JSON1 support and applies required PRAGMAs.
   - If `-v`, launches the optional Streamlit UI pointed at the same `DATABASE_PATH`; on failure, logs a warning and continues without UI.
   - Creates configured providers (Finnhub company/macro/price; Polygon company/macro; Reddit social sentiment) and validates each API connection; failures abort startup.

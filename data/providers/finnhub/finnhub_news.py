@@ -26,12 +26,14 @@ class FinnhubNewsProvider(NewsDataSource):
     def __init__(
         self, settings: FinnhubSettings, symbols: list[str], source_name: str = "Finnhub"
     ) -> None:
+        """Initialize the Finnhub company news provider."""
         super().__init__(source_name)
         self.settings = settings
         self.symbols = [s.strip().upper() for s in symbols if s.strip()]
         self.client = FinnhubClient(settings)
 
     async def validate_connection(self) -> bool:
+        """Return True when the Finnhub API is reachable."""
         return await self.client.validate_connection()
 
     async def fetch_incremental(
@@ -113,7 +115,12 @@ class FinnhubNewsProvider(NewsDataSource):
         symbol: str,
         buffer_time: datetime | None,
     ) -> NewsEntry | None:
-        """Parse Finnhub company news article into a NewsEntry."""
+        """Parse Finnhub company news article into a NewsEntry.
+
+        Notes:
+            Returns None when required fields are missing/invalid or the article is at/before
+            the buffer cutoff.
+        """
         headline = article.get("headline", "").strip()
         url = article.get("url", "").strip()
         datetime_epoch = article.get("datetime", 0)
@@ -133,8 +140,9 @@ class FinnhubNewsProvider(NewsDataSource):
         # Apply buffer filter (defensive check - API should already honor from/to dates)
         if buffer_time and published <= buffer_time:
             cutoff_iso = _datetime_to_iso(buffer_time)
+            published_iso = _datetime_to_iso(published)
             logger.warning(
-                f"Finnhub API returned article with published={published.isoformat()} "
+                f"Finnhub API returned article with published={published_iso} "
                 f"at/before cutoff {cutoff_iso} despite from/to date filter"
             )
             return None

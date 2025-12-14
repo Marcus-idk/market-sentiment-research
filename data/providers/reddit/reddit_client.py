@@ -14,6 +14,7 @@ class RedditClient:
     """Minimal Reddit API client wrapper using PRAW."""
 
     def __init__(self, settings: RedditSettings) -> None:
+        """Create a read-only PRAW client."""
         self.settings = settings
         self.reddit = praw.Reddit(
             client_id=settings.client_id,
