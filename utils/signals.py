@@ -14,7 +14,7 @@ def register_graceful_shutdown(on_stop: Callable[[], None]) -> Callable[[], None
     def signal_handler(signum: int, _frame: FrameType | None) -> None:
         """Handle shutdown signals with logging."""
         sig_name = signal.Signals(signum).name
-        logger.info(f"Received {sig_name} signal, initiating graceful shutdown...")
+        logger.info("Received %s signal, initiating graceful shutdown...", sig_name)
         on_stop()
 
     # Store original handlers for restoration

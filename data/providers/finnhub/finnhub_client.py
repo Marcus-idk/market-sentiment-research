@@ -39,5 +39,5 @@ class FinnhubClient:
             await self.get("/quote", {"symbol": "SPY"})
             return True
         except (DataSourceError, RetryableError, ValueError, TypeError) as exc:
-            logger.warning(f"FinnhubClient connection validation failed: {exc}")
+            logger.warning("FinnhubClient connection validation failed: %s", exc)
             return False

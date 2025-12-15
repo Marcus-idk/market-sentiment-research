@@ -83,8 +83,9 @@ class OpenAIProvider(LLMProvider):
         if isinstance(args.get("tool_choice"), str) and self.model_name.startswith("gpt-5"):
             if args["tool_choice"] != "auto":
                 logger.warning(
-                    f"tool_choice={args['tool_choice']!r} not supported by {self.model_name}; "
-                    "coercing to 'auto'"
+                    "tool_choice=%r not supported by %s; coercing to 'auto'",
+                    args["tool_choice"],
+                    self.model_name,
                 )
                 args["tool_choice"] = "auto"
 
@@ -206,5 +207,5 @@ class OpenAIProvider(LLMProvider):
             TypeError,
             RuntimeError,
         ) as exc:
-            logger.warning(f"OpenAIProvider connection validation failed: {exc}")
+            logger.warning("OpenAIProvider connection validation failed: %s", exc)
             return False

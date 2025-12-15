@@ -57,7 +57,7 @@ def parse_symbols(
 
         # Validate against supported ticker formats (e.g., BRK.B, BF-B, GOOG, PSX)
         if validate and not _is_valid_symbol(sym):
-            logger.debug(f"Unexpected symbol entry format: {sym}")
+            logger.debug("Unexpected symbol entry format: %s", sym)
             continue
 
         # Filter to watchlist if provided

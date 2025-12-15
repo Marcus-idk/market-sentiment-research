@@ -171,7 +171,8 @@ class WatermarkEngine:
         rule = CURSOR_RULES.get(type(provider))
         if not rule:
             logger.debug(
-                f"No cursor rule defined for {type(provider).__name__}; using default cursors"
+                "No cursor rule defined for %s; using default cursors",
+                type(provider).__name__,
             )
             return CursorPlan()
 
@@ -251,7 +252,8 @@ class WatermarkEngine:
         rule = CURSOR_RULES.get(type(provider))
         if not rule:
             logger.debug(
-                f"Skipping watermark update for {type(provider).__name__} (no cursor rule)"
+                "Skipping watermark update for %s (no cursor rule)",
+                type(provider).__name__,
             )
             return
 

@@ -75,7 +75,7 @@ class PolygonNewsProvider(NewsDataSource):
                 symbol_news = await self._fetch_symbol_news(symbol, published_gt, start_time)
                 news_entries.extend(symbol_news)
             except (RetryableError, ValueError, TypeError, KeyError, AttributeError) as exc:
-                logger.warning(f"Company news fetch failed for {symbol}: {exc}")
+                logger.warning("Company news fetch failed for %s: %s", symbol, exc)
                 continue
 
         return news_entries
@@ -140,7 +140,7 @@ class PolygonNewsProvider(NewsDataSource):
                         if entry:
                             news_entries.append(entry)
                     except (ValueError, TypeError, KeyError, AttributeError) as exc:
-                        logger.debug(f"Failed to parse company news article for {symbol}: {exc}")
+                        logger.debug("Failed to parse company news article for %s: %s", symbol, exc)
                         continue
 
                 # Check for next page
@@ -160,7 +160,7 @@ class PolygonNewsProvider(NewsDataSource):
                 TypeError,
                 KeyError,
             ) as exc:
-                logger.warning(f"Company news pagination failed for {symbol}: {exc}")
+                logger.warning("Company news pagination failed for %s: %s", symbol, exc)
                 raise
 
         return news_entries
@@ -196,8 +196,10 @@ class PolygonNewsProvider(NewsDataSource):
             published = parse_rfc3339(published_utc)
         except (ValueError, TypeError) as exc:
             logger.debug(
-                f"Skipping company news article for {symbol} due to invalid timestamp "
-                f"{published_utc}: {exc}"
+                "Skipping company news article for %s due to invalid timestamp %s: %s",
+                symbol,
+                published_utc,
+                exc,
             )
             return None
 
@@ -206,8 +208,10 @@ class PolygonNewsProvider(NewsDataSource):
             cutoff_iso = _datetime_to_iso(buffer_time)
             published_iso = _datetime_to_iso(published)
             logger.warning(
-                f"Polygon API returned article with published={published_iso} "
-                f"at/before cutoff {cutoff_iso} despite published_utc.gt filter"
+                "Polygon API returned article with published=%s at/before cutoff %s despite "
+                "published_utc.gt filter",
+                published_iso,
+                cutoff_iso,
             )
             return None
 
@@ -233,5 +237,5 @@ class PolygonNewsProvider(NewsDataSource):
             )
             return NewsEntry(article=article_model, symbol=symbol, is_important=True)
         except ValueError as exc:
-            logger.debug(f"NewsItem validation failed for {symbol} (url={article_url}): {exc}")
+            logger.debug("NewsItem validation failed for %s (url=%s): %s", symbol, article_url, exc)
             return None

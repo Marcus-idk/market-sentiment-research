@@ -149,10 +149,10 @@ def initialize_database(db_path: str) -> bool:
     """Initialize database and return success status."""
     try:
         init_database(db_path)
-        logger.info(f"Database initialized at {db_path}")
+        logger.info("Database initialized at %s", db_path)
         return True
     except (RuntimeError, sqlite3.Error, OSError) as exc:
-        logger.exception(f"Failed to initialize database: {exc}")
+        logger.exception("Failed to initialize database: %s", exc)
         return False
 
 
@@ -186,14 +186,14 @@ def launch_ui_process(config: PollerConfig) -> subprocess.Popen | None:
             ],
             env=env,  # pass modified env so DATABASE_PATH/PYTHONPATH are available
         )
-        logger.info(f"Streamlit UI started at http://localhost:{config.ui_port}")
+        logger.info("Streamlit UI started at http://localhost:%s", config.ui_port)
         return ui_process
     except FileNotFoundError:
         logger.warning("Streamlit not found. Install with: pip install streamlit")
         logger.warning("Continuing without UI...")
         return None
     except (OSError, ValueError, subprocess.SubprocessError) as exc:
-        logger.warning(f"Failed to start Streamlit: {exc}")
+        logger.warning("Failed to start Streamlit: %s", exc)
         logger.warning("Continuing without UI...")
         return None
 
@@ -202,8 +202,9 @@ async def create_and_validate_providers(
     config: PollerConfig,
 ) -> tuple[list[NewsDataSource], list[SocialDataSource], list[PriceDataSource]]:
     """Create and validate news and price providers."""
-    logger.info(f"Tracking symbols: {', '.join(config.symbols)}")
-    logger.info(f"Poll interval: {config.poll_interval} seconds")
+    symbols_csv = ", ".join(config.symbols)
+    logger.info("Tracking symbols: %s", symbols_csv)
+    logger.info("Poll interval: %s seconds", config.poll_interval)
 
     # Create Finnhub providers
     company_news_provider = FinnhubNewsProvider(config.finnhub_settings, config.symbols)
@@ -243,12 +244,12 @@ async def create_and_validate_providers(
 
         for (_, name), valid in zip(providers_to_validate, results, strict=True):
             if not valid:
-                logger.error(f"Failed to validate {name} API connection")
+                logger.error("Failed to validate %s API connection", name)
                 raise ValueError(f"{name} API connection validation failed")
-            logger.info(f"{name} API connection validated successfully")
+            logger.info("%s API connection validated successfully", name)
 
     except (DataSourceError, RetryableError, RuntimeError) as exc:
-        logger.exception(f"Connection validation failed: {exc}")
+        logger.exception("Connection validation failed: %s", exc)
         raise ValueError(f"Provider validation failed: {exc}") from exc
 
     return news_providers, social_providers, price_providers
@@ -266,10 +267,10 @@ def cleanup_ui_process(ui_process: subprocess.Popen | None) -> None:
             ui_process.wait(timeout=5)
             logger.info("Streamlit UI stopped")
         except subprocess.TimeoutExpired as exc:
-            logger.warning(f"Streamlit UI did not stop gracefully; forcing termination: {exc}")
+            logger.warning("Streamlit UI did not stop gracefully; forcing termination: %s", exc)
             ui_process.kill()
         except OSError as exc:
-            logger.warning(f"Error while stopping Streamlit UI: {exc}")
+            logger.warning("Error while stopping Streamlit UI: %s", exc)
 
 
 async def main(with_viewer: bool = False) -> int:
@@ -287,7 +288,7 @@ async def main(with_viewer: bool = False) -> int:
     try:
         config = build_config(with_viewer)
     except ValueError as e:
-        logger.exception(str(e))
+        logger.exception("%s", e)
         return 1
 
     # Initialize database
@@ -320,11 +321,12 @@ async def main(with_viewer: bool = False) -> int:
         # Log startup info
         logger.info("=" * 60)
         logger.info("Trading Bot Data Poller Started")
-        logger.info(f"Monitoring {len(config.symbols)} symbols: {', '.join(config.symbols)}")
-        logger.info(f"Database: {config.db_path}")
-        logger.info(f"Poll interval: {config.poll_interval}s")
+        symbols_csv = ", ".join(config.symbols)
+        logger.info("Monitoring %s symbols: %s", len(config.symbols), symbols_csv)
+        logger.info("Database: %s", config.db_path)
+        logger.info("Poll interval: %ss", config.poll_interval)
         if ui_process:
-            logger.info(f"Web UI: http://localhost:{config.ui_port}")
+            logger.info("Web UI: http://localhost:%s", config.ui_port)
         logger.info("Press Ctrl+C to stop")
         logger.info("=" * 60)
 
@@ -345,7 +347,7 @@ async def main(with_viewer: bool = False) -> int:
         sqlite3.Error,
         OSError,
     ) as exc:
-        logger.exception(f"Unexpected error in poller: {exc}")
+        logger.exception("Unexpected error in poller: %s", exc)
         return 1
     finally:
         try:
@@ -353,7 +355,7 @@ async def main(with_viewer: bool = False) -> int:
             cleanup_ui_process(ui_process)
             logger.info("Shutdown complete")
         except Exception as cleanup_exc:
-            logger.exception(f"Error during cleanup: {cleanup_exc}")
+            logger.exception("Error during cleanup: %s", cleanup_exc)
 
 
 if __name__ == "__main__":

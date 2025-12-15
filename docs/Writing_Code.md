@@ -70,7 +70,7 @@ Defensive checks for external contracts must log a warning or raise when trigger
 # ✅ GOOD: Assert external API contract with visible signal
 if buffer_time and published <= buffer_time:
     logger.warning(
-        f"Provider returned item at/before cutoff {published} (filter gt {buffer_time})"
+        "Provider returned item at/before cutoff %s (filter gt %s)", published, buffer_time
     )
     return None
 
@@ -230,18 +230,19 @@ async def fetch_all(symbols):
 ```
 
 ### LOGGING_LAYERED
-Module-level loggers with appropriate levels. Use f-strings.
+Module-level loggers with appropriate levels.
 - **Avoid duplicate logging across layers** - provider logs details, orchestrator only summarizes
+- **Use lazy formatting for all log messages** (e.g., `logger.info("... %s", value)`) so string interpolation is skipped when the log level is off (common for DEBUG)
 ```python
 logger = logging.getLogger(__name__)
 
 # Provider layer:
-logger.debug(f"Skipping item for {symbol}: {reason}")  # Expected drops
-logger.warning(f"Failed to fetch {symbol}")  # Request failures
+logger.debug("Skipping item for %s: %s", symbol, reason)  # Expected drops
+logger.warning("Failed to fetch %s", symbol)  # Request failures
 # Let exceptions propagate to orchestrators
 
 # Orchestrator layer:
-logger.info(f"Processed {count} items")  # Success summaries only!
+logger.info("Processed %s items", count)  # Success summaries only!
 logger.exception("Workflow failed")  # In except blocks for stack trace
 
 # Use logger.exception() instead of logger.error(..., exc_info=True) for clarity

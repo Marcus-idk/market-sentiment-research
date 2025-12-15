@@ -80,8 +80,9 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                 ]
                 if len(filtered_articles) < len(articles):
                     logger.debug(
-                        f"Filtered {len(articles) - len(filtered_articles)} articles "
-                        f"with id <= {current_min_id}"
+                        "Filtered %s articles with id <= %s",
+                        len(articles) - len(filtered_articles),
+                        current_min_id,
                     )
                 articles = filtered_articles
 
@@ -113,7 +114,9 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                     news_entries.extend(items)
                 except (ValueError, TypeError, KeyError, AttributeError) as exc:
                     logger.debug(
-                        f"Failed to parse macro news article {article.get('id', 'unknown')}: {exc}"
+                        "Failed to parse macro news article %s: %s",
+                        article.get("id", "unknown"),
+                        exc,
                     )
                     continue
 
@@ -158,7 +161,9 @@ class FinnhubMacroNewsProvider(NewsDataSource):
             published = datetime.fromtimestamp(datetime_epoch, tz=UTC)
         except (ValueError, OSError, OverflowError) as exc:
             logger.debug(
-                f"Skipping macro news article due to invalid epoch {datetime_epoch}: {exc}"
+                "Skipping macro news article due to invalid epoch %s: %s",
+                datetime_epoch,
+                exc,
             )
             # Return empty array because function might map to multiple entries
             return []
@@ -168,8 +173,10 @@ class FinnhubMacroNewsProvider(NewsDataSource):
             cutoff_iso = _datetime_to_iso(buffer_time)
             published_iso = _datetime_to_iso(published)
             logger.warning(
-                f"Finnhub API returned article with published={published_iso} "
-                f"at/before cutoff {cutoff_iso} despite default lookback window"
+                "Finnhub API returned article with published=%s at/before cutoff %s despite "
+                "default lookback window",
+                published_iso,
+                cutoff_iso,
             )
             return []
 
@@ -190,13 +197,13 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                 content=content,
             )
         except ValueError as exc:
-            logger.debug(f"NewsItem validation failed (url={url}): {exc}")
+            logger.debug("NewsItem validation failed (url=%s): %s", url, exc)
             return []
         for symbol in symbols:
             try:
                 entries.append(NewsEntry(article=article_model, symbol=symbol, is_important=None))
             except ValueError as exc:
-                logger.debug(f"NewsEntry validation failed for {symbol} (url={url}): {exc}")
+                logger.debug("NewsEntry validation failed for %s (url=%s): %s", symbol, url, exc)
                 continue
 
         return entries

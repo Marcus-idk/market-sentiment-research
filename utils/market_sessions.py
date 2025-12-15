@@ -86,8 +86,9 @@ def classify_us_session(ts_utc: datetime) -> Session:
     except (ValueError, TypeError, KeyError, AttributeError) as exc:
         # If we can't determine close time, assume regular hours (4:00 PM)
         logger.warning(
-            "Could not determine session close time for "
-            f"{session_label}, falling back to 16:00 ET: {exc}"
+            "Could not determine session close time for %s, falling back to 16:00 ET: %s",
+            session_label,
+            exc,
         )
 
     # Calculate minutes since midnight for time-based classification

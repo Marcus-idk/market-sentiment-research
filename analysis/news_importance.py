@@ -21,5 +21,5 @@ def label_importance(news_entries: list[NewsEntry]) -> list[NewsEntry]:
     for entry in news_entries:
         entry.is_important = True
 
-    logger.debug(f"Marked {len(news_entries)} news entries as important (stub)")
+    logger.debug("Marked %s news entries as important (stub)", len(news_entries))
     return news_entries

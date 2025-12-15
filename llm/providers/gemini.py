@@ -234,5 +234,5 @@ class GeminiProvider(LLMProvider):
             TypeError,
             RuntimeError,
         ) as exc:
-            logger.warning(f"GeminiProvider connection validation failed: {exc}")
+            logger.warning("GeminiProvider connection validation failed: %s", exc)
             return False

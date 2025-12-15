@@ -17,23 +17,23 @@ def connect(db_path: str, **kwargs) -> sqlite3.Connection:
     try:
         conn.execute("PRAGMA foreign_keys = ON")
     except sqlite3.Error as e:
-        logger.warning(f"Failed to enable SQLite foreign_keys pragma: {e}")
+        logger.warning("Failed to enable SQLite foreign_keys pragma: %s", e)
 
     try:
         conn.execute("PRAGMA busy_timeout = 5000")
     except sqlite3.Error as e:
-        logger.warning(f"Failed to apply SQLite busy_timeout pragma: {e}")
+        logger.warning("Failed to apply SQLite busy_timeout pragma: %s", e)
 
     # Enforce WAL mode and synch (synch changes per connection, resets to FULL on new)
     try:
         conn.execute("PRAGMA journal_mode = WAL")
     except sqlite3.Error as e:
-        logger.warning(f"Failed to set SQLite journal_mode=WAL: {e}")
+        logger.warning("Failed to set SQLite journal_mode=WAL: %s", e)
 
     try:
         conn.execute("PRAGMA synchronous = NORMAL")
     except sqlite3.Error as e:
-        logger.warning(f"Failed to set SQLite synchronous=NORMAL: {e}")
+        logger.warning("Failed to set SQLite synchronous=NORMAL: %s", e)
     return conn
 
 
@@ -43,7 +43,7 @@ def _check_json1_support(conn: sqlite3.Connection) -> bool:
         conn.execute("SELECT json_valid('{}')")
         return True
     except sqlite3.OperationalError as exc:
-        logger.debug(f"SQLite JSON1 extension not available: {exc}")
+        logger.debug("SQLite JSON1 extension not available: %s", exc)
         return False
 
 
@@ -80,7 +80,7 @@ def finalize_database(db_path: str) -> None:
         try:
             conn.execute("PRAGMA synchronous = FULL")
         except sqlite3.Error as e:
-            logger.warning(f"Failed to set SQLite synchronous=FULL during finalize: {e}")
+            logger.warning("Failed to set SQLite synchronous=FULL during finalize: %s", e)
 
         # Force all WAL transactions into main database
         conn.execute("PRAGMA wal_checkpoint(TRUNCATE)")

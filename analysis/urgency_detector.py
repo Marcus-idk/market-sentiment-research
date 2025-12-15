@@ -80,9 +80,12 @@ def _build_social_inputs(items: Iterable[SocialDiscussion]) -> list[UrgencyInput
 def _log_stub_stats(inputs: Sequence[UrgencyInput], stream: str) -> None:
     """Log basic stats for stub urgency detection."""
     if not inputs:
-        logger.debug(f"No {stream} items to analyze for urgency (stub)")
+        logger.debug("No %s items to analyze for urgency (stub)", stream)
         return
     total_chars = sum(len(i.title) + len(i.body) for i in inputs)
     logger.debug(
-        f"Analyzed {len(inputs)} {stream} items for urgency (stub) — text_len={total_chars}"
+        "Analyzed %s %s items for urgency (stub) — text_len=%s",
+        len(inputs),
+        stream,
+        total_chars,
     )

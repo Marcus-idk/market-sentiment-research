@@ -102,8 +102,9 @@ class PolygonMacroNewsProvider(NewsDataSource):
                         news_entries.extend(items)
                     except (ValueError, TypeError, KeyError, AttributeError) as exc:
                         logger.debug(
-                            f"Failed to parse macro news article "
-                            f"{article.get('id', 'unknown')}: {exc}"
+                            "Failed to parse macro news article %s: %s",
+                            article.get("id", "unknown"),
+                            exc,
                         )
                         continue
 
@@ -124,7 +125,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
                 TypeError,
                 KeyError,
             ) as exc:
-                logger.warning(f"Macro news pagination failed: {exc}")
+                logger.warning("Macro news pagination failed: %s", exc)
                 raise
 
         return news_entries
@@ -159,7 +160,9 @@ class PolygonMacroNewsProvider(NewsDataSource):
             published = parse_rfc3339(published_utc)
         except (ValueError, TypeError) as exc:
             logger.debug(
-                f"Skipping macro news article due to invalid timestamp {published_utc}: {exc}"
+                "Skipping macro news article due to invalid timestamp %s: %s",
+                published_utc,
+                exc,
             )
             return []
 
@@ -168,8 +171,10 @@ class PolygonMacroNewsProvider(NewsDataSource):
             cutoff_iso = _datetime_to_iso(buffer_time)
             published_iso = _datetime_to_iso(published)
             logger.warning(
-                f"Polygon API returned article with published={published_iso} "
-                f"despite published_utc.gt={cutoff_iso} filter - possible API contract violation"
+                "Polygon API returned article with published=%s despite published_utc.gt=%s "
+                "filter - possible API contract violation",
+                published_iso,
+                cutoff_iso,
             )
             return []
 
@@ -198,7 +203,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
                 content=content,
             )
         except ValueError as exc:
-            logger.debug(f"NewsItem validation failed (url={article_url}): {exc}")
+            logger.debug("NewsItem validation failed (url=%s): %s", article_url, exc)
             return []
 
         entries: list[NewsEntry] = []
@@ -206,7 +211,9 @@ class PolygonMacroNewsProvider(NewsDataSource):
             try:
                 entries.append(NewsEntry(article=article_model, symbol=symbol, is_important=None))
             except ValueError as exc:
-                logger.debug(f"NewsEntry validation failed for {symbol} (url={article_url}): {exc}")
+                logger.debug(
+                    "NewsEntry validation failed for %s (url=%s): %s", symbol, article_url, exc
+                )
                 continue
 
         return entries

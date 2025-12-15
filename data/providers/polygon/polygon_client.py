@@ -22,7 +22,7 @@ def _extract_cursor_from_next_url(next_url: str) -> str | None:
         query_params = urllib.parse.parse_qs(parsed.query)
         return query_params.get("cursor", [None])[0]
     except (ValueError, TypeError, KeyError, AttributeError) as exc:
-        logger.debug(f"Failed to extract cursor from next_url: {exc}")
+        logger.debug("Failed to extract cursor from next_url: %s", exc)
         return None
 
 
@@ -54,5 +54,5 @@ class PolygonClient:
             await self.get("/v1/marketstatus/now")
             return True
         except (DataSourceError, RetryableError, ValueError, TypeError) as exc:
-            logger.warning(f"PolygonClient connection validation failed: {exc}")
+            logger.warning("PolygonClient connection validation failed: %s", exc)
             return False

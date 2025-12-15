@@ -88,12 +88,12 @@ class FinnhubNewsProvider(NewsDataSource):
                         if entry:
                             news_entries.append(entry)
                     except (ValueError, TypeError, KeyError, AttributeError) as exc:
-                        logger.debug(f"Failed to parse company news article for {symbol}: {exc}")
+                        logger.debug("Failed to parse company news article for %s: %s", symbol, exc)
                         continue
             except DataSourceError:
                 raise
             except (RetryableError, ValueError, TypeError, KeyError, AttributeError) as exc:
-                logger.warning(f"Company news fetch failed for {symbol}: {exc}")
+                logger.warning("Company news fetch failed for %s: %s", symbol, exc)
                 continue
 
         return news_entries
@@ -132,8 +132,10 @@ class FinnhubNewsProvider(NewsDataSource):
             published = datetime.fromtimestamp(datetime_epoch, tz=UTC)
         except (ValueError, OSError, OverflowError) as exc:
             logger.debug(
-                f"Skipping company news article for {symbol} due to invalid epoch "
-                f"{datetime_epoch}: {exc}"
+                "Skipping company news article for %s due to invalid epoch %s: %s",
+                symbol,
+                datetime_epoch,
+                exc,
             )
             return None
 
@@ -142,8 +144,10 @@ class FinnhubNewsProvider(NewsDataSource):
             cutoff_iso = _datetime_to_iso(buffer_time)
             published_iso = _datetime_to_iso(published)
             logger.warning(
-                f"Finnhub API returned article with published={published_iso} "
-                f"at/before cutoff {cutoff_iso} despite from/to date filter"
+                "Finnhub API returned article with published=%s at/before cutoff %s despite "
+                "from/to date filter",
+                published_iso,
+                cutoff_iso,
             )
             return None
 
@@ -163,5 +167,5 @@ class FinnhubNewsProvider(NewsDataSource):
             )
             return NewsEntry(article=article_model, symbol=symbol, is_important=True)
         except ValueError as exc:
-            logger.debug(f"NewsItem validation failed for {symbol} (url={url}): {exc}")
+            logger.debug("NewsItem validation failed for %s (url=%s): %s", symbol, url, exc)
             return None

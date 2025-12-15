@@ -60,7 +60,7 @@ class FinnhubPriceProvider(PriceDataSource):
                 TypeError,
                 KeyError,
             ) as exc:
-                logger.warning(f"Price quote fetch failed for {symbol}: {exc}")
+                logger.warning("Price quote fetch failed for %s: %s", symbol, exc)
                 continue
 
         return price_data
@@ -78,12 +78,14 @@ class FinnhubPriceProvider(PriceDataSource):
         try:
             price = Decimal(str(raw_price))
         except (ValueError, TypeError, InvalidOperation) as exc:
-            logger.debug(f"Invalid quote price for {symbol}: {raw_price!r} ({exc}) - skipping")
+            logger.debug("Invalid quote price for %s: %r (%s) - skipping", symbol, raw_price, exc)
             return None
 
         if price <= 0:
             logger.warning(
-                f"Finnhub /quote returned non-positive price for {symbol}: {price!r} - skipping"
+                "Finnhub /quote returned non-positive price for %s: %r - skipping",
+                symbol,
+                price,
             )
             return None
 
@@ -111,5 +113,5 @@ class FinnhubPriceProvider(PriceDataSource):
                 session=classify_us_session(timestamp),
             )
         except ValueError as exc:
-            logger.debug(f"PriceData validation failed for {symbol} (price={price}): {exc}")
+            logger.debug("PriceData validation failed for %s (price=%s): %s", symbol, price, exc)
             return None

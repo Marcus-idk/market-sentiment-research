@@ -73,10 +73,10 @@ class RedditSocialProvider(SocialDataSource):
                 )
                 discussions.extend(symbol_items)
             except (ValueError, TypeError, KeyError, AttributeError) as exc:
-                logger.warning(f"Reddit fetch failed for {symbol}: {exc}")
+                logger.warning("Reddit fetch failed for %s: %s", symbol, exc)
                 continue
             except praw_exceptions.PrawcoreException as exc:
-                logger.warning(f"Reddit API error for {symbol}: {exc}")
+                logger.warning("Reddit API error for %s: %s", symbol, exc)
                 continue
 
         return discussions
@@ -111,7 +111,7 @@ class RedditSocialProvider(SocialDataSource):
             ValueError,
             KeyError,
         ) as exc:
-            logger.warning(f"Reddit search failed for {symbol}: {exc}")
+            logger.warning("Reddit search failed for %s: %s", symbol, exc)
             return []
 
         discussions: list[SocialDiscussion] = []
@@ -122,7 +122,7 @@ class RedditSocialProvider(SocialDataSource):
                 if discussion:
                     discussions.append(discussion)
             except (ValueError, TypeError, KeyError, AttributeError) as exc:
-                logger.debug(f"Failed to parse Reddit submission for {symbol}: {exc}")
+                logger.debug("Failed to parse Reddit submission for %s: %s", symbol, exc)
                 continue
 
         return discussions
@@ -133,7 +133,7 @@ class RedditSocialProvider(SocialDataSource):
         """Parse a Reddit submission into a SocialDiscussion, returning None if invalid."""
         created_utc = getattr(submission, "created_utc", None)
         if created_utc is None:
-            logger.debug(f"Submission missing created_utc: {getattr(submission, 'id', 'unknown')}")
+            logger.debug("Submission missing created_utc: %s", getattr(submission, "id", "unknown"))
             return None
 
         try:
@@ -142,7 +142,10 @@ class RedditSocialProvider(SocialDataSource):
         except (ValueError, OSError, OverflowError, TypeError) as exc:
             submission_id = getattr(submission, "id", "unknown")
             logger.debug(
-                f"Failed to parse timestamp {created_utc!r} for submission {submission_id}: {exc}"
+                "Failed to parse timestamp %r for submission %s: %s",
+                created_utc,
+                submission_id,
+                exc,
             )
             return None
 
@@ -151,7 +154,7 @@ class RedditSocialProvider(SocialDataSource):
 
         title = (getattr(submission, "title", "") or "").strip()
         if not title:
-            logger.debug(f"Submission missing title: {getattr(submission, 'id', 'unknown')}")
+            logger.debug("Submission missing title: %s", getattr(submission, "id", "unknown"))
             return None
 
         subreddit_obj = getattr(submission, "subreddit", None)
@@ -160,7 +163,7 @@ class RedditSocialProvider(SocialDataSource):
             subreddit_name = getattr(subreddit_obj, "display_name", "") or str(subreddit_obj)
         subreddit_name = (subreddit_name or "").strip()
         if not subreddit_name:
-            logger.debug(f"Submission missing subreddit: {getattr(submission, 'id', 'unknown')}")
+            logger.debug("Submission missing subreddit: %s", getattr(submission, "id", "unknown"))
             return None
 
         permalink = (getattr(submission, "permalink", "") or "").strip()
@@ -173,7 +176,7 @@ class RedditSocialProvider(SocialDataSource):
                 url = fallback_url
             else:
                 logger.debug(
-                    f"Submission missing valid URL: {getattr(submission, 'id', 'unknown')}"
+                    "Submission missing valid URL: %s", getattr(submission, "id", "unknown")
                 )
                 return None
 
@@ -218,7 +221,9 @@ class RedditSocialProvider(SocialDataSource):
             ValueError,
         ) as exc:
             logger.debug(
-                f"Failed to fetch comments for submission {getattr(submission, 'id', '')}: {exc}"
+                "Failed to fetch comments for submission %s: %s",
+                getattr(submission, "id", ""),
+                exc,
             )
 
         if not base_text and not comments_text:

@@ -132,7 +132,7 @@ class DataPoller:
         for provider, result in zip(self.news_providers, news_results, strict=True):
             provider_name = getattr(provider, "source_name", provider.__class__.__name__)
             if isinstance(result, Exception):
-                logger.debug(f"{provider_name} news fetch failed: {result}")
+                logger.debug("%s news fetch failed: %s", provider_name, result)
                 errors.append(f"{provider_name}: {str(result)}")
                 continue
 
@@ -147,7 +147,7 @@ class DataPoller:
         for provider, result in zip(self.social_providers, social_results, strict=True):
             provider_name = getattr(provider, "source_name", provider.__class__.__name__)
             if isinstance(result, Exception):
-                logger.debug(f"{provider_name} social fetch failed: {result}")
+                logger.debug("%s social fetch failed: %s", provider_name, result)
                 errors.append(f"{provider_name}: {str(result)}")
                 continue
 
@@ -159,7 +159,7 @@ class DataPoller:
         for provider, result in zip(self.price_providers, price_results, strict=True):
             provider_name = getattr(provider, "source_name", provider.__class__.__name__)
             if isinstance(result, Exception):
-                logger.debug(f"{provider_name} price fetch failed: {result}")
+                logger.debug("%s price fetch failed: %s", provider_name, result)
                 errors.append(f"{provider_name}: {str(result)}")
             else:
                 # Convert list to dict keyed by symbol
@@ -213,7 +213,7 @@ class DataPoller:
             # Get primary provider's price
             primary_price_data = primary_prices.get(symbol)
             if primary_price_data is None:
-                logger.warning(f"{primary_provider_name} missing price for {symbol}")
+                logger.warning("%s missing price for %s", primary_provider_name, symbol)
                 continue
 
             # Always store primary provider's price
@@ -231,16 +231,20 @@ class DataPoller:
 
                 other_price_data = provider_prices.get(symbol)
                 if other_price_data is None:
-                    logger.warning(f"{provider_name} missing price for {symbol}")
+                    logger.warning("%s missing price for %s", provider_name, symbol)
                     continue
 
                 # Check for mismatch
                 diff = abs(primary_price_data.price - other_price_data.price)
                 if diff >= Decimal("0.01"):
                     logger.error(
-                        f"Price mismatch for {symbol}: "
-                        f"{primary_provider_name}=${primary_price_data.price} vs "
-                        f"{provider_name}=${other_price_data.price} (diff=${diff})"
+                        "Price mismatch for %s: %s=$%s vs %s=$%s (diff=$%s)",
+                        symbol,
+                        primary_provider_name,
+                        primary_price_data.price,
+                        provider_name,
+                        other_price_data.price,
+                        diff,
                     )
 
         await asyncio.to_thread(
@@ -249,7 +253,7 @@ class DataPoller:
             deduplicated_prices,
         )
 
-        logger.info(f"Stored {len(deduplicated_prices)} price updates")
+        logger.info("Stored %s price updates", len(deduplicated_prices))
         return len(deduplicated_prices)
 
     def _log_urgent_items(self, urgent_items: list[NewsEntry]) -> None:
@@ -261,11 +265,11 @@ class DataPoller:
         if not urgent_items:
             logger.debug("No urgent news items detected")
             return
-        logger.warning(f"Found {len(urgent_items)} URGENT news items requiring attention")
+        logger.warning("Found %s URGENT news items requiring attention", len(urgent_items))
         for item in urgent_items[:10]:
-            logger.warning(f"URGENT [{item.symbol}]: {item.headline} - {item.url}")
+            logger.warning("URGENT [%s]: %s - %s", item.symbol, item.headline, item.url)
         if len(urgent_items) > 10:
-            logger.warning(f"... {len(urgent_items) - 10} more")
+            logger.warning("... %s more", len(urgent_items) - 10)
 
     def _log_urgent_social(self, urgent_items: list[SocialDiscussion]) -> None:
         """Log up to 10 urgent social items (then a remainder count).
@@ -276,11 +280,17 @@ class DataPoller:
         if not urgent_items:
             logger.debug("No urgent social items detected")
             return
-        logger.warning(f"Found {len(urgent_items)} URGENT social threads requiring attention")
+        logger.warning("Found %s URGENT social threads requiring attention", len(urgent_items))
         for item in urgent_items[:10]:
-            logger.warning(f"URGENT [{item.symbol}] {item.community}: {item.title} - {item.url}")
+            logger.warning(
+                "URGENT [%s] %s: %s - %s",
+                item.symbol,
+                item.community,
+                item.title,
+                item.url,
+            )
         if len(urgent_items) > 10:
-            logger.warning(f"... {len(urgent_items) - 10} more")
+            logger.warning("... %s more", len(urgent_items) - 10)
 
     async def _process_news(
         self,
@@ -299,7 +309,7 @@ class DataPoller:
             try:
                 self._log_urgent_items(detect_news_urgency(all_news))
             except (LLMError, ValueError, TypeError, RuntimeError) as exc:
-                logger.exception(f"Urgency detection failed: {exc}")
+                logger.exception("Urgency detection failed: %s", exc)
 
         commit_tasks = [
             asyncio.to_thread(self.watermarks.commit_updates, provider, entries)
@@ -310,8 +320,10 @@ class DataPoller:
 
         if all_news:
             logger.info(
-                f"Stored {len(all_news)} news items "
-                f"({len(company_news)} company, {len(macro_news)} macro)"
+                "Stored %s news items (%s company, %s macro)",
+                len(all_news),
+                len(company_news),
+                len(macro_news),
             )
         return len(all_news)
 
@@ -329,7 +341,7 @@ class DataPoller:
             try:
                 self._log_urgent_social(detect_social_urgency(social_discussions))
             except (LLMError, ValueError, TypeError, RuntimeError) as exc:
-                logger.exception(f"Social urgency detection failed: {exc}")
+                logger.exception("Social urgency detection failed: %s", exc)
 
         commit_tasks = [
             asyncio.to_thread(self.watermarks.commit_updates, provider, items)
@@ -339,7 +351,7 @@ class DataPoller:
             await asyncio.gather(*commit_tasks)
 
         if social_discussions:
-            logger.info(f"Stored {len(social_discussions)} social discussions")
+            logger.info("Stored %s social discussions", len(social_discussions))
 
         return len(social_discussions)
 
@@ -387,7 +399,7 @@ class DataPoller:
             RuntimeError,
             OSError,
         ) as exc:
-            logger.exception(f"Poll cycle failed with error: {exc}")
+            logger.exception("Poll cycle failed with error: %s", exc)
             stats["errors"].append(f"Cycle error: {exc}")
 
         return stats
@@ -401,14 +413,14 @@ class DataPoller:
 
         self._stop_event.clear()
         self.running = True
-        logger.info(f"Starting data poller with {self.poll_interval}s interval")
+        logger.info("Starting data poller with %ss interval", self.poll_interval)
 
         # Run first poll immediately
         cycle_count = 0
 
         while self.running:  # pragma: no cover - run() sets running True before loop
             cycle_count += 1
-            logger.info(f"Starting poll cycle #{cycle_count}")
+            logger.info("Starting poll cycle #%s", cycle_count)
             start_time = asyncio.get_running_loop().time()
 
             # Execute one poll cycle
@@ -417,14 +429,20 @@ class DataPoller:
             # Log results
             if stats["errors"]:
                 logger.warning(
-                    f"Cycle #{cycle_count} completed with errors: "
-                    f"{stats['news']} news, {stats['social']} social, {stats['prices']} prices, "
-                    f"Errors: {stats['errors']}"
+                    "Cycle #%s completed with errors: %s news, %s social, %s prices, Errors: %s",
+                    cycle_count,
+                    stats["news"],
+                    stats["social"],
+                    stats["prices"],
+                    stats["errors"],
                 )
             else:
                 logger.info(
-                    f"Cycle #{cycle_count} completed successfully: "
-                    f"{stats['news']} news, {stats['social']} social, {stats['prices']} prices"
+                    "Cycle #%s completed successfully: %s news, %s social, %s prices",
+                    cycle_count,
+                    stats["news"],
+                    stats["social"],
+                    stats["prices"],
                 )
 
             # Calculate sleep time to maintain consistent interval
@@ -432,7 +450,7 @@ class DataPoller:
             sleep_time = max(0, self.poll_interval - elapsed)
 
             if self.running and sleep_time > 0:
-                logger.info(f"Next poll in {sleep_time:.1f} seconds...")
+                logger.info("Next poll in %.1f seconds...", sleep_time)
                 try:
                     # Wait for either the timeout or stop event
                     await asyncio.wait_for(self._stop_event.wait(), timeout=sleep_time)

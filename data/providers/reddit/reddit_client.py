@@ -30,8 +30,8 @@ class RedditClient:
             user = self.reddit.user.me()
             return bool(user)
         except praw_exceptions.PrawcoreException as exc:
-            logger.warning(f"RedditClient validation failed: {exc}")
+            logger.warning("RedditClient validation failed: %s", exc)
             return False
         except Exception as exc:  # noqa: BLE001 - defensive catch for unexpected PRAW errors
-            logger.warning(f"RedditClient validation failed: {exc}")
+            logger.warning("RedditClient validation failed: %s", exc)
             return False
