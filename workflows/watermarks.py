@@ -143,8 +143,17 @@ def _is_global_bootstrap_symbol(
             symbol=symbol,
         )
     except (sqlite3.Error, OSError) as exc:
-        logger.debug("Bootstrap detection failed for %s: %s", symbol, exc)
-        return False
+        logger.warning(
+            "Bootstrap detection failed provider=%s stream=%s symbol=%s: %s",
+            rule.provider.value,
+            rule.stream.value,
+            symbol,
+            exc,
+        )
+        raise RuntimeError(
+            f"Bootstrap detection failed provider={rule.provider.value} "
+            f"stream={rule.stream.value} symbol={symbol}"
+        ) from exc
 
     if symbol_ts is None:
         return True
@@ -182,31 +191,62 @@ class WatermarkEngine:
 
         # ID-based cursor: only track the last integer ID.
         if rule.cursor == "id":
-            last_id = get_last_seen_id(self.db_path, rule.provider, rule.stream, rule.scope)
-            return CursorPlan(min_id=last_id)
+            return self._plan_id_cursor(rule)
 
         # Timestamp-based cursor: derive "first run" window from settings.
         first_run_days = _cfg_days(settings, rule.overlap_family)
 
         # Per-symbol scope (e.g., Finnhub company news): one cursor per symbol.
         if rule.scope is ScopeEnum.SYMBOL:
-            per_symbol_map: dict[str, datetime] = {}
-            for symbol in getattr(provider, "symbols", []) or []:
-                prev = get_last_seen_timestamp(
-                    self.db_path,
-                    rule.provider,
-                    rule.stream,
-                    ScopeEnum.SYMBOL,
-                    symbol=symbol,
-                )
-                if prev is None:
-                    since = now - timedelta(days=first_run_days)
-                else:
-                    since = normalize_to_utc(prev)
-                per_symbol_map[symbol] = since
-            return CursorPlan(symbol_since_map=per_symbol_map)
+            return self._plan_symbol_timestamps(rule, provider, now, first_run_days)
 
         # Global scope (e.g., Polygon company/macro): single shared cursor.
+        base_since = self._plan_global_timestamp(rule, now, first_run_days)
+        symbol_map = self._plan_global_bootstrap_overrides(
+            rule,
+            provider,
+            now,
+            first_run_days,
+            base_since,
+        )
+        return CursorPlan(since=base_since, symbol_since_map=symbol_map)
+
+    def _plan_id_cursor(self, rule: CursorRule) -> CursorPlan:
+        """Build an ID-based cursor plan from the stored watermark."""
+        last_id = get_last_seen_id(self.db_path, rule.provider, rule.stream, rule.scope)
+        return CursorPlan(min_id=last_id)
+
+    def _plan_symbol_timestamps(
+        self,
+        rule: CursorRule,
+        provider: NewsDataSource | SocialDataSource,
+        now: datetime,
+        first_run_days: int,
+    ) -> CursorPlan:
+        """Build per-symbol timestamp cursors using stored watermarks."""
+        per_symbol_map: dict[str, datetime] = {}
+        for symbol in getattr(provider, "symbols", []) or []:
+            prev = get_last_seen_timestamp(
+                self.db_path,
+                rule.provider,
+                rule.stream,
+                ScopeEnum.SYMBOL,
+                symbol=symbol,
+            )
+            if prev is None:
+                since = now - timedelta(days=first_run_days)
+            else:
+                since = normalize_to_utc(prev)
+            per_symbol_map[symbol] = since
+        return CursorPlan(symbol_since_map=per_symbol_map)
+
+    def _plan_global_timestamp(
+        self,
+        rule: CursorRule,
+        now: datetime,
+        first_run_days: int,
+    ) -> datetime:
+        """Return the global timestamp cursor, falling back to first-run window."""
         prev = get_last_seen_timestamp(
             self.db_path,
             rule.provider,
@@ -215,28 +255,33 @@ class WatermarkEngine:
             symbol=None,
         )
         if prev is None:
-            base_since = now - timedelta(days=first_run_days)
-        else:
-            base_since = normalize_to_utc(prev)
+            return now - timedelta(days=first_run_days)
+        return normalize_to_utc(prev)
 
-        # Optional per-symbol bootstrap overrides for GLOBAL+bootstrap providers
-        # (e.g., Polygon company news): new/stale symbols get a custom window.
-        symbol_map: dict[str, datetime] | None = None
-        if rule.bootstrap and getattr(provider, "symbols", None):
-            overrides: dict[str, datetime] = {}
-            override_since = now - timedelta(days=first_run_days)
-            for symbol in getattr(provider, "symbols", []) or []:
-                if _is_global_bootstrap_symbol(
-                    self.db_path,
-                    rule,
-                    symbol=symbol,
-                    base_since=base_since,
-                ):
-                    overrides[symbol] = override_since
-            if overrides:
-                symbol_map = overrides
+    def _plan_global_bootstrap_overrides(
+        self,
+        rule: CursorRule,
+        provider: NewsDataSource | SocialDataSource,
+        now: datetime,
+        first_run_days: int,
+        base_since: datetime,
+    ) -> dict[str, datetime] | None:
+        """Return per-symbol override cursors for GLOBAL+bootstrap providers."""
+        if not (rule.bootstrap and getattr(provider, "symbols", None)):
+            return None
 
-        return CursorPlan(since=base_since, symbol_since_map=symbol_map)
+        overrides: dict[str, datetime] = {}
+        override_since = now - timedelta(days=first_run_days)
+        for symbol in getattr(provider, "symbols", []) or []:
+            if _is_global_bootstrap_symbol(
+                self.db_path,
+                rule,
+                symbol=symbol,
+                base_since=base_since,
+            ):
+                overrides[symbol] = override_since
+
+        return overrides or None
 
     def commit_updates(
         self,
@@ -262,10 +307,7 @@ class WatermarkEngine:
 
         # ID-based cursor: rely on provider's recorded max ID.
         if rule.cursor == "id":
-            max_id = getattr(provider, "last_fetched_max_id", None)
-            if max_id is None:
-                return
-            set_last_seen_id(self.db_path, rule.provider, rule.stream, rule.scope, max_id)
+            self._commit_id_cursor(rule, provider)
             return
 
         # No entries means nothing to advance for timestamp-based cursors.
@@ -274,37 +316,68 @@ class WatermarkEngine:
 
         # Per-symbol scope (e.g., Finnhub company): track max timestamp per symbol.
         if rule.scope is ScopeEnum.SYMBOL:
-            max_by_symbol: dict[str, datetime] = {}
-            for entry in entries:
-                if not entry.symbol:
-                    continue
-                published = normalize_to_utc(entry.published)
-                current = max_by_symbol.get(entry.symbol)
-                if current is None or published > current:
-                    max_by_symbol[entry.symbol] = published
-
-            for symbol, ts in max_by_symbol.items():
-                clamped = _clamp_future(ts, now)
-                if clamped != ts:
-                    logger.warning(
-                        "Clamped future watermark provider=%s stream=%s "
-                        "scope=SYMBOL symbol=%s original=%s clamped=%s",
-                        rule.provider.value,
-                        rule.stream.value,
-                        symbol,
-                        _datetime_to_iso(ts),
-                        _datetime_to_iso(clamped),
-                    )
-                set_last_seen_timestamp(
-                    self.db_path,
-                    rule.provider,
-                    rule.stream,
-                    ScopeEnum.SYMBOL,
-                    clamped,
-                    symbol=symbol,
-                )
+            self._commit_symbol_timestamp_updates(rule, entries, now)
             return
 
+        self._commit_global_timestamp_update(rule, entries, now)
+        if rule.bootstrap:
+            self._commit_bootstrap_symbol_updates(rule, entries, now)
+
+    def _commit_id_cursor(
+        self,
+        rule: CursorRule,
+        provider: NewsDataSource | SocialDataSource,
+    ) -> None:
+        """Persist the provider's max fetched ID watermark when available."""
+        max_id = getattr(provider, "last_fetched_max_id", None)
+        if max_id is None:
+            return
+        set_last_seen_id(self.db_path, rule.provider, rule.stream, rule.scope, max_id)
+
+    def _commit_symbol_timestamp_updates(
+        self,
+        rule: CursorRule,
+        entries: Sequence[NewsEntry | SocialDiscussion],
+        now: datetime,
+    ) -> None:
+        """Persist per-symbol max published timestamps, clamping future values."""
+        max_by_symbol: dict[str, datetime] = {}
+        for entry in entries:
+            if not entry.symbol:
+                continue
+            published = normalize_to_utc(entry.published)
+            current = max_by_symbol.get(entry.symbol)
+            if current is None or published > current:
+                max_by_symbol[entry.symbol] = published
+
+        for symbol, ts in max_by_symbol.items():
+            clamped = _clamp_future(ts, now)
+            if clamped != ts:
+                logger.warning(
+                    "Clamped future watermark provider=%s stream=%s "
+                    "scope=SYMBOL symbol=%s original=%s clamped=%s",
+                    rule.provider.value,
+                    rule.stream.value,
+                    symbol,
+                    _datetime_to_iso(ts),
+                    _datetime_to_iso(clamped),
+                )
+            set_last_seen_timestamp(
+                self.db_path,
+                rule.provider,
+                rule.stream,
+                ScopeEnum.SYMBOL,
+                clamped,
+                symbol=symbol,
+            )
+
+    def _commit_global_timestamp_update(
+        self,
+        rule: CursorRule,
+        entries: Sequence[NewsEntry | SocialDiscussion],
+        now: datetime,
+    ) -> None:
+        """Persist the global max published timestamp, clamping future values."""
         max_ts = max(normalize_to_utc(entry.published) for entry in entries)
         clamped = _clamp_future(max_ts, now)
         if clamped != max_ts:
@@ -326,27 +399,33 @@ class WatermarkEngine:
             clamped,
         )
 
-        if rule.bootstrap:
-            per_symbol_max: dict[str, datetime] = {}
-            for entry in entries:
-                if not entry.symbol:
-                    continue
-                published = normalize_to_utc(entry.published)
-                current = per_symbol_max.get(entry.symbol)
-                if current is None or published > current:
-                    per_symbol_max[entry.symbol] = published
+    def _commit_bootstrap_symbol_updates(
+        self,
+        rule: CursorRule,
+        entries: Sequence[NewsEntry | SocialDiscussion],
+        now: datetime,
+    ) -> None:
+        """Persist per-symbol timestamps for bootstrap streams, clamping future values."""
+        per_symbol_max: dict[str, datetime] = {}
+        for entry in entries:
+            if not entry.symbol:
+                continue
+            published = normalize_to_utc(entry.published)
+            current = per_symbol_max.get(entry.symbol)
+            if current is None or published > current:
+                per_symbol_max[entry.symbol] = published
 
-            for symbol, ts in per_symbol_max.items():
-                clamped_symbol = _clamp_future(ts, now)
-                # SQL upsert is monotonic - only advances forward
-                set_last_seen_timestamp(
-                    self.db_path,
-                    rule.provider,
-                    rule.stream,
-                    ScopeEnum.SYMBOL,
-                    clamped_symbol,
-                    symbol=symbol,
-                )
+        for symbol, ts in per_symbol_max.items():
+            clamped_symbol = _clamp_future(ts, now)
+            # SQL upsert is monotonic - only advances forward
+            set_last_seen_timestamp(
+                self.db_path,
+                rule.provider,
+                rule.stream,
+                ScopeEnum.SYMBOL,
+                clamped_symbol,
+                symbol=symbol,
+            )
 
     @staticmethod
     def _get_settings(provider: NewsDataSource | SocialDataSource) -> object | None:
