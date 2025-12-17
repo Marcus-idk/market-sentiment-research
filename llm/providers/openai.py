@@ -80,14 +80,17 @@ class OpenAIProvider(LLMProvider):
             args["tool_choice"] = self.tool_choice
 
         # GPT-5 restriction: tool_choice values other than "auto" often reject with 400.
-        if isinstance(args.get("tool_choice"), str) and self.model_name.startswith("gpt-5"):
-            if args["tool_choice"] != "auto":
-                logger.warning(
-                    "tool_choice=%r not supported by %s; coercing to 'auto'",
-                    args["tool_choice"],
-                    self.model_name,
-                )
-                args["tool_choice"] = "auto"
+        if (
+            isinstance(args.get("tool_choice"), str)
+            and self.model_name.startswith("gpt-5")
+            and args["tool_choice"] != "auto"
+        ):
+            logger.warning(
+                "tool_choice=%r not supported by %s; coercing to 'auto'",
+                args["tool_choice"],
+                self.model_name,
+            )
+            args["tool_choice"] = "auto"
 
         async def _attempt() -> str:
             """Single API call attempt with error mapping to RetryableError."""

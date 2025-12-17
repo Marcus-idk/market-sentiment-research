@@ -9,7 +9,7 @@
 ---
 
 ## PROJECT CONTEXT
-- **Python Version**: 3.12.x (requires 3.12+)
+- **Python Version**: 3.13.x (requires 3.13+)
 - **Principle**: Follow existing patterns. Propose improvements only when they clearly reduce complexity.
 - **Scope**: All new/changed code
 
@@ -22,7 +22,7 @@
 - Max test class size: ~200–250 lines
 
 ### PYTHON_VERSION
-Use Python 3.12+ modern syntax.
+Use Python 3.13+ modern syntax.
 ```python
 # ✅ list[str], dict[str, int | None], match statements, built-in generics
 # ❌ typing.List, typing.Optional, typing.Union

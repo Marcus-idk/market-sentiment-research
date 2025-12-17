@@ -247,22 +247,21 @@ class TestSchemaConstraints:
 
     def test_xor_constraint_blocks_timestamp_and_id(self, temp_db):
         """Cannot store both timestamp and id in same row."""
-        with pytest.raises(sqlite3.IntegrityError):
-            with _cursor_context(temp_db) as cursor:
-                cursor.execute(
-                    """
+        with pytest.raises(sqlite3.IntegrityError), _cursor_context(temp_db) as cursor:
+            cursor.execute(
+                """
                     INSERT INTO last_seen_state (provider, stream, scope, symbol, timestamp, id)
                     VALUES (?, ?, ?, ?, ?, ?)
                     """,
-                    (
-                        Provider.FINNHUB.value,
-                        Stream.MACRO.value,
-                        Scope.GLOBAL.value,
-                        "__GLOBAL__",
-                        "2024-01-01T00:00:00Z",
-                        1,
-                    ),
-                )
+                (
+                    Provider.FINNHUB.value,
+                    Stream.MACRO.value,
+                    Scope.GLOBAL.value,
+                    "__GLOBAL__",
+                    "2024-01-01T00:00:00Z",
+                    1,
+                ),
+            )
 
     def test_global_scope_defaults_symbol_to_global(self, temp_db):
         """Global scope writes store the __GLOBAL__ sentinel."""

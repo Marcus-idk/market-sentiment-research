@@ -45,10 +45,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         now_utc = datetime.now(UTC)
         bootstrap_delta = timedelta(days=self.settings.macro_news_first_run_days)
 
-        if min_id is None:
-            buffer_time = now_utc - bootstrap_delta
-        else:
-            buffer_time = None
+        buffer_time = now_utc - bootstrap_delta if min_id is None else None
 
         news_entries: list[NewsEntry] = []
         base_params: dict[str, Any] = {"category": "general"}

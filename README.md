@@ -29,7 +29,7 @@ A lightweight US equities trading bot skeleton with strict data models, SQLite s
 
 ## Prerequisites
 
-- Python 3.12 or newer
+- Python 3.13 or newer
 
 ## Development Setup
 
@@ -103,4 +103,3 @@ pytest -m "not integration and not network"
 - Coverage is automatically measured when running pytest
 - Terminal shows missing lines for files under 100%
 - Coverage must be ≥85% (configured in `.coveragerc`)
-

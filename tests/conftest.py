@@ -39,16 +39,23 @@ def cleanup_sqlite_artifacts(db_path: str):
 
     # Fallback File Removal
     for suffix in ("-wal", "-shm", ""):
+        path = db_path + suffix
         try:
-            os.remove(db_path + suffix)
+            os.remove(path)
         except FileNotFoundError:
             pass
         except PermissionError:
             gc.collect()
             try:
-                os.remove(db_path + suffix)
-            except (FileNotFoundError, PermissionError):
+                os.remove(path)
+            except FileNotFoundError:
                 pass
+            except PermissionError as exc:
+                logger.warning(
+                    "Failed to remove SQLite artifact %s after GC (file may still be locked): %s",
+                    path,
+                    exc,
+                )
 
 
 @pytest.fixture

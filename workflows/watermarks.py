@@ -233,10 +233,7 @@ class WatermarkEngine:
                 ScopeEnum.SYMBOL,
                 symbol=symbol,
             )
-            if prev is None:
-                since = now - timedelta(days=first_run_days)
-            else:
-                since = normalize_to_utc(prev)
+            since = now - timedelta(days=first_run_days) if prev is None else normalize_to_utc(prev)
             per_symbol_map[symbol] = since
         return CursorPlan(symbol_since_map=per_symbol_map)
 

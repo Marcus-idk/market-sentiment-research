@@ -53,10 +53,7 @@ class PolygonMacroNewsProvider(NewsDataSource):
         overlap_delta = timedelta(minutes=self.settings.macro_news_overlap_minutes)
         bootstrap_delta = timedelta(days=self.settings.macro_news_first_run_days)
 
-        if since is not None:
-            start_time = since - overlap_delta
-        else:
-            start_time = now_utc - bootstrap_delta
+        start_time = since - overlap_delta if since is not None else now_utc - bootstrap_delta
 
         if start_time > now_utc:
             start_time = now_utc

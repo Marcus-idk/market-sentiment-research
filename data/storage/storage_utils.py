@@ -61,10 +61,7 @@ def _datetime_to_iso(dt: datetime) -> str:
     """Convert datetime to UTC ISO string format expected by database."""
     # Guideline note: this is the central helper the codebase should use for ISO strings.
     # The normalization below intentionally handles the 'Z' suffix.
-    if dt.tzinfo is None:
-        dt = dt.replace(tzinfo=UTC)
-    else:
-        dt = dt.astimezone(UTC)
+    dt = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
     return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 

@@ -60,16 +60,15 @@ class TestCursorContext:
     def test_cursor_context_rollback_on_exception(self, temp_db):
         """Test that exceptions trigger rollback"""
         # Insert should be rolled back due to exception
-        with pytest.raises(ValueError):
-            with _cursor_context(temp_db) as cursor:
-                cursor.execute(
-                    """
+        with pytest.raises(ValueError), _cursor_context(temp_db) as cursor:
+            cursor.execute(
+                """
                     INSERT INTO price_data (symbol, timestamp_iso, price, session)
                     VALUES (?, ?, ?, ?)
                 """,
-                    ("MSFT", "2024-01-01T00:00:00Z", "250.00", "REG"),
-                )
-                raise ValueError("Intentional error")
+                ("MSFT", "2024-01-01T00:00:00Z", "250.00", "REG"),
+            )
+            raise ValueError("Intentional error")
 
         # Verify rollback happened - no data should exist
         with _cursor_context(temp_db, commit=False) as cursor:
@@ -83,16 +82,15 @@ class TestCursorContext:
     def test_cursor_context_rollback_on_base_exception(self, temp_db):
         """Test that BaseException (like SystemExit) also triggers rollback"""
         # BaseException should also trigger rollback
-        with pytest.raises(SystemExit):
-            with _cursor_context(temp_db) as cursor:
-                cursor.execute(
-                    """
+        with pytest.raises(SystemExit), _cursor_context(temp_db) as cursor:
+            cursor.execute(
+                """
                     INSERT INTO price_data (symbol, timestamp_iso, price, session)
                     VALUES (?, ?, ?, ?)
                 """,
-                    ("GOOGL", "2024-01-01T00:00:00Z", "300.00", "REG"),
-                )
-                raise SystemExit("Simulated system exit")
+                ("GOOGL", "2024-01-01T00:00:00Z", "300.00", "REG"),
+            )
+            raise SystemExit("Simulated system exit")
 
         # Verify rollback happened
         with _cursor_context(temp_db, commit=False) as cursor:
@@ -136,9 +134,8 @@ class TestCursorContext:
     def test_cursor_context_cleanup_on_cursor_error(self, temp_db):
         """Test that connection cleanup happens even if cursor operations fail"""
         # Intentionally cause a SQL error
-        with pytest.raises(sqlite3.OperationalError):
-            with _cursor_context(temp_db) as cursor:
-                cursor.execute("SELECT * FROM nonexistent_table")
+        with pytest.raises(sqlite3.OperationalError), _cursor_context(temp_db) as cursor:
+            cursor.execute("SELECT * FROM nonexistent_table")
 
         # Verify we can still use the database (connection was closed properly)
         with _cursor_context(temp_db, commit=False) as cursor:
@@ -154,16 +151,15 @@ class TestCursorContext:
             # Connection should close after this block
 
         # Then verify error path also closes connection
-        with pytest.raises(RuntimeError):
-            with _cursor_context(temp_db) as cursor:
-                cursor.execute(
-                    """
+        with pytest.raises(RuntimeError), _cursor_context(temp_db) as cursor:
+            cursor.execute(
+                """
                     INSERT INTO price_data (symbol, timestamp_iso, price, session)
                     VALUES (?, ?, ?, ?)
                 """,
-                    ("META", "2024-01-01T00:00:00Z", "190.00", "REG"),
-                )
-                raise RuntimeError("Test error")
+                ("META", "2024-01-01T00:00:00Z", "190.00", "REG"),
+            )
+            raise RuntimeError("Test error")
 
         # Verify we can still access database (connections were properly closed)
         with _cursor_context(temp_db, commit=False) as cursor:

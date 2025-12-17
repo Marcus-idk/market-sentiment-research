@@ -57,10 +57,7 @@ def classify_us_session(ts_utc: datetime) -> Session:
         installed, an ImportError is raised at import time.
     """
     # Ensure timestamp is UTC-aware
-    if ts_utc.tzinfo is None:
-        ts_utc = ts_utc.replace(tzinfo=UTC)
-    else:
-        ts_utc = ts_utc.astimezone(UTC)
+    ts_utc = ts_utc.replace(tzinfo=UTC) if ts_utc.tzinfo is None else ts_utc.astimezone(UTC)
 
     # Convert to Eastern Time (handles DST automatically)
     et = ts_utc.astimezone(ZoneInfo("America/New_York"))

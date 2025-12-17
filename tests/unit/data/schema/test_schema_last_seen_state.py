@@ -35,22 +35,20 @@ class TestLastSeenStateSchema:
                 """
             )
 
-        with pytest.raises(sqlite3.IntegrityError):
-            with _cursor_context(temp_db) as cursor:
-                cursor.execute(
-                    """
+        with pytest.raises(sqlite3.IntegrityError), _cursor_context(temp_db) as cursor:
+            cursor.execute(
+                """
                     INSERT INTO last_seen_state (provider, stream, scope, symbol, timestamp, id)
                     VALUES ('FINNHUB', 'MACRO', 'GLOBAL', '__GLOBAL__', NULL, 2)
                     """
-                )
+            )
 
     def test_scope_check_constraint(self, temp_db):
         """Test scope check constraint."""
-        with pytest.raises(sqlite3.IntegrityError):
-            with _cursor_context(temp_db) as cursor:
-                cursor.execute(
-                    """
+        with pytest.raises(sqlite3.IntegrityError), _cursor_context(temp_db) as cursor:
+            cursor.execute(
+                """
                     INSERT INTO last_seen_state (provider, stream, scope, symbol, timestamp, id)
                     VALUES ('FINNHUB', 'MACRO', 'INVALID', '__GLOBAL__', NULL, NULL)
                     """
-                )
+            )

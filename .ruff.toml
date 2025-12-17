@@ -2,7 +2,7 @@ line-length = 100
 target-version = "py313"
 
 [lint]
-select = ["E", "F", "I", "UP", "B", "PLC"]
+select = ["E", "F", "I", "UP", "B", "PLC", "SIM"]
 
 [lint.per-file-ignores]
 "tests/conftest.py" = ["E402"]
