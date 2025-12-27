@@ -1,4 +1,4 @@
-"""Workflow orchestration for trading bot operations."""
+"""Workflow orchestration for Market Sentiment Analyzer operations."""
 
 from workflows.poller import DataPoller
 

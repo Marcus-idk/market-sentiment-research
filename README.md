@@ -1,6 +1,6 @@
-# TradingBot
+# Market Sentiment Analyzer
 
-A lightweight US equities trading bot skeleton with strict data models, SQLite storage, and pluggable LLM providers (OpenAI, Gemini).
+A lightweight US equities Market Sentiment Analyzer skeleton with strict data models, SQLite storage, and pluggable LLM providers (OpenAI, Gemini).
 
 **📚 Please read all documentation in the `docs/` folder for a complete understanding of the project architecture, testing approach, and development roadmap.**
 

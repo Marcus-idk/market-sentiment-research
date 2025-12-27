@@ -1,4 +1,4 @@
-"""Main entry point for the trading bot data poller.
+"""Main entry point for the Market Sentiment Analyzer data poller.
 
 Notes:
     Runs continuous data collection from configured providers at a configurable
@@ -64,7 +64,7 @@ def setup_environment() -> None:
 def build_config(with_viewer: bool) -> PollerConfig:
     """Parse environment variables and build configuration object."""
     # Get database path and ensure directory exists
-    db_path = os.getenv("DATABASE_PATH", "data/database/trading_bot.db")
+    db_path = os.getenv("DATABASE_PATH", "data/database/market_sentiment_analyzer.db")
     Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
     # Get and validate symbols
@@ -320,7 +320,7 @@ async def main(with_viewer: bool = False) -> int:
 
         # Log startup info
         logger.info("=" * 60)
-        logger.info("Trading Bot Data Poller Started")
+        logger.info("Market Sentiment Analyzer Data Poller Started")
         symbols_csv = ", ".join(config.symbols)
         logger.info("Monitoring %s symbols: %s", len(config.symbols), symbols_csv)
         logger.info("Database: %s", config.db_path)
@@ -360,7 +360,9 @@ async def main(with_viewer: bool = False) -> int:
 
 if __name__ == "__main__":
     # Parse command-line arguments
-    parser = argparse.ArgumentParser(description="Trading Bot Data Poller - Made by Marcus Goh")
+    parser = argparse.ArgumentParser(
+        description="Market Sentiment Analyzer Data Poller - Made by Marcus Goh"
+    )
     parser.add_argument(
         "-v",
         action="store_true",

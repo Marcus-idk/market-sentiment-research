@@ -1,4 +1,4 @@
-"""Utility helpers and type conversions for trading bot storage."""
+"""Utility helpers and type conversions for Market Sentiment Analyzer storage."""
 
 from datetime import UTC, datetime
 from decimal import Decimal

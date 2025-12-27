@@ -69,7 +69,7 @@ def temp_db_path():
 
 @pytest.fixture
 def temp_db(temp_db_path):
-    """Initialize a temporary TradingBot database and yield its path."""
+    """Initialize a temporary Market Sentiment Analyzer database and yield its path."""
     init_database(temp_db_path)
     yield temp_db_path
 

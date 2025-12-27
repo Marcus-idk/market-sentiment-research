@@ -1,4 +1,4 @@
-# Trading Bot Development Roadmap
+# Market Sentiment Analyzer Development Roadmap
 
 ## Instructions for Updating Roadmap
 - Read the WHOLE document before making any updates.
@@ -14,7 +14,7 @@
  - Project-wide explanations of overall behavior belong at the end of this file (bottom). Keep them high-level (e.g., Runtime Flow Snapshot and a short Processing Example). Do not include implementation details there (e.g., schema keys, internal tables, or design-benefit bullets).
 
 ## Project Goal
-Automated trading bot that uses LLMs for fundamental analysis. Polls data every 5 minutes, flags urgent events, and issues HOLD/SELL recommendations via scheduled LLM analysis.
+Automated Market Sentiment Analyzer that uses LLMs for fundamental analysis. Polls data every 5 minutes, flags urgent events, and issues HOLD/SELL recommendations via scheduled LLM analysis.
 
 ## Core Strategy
 - Target: Retail traders (not HFT)
@@ -126,7 +126,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 ---
 
-## v0.5 — Trading Intelligence Layer 🧠
+## v0.5 — Market Intelligence Layer 🧠
 **Goal**: Add LLM-powered analysis and decisions
 
 **Achieves**:
@@ -141,8 +141,8 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
  
 ---
 
-## v1.0 — Production Trading Bot 🎯
-**Goal**: Complete, reliable trading system
+## v1.0 — Production Market Sentiment Analyzer 🎯
+**Goal**: Complete, reliable market system
 
 **Achieves**:
 - Production monitoring and health checks
@@ -188,7 +188,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
 
 ## Runtime Flow Snapshot
 - Startup
-  - Loads `.env`, configures logging, and reads `SYMBOLS`, `POLL_INTERVAL`, `DATABASE_PATH` (default `data/database/trading_bot.db`), and provider keys (`FINNHUB_API_KEY`, `POLYGON_API_KEY`, Reddit credentials); if `-v`, also reads `STREAMLIT_PORT`.
+  - Loads `.env`, configures logging, and reads `SYMBOLS`, `POLL_INTERVAL`, `DATABASE_PATH` (default `data/database/market_sentiment_analyzer.db`), and provider keys (`FINNHUB_API_KEY`, `POLYGON_API_KEY`, Reddit credentials); if `-v`, also reads `STREAMLIT_PORT`.
   - Ensures the database directory exists and runs `init_database`, which enforces SQLite JSON1 support and applies required PRAGMAs.
   - If `-v`, launches the optional Streamlit UI pointed at the same `DATABASE_PATH`; on failure, logs a warning and continues without UI.
   - Creates configured providers (Finnhub company/macro/price; Polygon company/macro; Reddit social sentiment) and validates each API connection; failures abort startup.
@@ -204,7 +204,7 @@ Automated trading bot that uses LLMs for fundamental analysis. Polls data every 
   - Fetch social sentiment:
     - Reddit social: per-symbol timestamp cursors via `WatermarkEngine`; bootstrap runs use a wider `time_filter` and lookback window, incremental runs use a narrower `time_filter` with overlap, and each symbol fetches posts and top comments from `stocks+investing+wallstreetbets`.
   - Fetch prices:
-    - Finnhub prices: calls `/quote` per symbol, normalizes timestamps to UTC, and classifies each observation into `PRE`, `REG`, `POST`, or `CLOSED` using ET trading hours and the NYSE calendar.
+    - Finnhub prices: calls `/quote` per symbol, normalizes timestamps to UTC, and classifies each observation into `PRE`, `REG`, `POST`, or `CLOSED` using ET market hours and the NYSE calendar.
   - Store results and run stub analysis:
     - News, social, and price fetches are aggregated per provider; individual provider failures are logged and counted but do not stop other providers.
     - News: a simple importance stub sets `is_important=True` on all news entries; storage keeps one row per article URL and per-symbol links with their importance flags.

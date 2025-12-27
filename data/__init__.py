@@ -1,4 +1,4 @@
-"""Public data models, providers, and storage helpers for the trading bot."""
+"""Public data models, providers, and storage helpers for the Market Sentiment Analyzer."""
 
 # Core abstractions (available immediately)
 from data.base import (

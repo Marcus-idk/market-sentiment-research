@@ -18,7 +18,7 @@ The **"Endpoints"** section shows only what we actually call/use (matching the �
 - **People News** — News about key people (executives, insiders).
 - **Filings** — Official company filings and disclosures.
 - **Social/Sentiment** — Online crowd sentiment.
-- **Prices/Market Data** — Stock prices and trading data.
+- **Prices/Market Data** — Stock prices and market data.
 
 ---
 

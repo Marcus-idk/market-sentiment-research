@@ -45,7 +45,7 @@ class TestClassifyUsSession:
         ],
     )
     def test_core_windows(self, ts_utc, expected):
-        """Test core trading windows across EDT and EST timezones."""
+        """Test core market windows across EDT and EST timezones."""
         assert classify_us_session(ts_utc) == expected
 
     def test_exact_boundaries_and_precision(self):

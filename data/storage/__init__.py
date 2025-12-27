@@ -1,4 +1,4 @@
-"""Public facade for trading bot data storage helpers."""
+"""Public facade for Market Sentiment Analyzer data storage helpers."""
 
 from data.storage.storage_batch import (
     commit_llm_batch,

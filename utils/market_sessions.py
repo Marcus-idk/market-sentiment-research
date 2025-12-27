@@ -3,7 +3,7 @@ Market sessions utilities for US equity markets.
 
 Notes:
     Handles session classification (pre-market, regular, after-hours, closed)
-    based on Eastern Time trading hours and NYSE calendar, with automatic DST
+    based on Eastern Time market hours and NYSE calendar, with automatic DST
     handling.
 """
 
@@ -44,12 +44,12 @@ def classify_us_session(ts_utc: datetime) -> Session:
     """Classify US equity market session from a UTC-aware timestamp.
 
     Notes:
-        Trading sessions (Eastern Time):
+        Market sessions (Eastern Time):
         - Pre-market: 04:00 - 09:30 ET
         - Regular: 09:30 - 16:00 ET (or until 13:00 ET on early close days)
         - After-hours: 16:00 - 20:00 ET (or 13:00 - 20:00 ET on early close
           days)
-        - Closed: Weekends, holidays, and outside trading hours.
+        - Closed: Weekends, holidays, and outside market hours.
 
         Expects a UTC-aware ``ts_utc`` datetime and returns a ``Session`` enum
         (PRE, REG, POST, or CLOSED). Uses the NYSE calendar to detect holidays
@@ -62,7 +62,7 @@ def classify_us_session(ts_utc: datetime) -> Session:
     # Convert to Eastern Time (handles DST automatically)
     et = ts_utc.astimezone(ZoneInfo("America/New_York"))
 
-    # Check if this is a trading day using NYSE calendar
+    # Check if this is a market day using NYSE calendar
     nyse = _get_nyse_calendar()
 
     # Convert date to pandas Timestamp label (calendar expects tz-naive)

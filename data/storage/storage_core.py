@@ -1,4 +1,4 @@
-"""Database lifecycle and connection management for trading bot data."""
+"""Database lifecycle and connection management for Market Sentiment Analyzer data."""
 
 import logging
 import os

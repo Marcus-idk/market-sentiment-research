@@ -1,4 +1,4 @@
-"""CRUD operations for trading bot data storage."""
+"""CRUD operations for Market Sentiment Analyzer data storage."""
 
 from datetime import UTC, datetime
 

@@ -1,4 +1,4 @@
-"""Minimal Streamlit UI for browsing the TradingBot database."""
+"""Minimal Streamlit UI for browsing the Market Sentiment Analyzer database."""
 
 import os
 import re
@@ -35,9 +35,11 @@ def build_display_map(names: list[str]) -> dict[str, str]:
     return display_to_table
 
 
-st.set_page_config(page_title="TradingBot DB", layout="wide", initial_sidebar_state="expanded")
+st.set_page_config(
+    page_title="Market Sentiment Analyzer DB", layout="wide", initial_sidebar_state="expanded"
+)
 
-DB_PATH = os.getenv("DATABASE_PATH", "data/database/trading_bot.db")
+DB_PATH = os.getenv("DATABASE_PATH", "data/database/market_sentiment_analyzer.db")
 Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
 table_names = fetch_table_names(DB_PATH)
 
@@ -49,7 +51,7 @@ else:
     selected_label = st.sidebar.radio("Tables", list(display_to_table), index=0)
     selected = display_to_table[selected_label]
 
-st.header("TradingBot DB")
+st.header("Market Sentiment Analyzer DB")
 
 if selected:
     with _cursor_context(DB_PATH, commit=False) as cursor:

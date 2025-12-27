@@ -1,4 +1,4 @@
-"""Centralized logging configuration for the trading bot."""
+"""Centralized logging configuration for the Market Sentiment Analyzer."""
 
 import logging
 import os

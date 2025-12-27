@@ -1,4 +1,4 @@
-"""LLM providers facade for TradingBot."""
+"""LLM providers facade for Market Sentiment Analyzer."""
 
 from llm.base import LLMProvider
 from llm.providers.gemini import GeminiProvider

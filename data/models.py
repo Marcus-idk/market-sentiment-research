@@ -11,9 +11,9 @@ from utils.datetime_utils import normalize_to_utc
 
 
 class Session(Enum):
-    """Define trading session labels."""
+    """Define market session labels."""
 
-    REG = "REG"  # Regular trading session (09:30–16:00 ET / 22:30–05:00 SGT)
+    REG = "REG"  # Regular market session (09:30–16:00 ET / 22:30–05:00 SGT)
     PRE = "PRE"  # Pre-market session (04:00–09:30 ET / 17:00–22:30 SGT)
     POST = "POST"  # After-hours session (16:00–20:00 ET / 05:00–09:00 SGT)
     CLOSED = "CLOSED"  # Overnight/closed (20:00–04:00 ET / 09:00–17:00 SGT)

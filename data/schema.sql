@@ -1,4 +1,4 @@
--- Trading Bot SQLite schema
+-- Market Sentiment Analyzer SQLite schema
 PRAGMA journal_mode = WAL;
 PRAGMA synchronous = NORMAL;
 

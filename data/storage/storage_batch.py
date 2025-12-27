@@ -1,4 +1,4 @@
-"""Batch operations for trading bot data."""
+"""Batch operations for Market Sentiment Analyzer data."""
 
 from datetime import datetime
 
