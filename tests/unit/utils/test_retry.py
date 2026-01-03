@@ -53,7 +53,7 @@ class TestParseRetryAfter:
         assert parse_retry_after(None) is None
         assert parse_retry_after("not-a-number-or-date") is None
 
-    def test_invalid_retry_after_values_log_debug_and_return_none(self, caplog):
+    def test_invalid_retry_after_values_log_warning_and_return_none(self, caplog):
         """Test graceful handling of malformed Retry-After headers with logging"""
 
         # Test junk string

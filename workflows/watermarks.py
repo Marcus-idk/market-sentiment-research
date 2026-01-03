@@ -111,7 +111,7 @@ class WatermarkEngine:
         """
         rule = CURSOR_RULES.get(type(provider))
         if not rule:
-            logger.debug(
+            logger.warning(
                 "No cursor rule defined for %s; using default cursors",
                 type(provider).__name__,
             )
@@ -132,7 +132,7 @@ class WatermarkEngine:
         if rule.scope is ScopeEnum.SYMBOL:
             return self._plan_symbol_timestamps(rule, provider, now, first_run_days)
 
-        # Global scope: single shared cursor. nothing uses this as of now
+        # Global scope: single shared cursor.
         base_since = self._plan_global_timestamp(rule, now, first_run_days)
         return CursorPlan(since=base_since)
 
@@ -201,7 +201,7 @@ class WatermarkEngine:
         """
         rule = CURSOR_RULES.get(type(provider))
         if not rule:
-            logger.debug(
+            logger.warning(
                 "Skipping watermark update for %s (no cursor rule)",
                 type(provider).__name__,
             )

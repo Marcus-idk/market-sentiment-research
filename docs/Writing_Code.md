@@ -19,7 +19,6 @@
 
 ### FILE_SIZE_LIMITS
 - Max file size: 600 lines (target: ~400)
-- Max test class size: ~200–250 lines
 
 ### PYTHON_VERSION
 Use Python 3.13+ modern syntax.

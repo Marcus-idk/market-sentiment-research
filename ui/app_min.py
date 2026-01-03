@@ -2,6 +2,7 @@
 
 import os
 import re
+import sqlite3
 from pathlib import Path
 
 import pandas as pd
@@ -41,7 +42,20 @@ st.set_page_config(
 
 DB_PATH = os.getenv("DATABASE_PATH", "data/database/market_sentiment_analyzer.db")
 Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
-table_names = fetch_table_names(DB_PATH)
+
+if not Path(DB_PATH).exists():
+    st.error(
+        "Database file not found. "
+        f"Expected at: {DB_PATH}. "
+        "Run the poller first or set DATABASE_PATH."
+    )
+    st.stop()
+
+try:
+    table_names = fetch_table_names(DB_PATH)
+except sqlite3.Error as exc:
+    st.error(f"Failed to read database tables: {exc}")
+    st.stop()
 
 if not table_names:
     st.sidebar.info("No tables found in the database.")
@@ -54,10 +68,14 @@ else:
 st.header("Market Sentiment Analyzer DB")
 
 if selected:
-    with _cursor_context(DB_PATH, commit=False) as cursor:
-        # `selected` comes from `sqlite_master` via `fetch_table_names`, so it is trusted.
-        cursor.execute(f"SELECT * FROM {selected} LIMIT 1000")
-        rows = [dict(row) for row in cursor.fetchall()]
+    try:
+        with _cursor_context(DB_PATH, commit=False) as cursor:
+            # `selected` comes from `sqlite_master` via `fetch_table_names`, so it is trusted.
+            cursor.execute(f"SELECT * FROM {selected} LIMIT 1000")
+            rows = [dict(row) for row in cursor.fetchall()]
+    except sqlite3.Error as exc:
+        st.error(f"Failed to query table '{selected}': {exc}")
+        st.stop()
     st.dataframe(
         pd.DataFrame.from_records(rows),
         use_container_width=True,

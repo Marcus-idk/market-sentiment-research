@@ -25,6 +25,7 @@ def parse_symbols(
     filter_to: Iterable[str] | None = None,
     *,
     validate: bool = True,
+    fail_on_invalid: bool = False,
 ) -> list[str]:
     """Parse a comma-separated string into a deduplicated list of uppercase symbols.
 
@@ -35,6 +36,8 @@ def parse_symbols(
         - If `filter_to` is provided, returns only symbols present in that set
         - If `validate` is True, enforce common ticker formats (allows
           share-class suffixes)
+        - If `fail_on_invalid` is True and validation is enabled, return an
+          empty list if any token fails validation
     """
 
     if not raw or not isinstance(raw, str) or not raw.strip():
@@ -58,6 +61,8 @@ def parse_symbols(
         # Validate against supported ticker formats (e.g., BRK.B, BF-B, GOOG, PSX)
         if validate and not _is_valid_symbol(sym):
             logger.debug("Unexpected symbol entry format: %s", sym)
+            if fail_on_invalid:
+                return []
             continue
 
         # Filter to watchlist if provided

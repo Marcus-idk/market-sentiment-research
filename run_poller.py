@@ -69,10 +69,10 @@ def build_config(with_viewer: bool) -> PollerConfig:
             "(e.g., SYMBOLS=AAPL,MSFT,TSLA)"
         )
 
-    symbols = parse_symbols(symbols_env, validate=True)
+    symbols = parse_symbols(symbols_env, validate=True, fail_on_invalid=True)
     if not symbols:
         raise ValueError(
-            "SYMBOLS environment variable is empty or invalid. Please provide "
+            "SYMBOLS environment variable is empty or contains invalid entries. Please provide "
             "comma-separated symbols (e.g., SYMBOLS=AAPL,MSFT,TSLA)"
         )
 
@@ -91,6 +91,10 @@ def build_config(with_viewer: bool) -> PollerConfig:
             f"Invalid POLL_INTERVAL '{poll_interval_str}', must be an integer. "
             "Please provide a valid integer value (e.g., POLL_INTERVAL=300)"
         ) from exc
+    if poll_interval <= 0:
+        raise ValueError(
+            f"Invalid POLL_INTERVAL '{poll_interval_str}', must be > 0 (e.g., POLL_INTERVAL=300)"
+        )
 
     # Get UI port if viewer enabled
     ui_port = None
@@ -311,17 +315,8 @@ async def main(with_viewer: bool = False) -> int:
     except KeyboardInterrupt:
         logger.info("Keyboard interrupt received")
         return 0
-    except (
-        TimeoutError,
-        DataSourceError,
-        RetryableError,
-        RuntimeError,
-        ValueError,
-        TypeError,
-        sqlite3.Error,
-        OSError,
-    ) as exc:
-        logger.exception("Unexpected error in poller: %s", exc)
+    except Exception as exc:
+        logger.exception("Unhandled exception in poller: %s", exc)
         return 1
     finally:
         try:

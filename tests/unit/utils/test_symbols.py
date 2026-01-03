@@ -35,6 +35,11 @@ class TestParseSymbols:
         result_lenient = parse_symbols("AAPL,TOOLONG,123", validate=False)
         assert result_lenient == ["AAPL", "TOOLONG", "123"]
 
+    def test_fail_on_invalid_true_returns_empty_list(self):
+        """When fail_on_invalid=True, any invalid token invalidates the whole list."""
+        result = parse_symbols("AAPL,123,MSFT", validate=True, fail_on_invalid=True)
+        assert result == []
+
     def test_empty_input_returns_empty_list(self):
         """Test graceful handling of empty/null inputs"""
         # Empty string

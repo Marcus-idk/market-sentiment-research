@@ -63,6 +63,8 @@ class FinnhubMacroNewsProvider(NewsDataSource):
             articles = await self.client.get("/news", params)
 
             if not isinstance(articles, list):
+                # Macro news is a single global stream: if the response shape is wrong,
+                # we fail the provider for this cycle (poller will record it once).
                 raise DataSourceError(
                     f"Finnhub API returned {type(articles).__name__} instead of list"
                 )

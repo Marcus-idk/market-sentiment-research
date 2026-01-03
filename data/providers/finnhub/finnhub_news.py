@@ -95,9 +95,14 @@ class FinnhubNewsProvider(NewsDataSource):
                             exc,
                         )
                         continue
-            except DataSourceError:
-                raise
-            except (RetryableError, ValueError, TypeError, KeyError, AttributeError) as exc:
+            except (
+                DataSourceError,
+                RetryableError,
+                ValueError,
+                TypeError,
+                KeyError,
+                AttributeError,
+            ) as exc:
                 logger.warning("Company news fetch failed for %s: %s", symbol, exc)
                 continue
 

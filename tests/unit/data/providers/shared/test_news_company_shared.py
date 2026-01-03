@@ -266,8 +266,8 @@ class TestNewsCompanyShared:
         assert {item.symbol for item in results} == {"AAPL", "GOOG"}
         assert all(item.is_important is True for item in results)
 
-    async def test_structural_error_raises(self, provider_spec_company):
-        """Test structural error raises."""
+    async def test_structural_error_logs_warning_and_skips(self, provider_spec_company, caplog):
+        """Test structural error logs warning and skips."""
         provider = provider_spec_company.make_provider()
 
         async def mock_get(path: str, params: dict[str, Any]) -> Any:
@@ -275,8 +275,12 @@ class TestNewsCompanyShared:
 
         provider.client.get = mock_get
 
-        with pytest.raises(DataSourceError):
-            await provider.fetch_incremental()
+        caplog.set_level("WARNING", logger=provider.__module__)
+
+        results = await provider.fetch_incremental()
+
+        assert results == []
+        assert any("instead of list" in message for message in caplog.messages)
 
     async def test_empty_response_returns_empty_list(self, provider_spec_company):
         """Test empty response returns empty list."""

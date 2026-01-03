@@ -20,15 +20,15 @@ class UrgencyInput:
 
 def detect_news_urgency(news_entries: Sequence[NewsEntry]) -> list[NewsEntry]:
     """Detect urgent news items. Stub: returns empty."""
-    inputs = _build_news_inputs(news_entries)
-    _log_stub_stats(inputs, "news")
+    # inputs = _build_news_inputs(news_entries)
+    # Stub: urgency detection is not implemented yet; normalization helpers are kept for later.
     return []
 
 
 def detect_social_urgency(social_items: Sequence[SocialDiscussion]) -> list[SocialDiscussion]:
     """Detect urgent social discussions. Stub: returns empty."""
-    inputs = _build_social_inputs(social_items)
-    _log_stub_stats(inputs, "social")
+    # inputs = _build_social_inputs(social_items)
+    # Stub: urgency detection is not implemented yet; normalization helpers are kept for later.
     return []
 
 
@@ -72,8 +72,3 @@ def _build_social_inputs(items: Iterable[SocialDiscussion]) -> list[UrgencyInput
             )
         )
     return inputs
-
-
-def _log_stub_stats(inputs: Sequence[UrgencyInput], stream: str) -> None:
-    """No-op placeholder for urgency detection metrics/logging."""
-    return

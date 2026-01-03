@@ -13,11 +13,10 @@ from typing import Any, TypedDict, cast
 
 from analysis.news_importance import label_importance
 from analysis.urgency_detector import detect_news_urgency, detect_social_urgency
-from data import DataSourceError, NewsDataSource, PriceDataSource, SocialDataSource
+from data import NewsDataSource, PriceDataSource, SocialDataSource
 from data.models import NewsEntry, PriceData, SocialDiscussion
 from data.storage import store_news_items, store_price_data, store_social_discussions
 from llm.base import LLMError
-from utils.retry import RetryableError
 from workflows.watermarks import CursorPlan, WatermarkEngine, is_macro_stream
 
 logger = logging.getLogger(__name__)
@@ -190,6 +189,7 @@ class DataPoller:
             that symbol is skipped (intentional).
         """
         if not prices_by_provider:
+            logger.info("No price data fetched")
             return 0
 
         # Primary provider = first in configured order
@@ -383,17 +383,10 @@ class DataPoller:
             )
 
             # Process prices
-            prices_by_provider = data["prices"]
-
-            if prices_by_provider:
-                stats["prices"] = await self._process_prices(prices_by_provider)
-            else:
-                logger.info("No price data fetched")
+            stats["prices"] = await self._process_prices(data["prices"])
 
         except (
             TimeoutError,
-            DataSourceError,
-            RetryableError,
             ValueError,
             TypeError,
             RuntimeError,
