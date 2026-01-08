@@ -14,8 +14,9 @@ from config.providers.finnhub import FinnhubSettings
 from data import DataSourceError, NewsDataSource
 from data.models import NewsEntry, NewsItem, NewsType
 from data.providers.finnhub.finnhub_client import FinnhubClient
-from data.storage.storage_utils import _datetime_to_iso
+from utils.datetime_utils import epoch_seconds_to_utc_datetime
 from utils.retry import RetryableError
+from utils.symbols import normalize_symbol_list
 
 logger = logging.getLogger(__name__)
 
@@ -29,7 +30,7 @@ class FinnhubNewsProvider(NewsDataSource):
         """Initialize the Finnhub company news provider."""
         super().__init__(source_name)
         self.settings = settings
-        self.symbols = [s.strip().upper() for s in symbols if s.strip()]
+        self.symbols = normalize_symbol_list(symbols)
         self.client = FinnhubClient(settings)
 
     async def validate_connection(self) -> bool:
@@ -115,6 +116,8 @@ class FinnhubNewsProvider(NewsDataSource):
         global_since: datetime | None,
     ) -> datetime | None:
         """Pick the most specific cursor for a symbol (per-symbol over global)."""
+        # NOTE: Duplicated in other providers; consider extracting a shared helper
+        # (e.g., in data/base.py).
         if symbol_since_map is not None and symbol in symbol_since_map:
             return symbol_since_map[symbol]
         return global_since
@@ -131,11 +134,18 @@ class FinnhubNewsProvider(NewsDataSource):
             Returns None when required fields are missing/invalid or the article is at/before
             the buffer cutoff.
         """
-        headline = article.get("headline", "").strip()
-        url = article.get("url", "").strip()
-        datetime_epoch = article.get("datetime", 0)
+        headline_value = article.get("headline")
+        headline = headline_value.strip() if isinstance(headline_value, str) else ""
+        url_value = article.get("url")
+        url = url_value.strip() if isinstance(url_value, str) else ""
+        datetime_epoch = article.get("datetime")
 
-        if not headline or not url or datetime_epoch <= 0:
+        if (
+            not headline
+            or not url
+            or not isinstance(datetime_epoch, (int, float))
+            or datetime_epoch <= 0
+        ):
             logger.debug(
                 "Skipping company news article for %s due to missing required fields "
                 "(url=%s datetime=%r)",
@@ -146,7 +156,7 @@ class FinnhubNewsProvider(NewsDataSource):
             return None
 
         try:
-            published = datetime.fromtimestamp(datetime_epoch, tz=UTC)
+            published = epoch_seconds_to_utc_datetime(datetime_epoch)
         except (ValueError, OSError, OverflowError) as exc:
             logger.debug(
                 "Skipping company news article for %s due to invalid epoch %s: %s",
@@ -158,24 +168,14 @@ class FinnhubNewsProvider(NewsDataSource):
 
         # Apply buffer filter (defensive check - API should already honor from/to dates)
         if buffer_time and published <= buffer_time:
-            # Expected: /company-news is date-window based (YYYY-MM-DD), so we can still see
-            # items that are earlier than our exact timestamp cutoff. We filter them here.
-            if logger.isEnabledFor(logging.DEBUG):
-                cutoff_iso = _datetime_to_iso(buffer_time)
-                published_iso = _datetime_to_iso(published)
-                logger.debug(
-                    "Dropping company article at/before cutoff (expected for date-window API) "
-                    "(symbol=%s url=%s published=%s cutoff=%s)",
-                    symbol,
-                    url,
-                    published_iso,
-                    cutoff_iso,
-                )
             return None
 
         # Extract source and content
-        source = article.get("source", "").strip() or "Finnhub"
-        summary = article.get("summary", "").strip()
+        source_value = article.get("source")
+        source = source_value.strip() if isinstance(source_value, str) else ""
+        source = source or "Finnhub"
+        summary_value = article.get("summary")
+        summary = summary_value.strip() if isinstance(summary_value, str) else ""
         content = summary if summary else None
 
         try:

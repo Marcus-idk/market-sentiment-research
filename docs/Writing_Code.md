@@ -96,13 +96,13 @@ def store_price(symbol: str, price: Decimal) -> None:
 Centralize I/O, HTTP, retries/backoff, timezones, data normalization, logging.
 **ALWAYS check `utils/` and `data/storage/storage_utils.py` for existing helpers before writing new code.**
 
-Timestamp parsing: prefer shared helpers for RFC3339/ISO conversions; don’t duplicate parsing across providers.
+Timestamp handling: prefer shared helpers; don’t duplicate parsing/conversion logic across providers.
 
 ```python
-# ✅ GOOD: Centralize parsing
-from utils.datetime_utils import parse_rfc3339
+# ✅ GOOD: Centralize timestamp conversion + DB formatting
+from utils.datetime_utils import epoch_seconds_to_utc_datetime
 from data.storage.storage_utils import _datetime_to_iso
-published = parse_rfc3339(ts_str)
+published = epoch_seconds_to_utc_datetime(epoch_seconds)
 published_iso = _datetime_to_iso(published)
 
 # ❌ BAD: Repeating multi-branch parsing logic inline in providers

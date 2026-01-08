@@ -17,11 +17,10 @@ from data.storage.storage_utils import (
     _row_to_news_symbol,
     _row_to_price_data,
 )
-from utils.datetime_utils import parse_rfc3339
 
 
 class TestIsoParsingHelpers:
-    """Tests for ISO/RFC3339 parsing helpers."""
+    """Tests for ISO parsing helpers."""
 
     def test_iso_to_datetime_parses_z_suffix(self):
         """Test iso to datetime parses z suffix."""
@@ -32,21 +31,6 @@ class TestIsoParsingHelpers:
         """Test iso to datetime preserves offset."""
         dt = _iso_to_datetime("2024-03-10T15:45:00+00:00")
         assert dt == datetime(2024, 3, 10, 15, 45, tzinfo=UTC)
-
-    def test_parse_rfc3339_handles_naive_as_utc(self):
-        """Test parse rfc3339 handles naive as utc."""
-        dt = parse_rfc3339("2024-03-10T15:45:00")
-        assert dt == datetime(2024, 3, 10, 15, 45, tzinfo=UTC)
-
-    def test_parse_rfc3339_raises_for_non_string(self):
-        """Test parse rfc3339 raises for non string."""
-        with pytest.raises(TypeError):
-            parse_rfc3339(123)  # type: ignore[reportArgumentType] - intentional negative test
-
-    def test_parse_rfc3339_invalid_format_raises(self):
-        """Test parse rfc3339 invalid format raises."""
-        with pytest.raises(ValueError):
-            parse_rfc3339("not-a-timestamp")
 
 
 class TestRowMappers:

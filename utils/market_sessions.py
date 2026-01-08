@@ -8,7 +8,7 @@ Notes:
 """
 
 import logging
-from datetime import UTC, datetime
+from datetime import datetime
 from zoneinfo import ZoneInfo
 
 import pandas as pd
@@ -25,6 +25,7 @@ except ImportError as e:
 from typing import cast
 
 from data.models import Session
+from utils.datetime_utils import normalize_to_utc
 
 logger = logging.getLogger(__name__)
 
@@ -56,8 +57,7 @@ def classify_us_session(ts_utc: datetime) -> Session:
         and early close days. Requires ``exchange_calendars``; if not
         installed, an ImportError is raised at import time.
     """
-    # Ensure timestamp is UTC-aware
-    ts_utc = ts_utc.replace(tzinfo=UTC) if ts_utc.tzinfo is None else ts_utc.astimezone(UTC)
+    ts_utc = normalize_to_utc(ts_utc)
 
     # Convert to Eastern Time (handles DST automatically)
     et = ts_utc.astimezone(ZoneInfo("America/New_York"))

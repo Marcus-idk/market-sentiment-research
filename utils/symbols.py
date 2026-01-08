@@ -20,6 +20,31 @@ def _is_valid_symbol(symbol: str) -> bool:
     return bool(_SYMBOL_PATTERN.fullmatch(symbol))
 
 
+def normalize_symbol_list(symbols: Iterable[str] | None) -> list[str]:
+    """Normalize a symbol list (strip, uppercase, drop empties).
+
+    Notes:
+        This helper matches the common provider boundary behavior:
+        - trims whitespace
+        - uppercases
+        - drops empty/whitespace-only entries
+        - preserves order (does not dedupe)
+    """
+    if not symbols:
+        return []
+
+    out: list[str] = []
+    for sym in symbols:
+        if not isinstance(sym, str):
+            continue
+        cleaned = sym.strip()
+        if not cleaned:
+            continue
+        out.append(cleaned.upper())
+
+    return out
+
+
 def parse_symbols(
     raw: str | None,
     filter_to: Iterable[str] | None = None,

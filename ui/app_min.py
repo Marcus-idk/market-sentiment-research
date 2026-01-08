@@ -40,19 +40,19 @@ st.set_page_config(
     page_title="Market Sentiment Analyzer DB", layout="wide", initial_sidebar_state="expanded"
 )
 
-DB_PATH = os.getenv("DATABASE_PATH", "data/database/market_sentiment_analyzer.db")
-Path(DB_PATH).parent.mkdir(parents=True, exist_ok=True)
+db_path = os.getenv("DATABASE_PATH", "data/database/market_sentiment_analyzer.db")
+Path(db_path).parent.mkdir(parents=True, exist_ok=True)
 
-if not Path(DB_PATH).exists():
+if not Path(db_path).exists():
     st.error(
         "Database file not found. "
-        f"Expected at: {DB_PATH}. "
+        f"Expected at: {db_path}. "
         "Run the poller first or set DATABASE_PATH."
     )
     st.stop()
 
 try:
-    table_names = fetch_table_names(DB_PATH)
+    table_names = fetch_table_names(db_path)
 except sqlite3.Error as exc:
     st.error(f"Failed to read database tables: {exc}")
     st.stop()
@@ -69,7 +69,7 @@ st.header("Market Sentiment Analyzer DB")
 
 if selected:
     try:
-        with _cursor_context(DB_PATH, commit=False) as cursor:
+        with _cursor_context(db_path, commit=False) as cursor:
             # `selected` comes from `sqlite_master` via `fetch_table_names`, so it is trusted.
             cursor.execute(f"SELECT * FROM {selected} LIMIT 1000")
             rows = [dict(row) for row in cursor.fetchall()]

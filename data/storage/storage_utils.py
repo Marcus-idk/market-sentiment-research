@@ -1,6 +1,6 @@
 """Utility helpers and type conversions for Market Sentiment Analyzer storage."""
 
-from datetime import UTC, datetime
+from datetime import datetime
 from decimal import Decimal
 from typing import Any
 from urllib.parse import parse_qs, urlencode, urlparse, urlunparse
@@ -17,6 +17,7 @@ from data.models import (
     SocialDiscussion,
     Stance,
 )
+from utils.datetime_utils import normalize_to_utc
 
 
 def _normalize_url(url: str) -> str:
@@ -59,9 +60,7 @@ def _normalize_url(url: str) -> str:
 
 def _datetime_to_iso(dt: datetime) -> str:
     """Convert datetime to UTC ISO string format expected by database."""
-    # Guideline note: this is the central helper the codebase should use for ISO strings.
-    # The normalization below intentionally handles the 'Z' suffix.
-    dt = dt.replace(tzinfo=UTC) if dt.tzinfo is None else dt.astimezone(UTC)
+    dt = normalize_to_utc(dt)
     return dt.replace(microsecond=0).isoformat().replace("+00:00", "Z")
 
 

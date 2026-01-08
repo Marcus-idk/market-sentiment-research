@@ -12,6 +12,7 @@ from pathlib import Path
 from typing import Any
 
 import pytest
+from tool_utils import clean_docstring
 
 ROOT = Path(__file__).resolve().parent.parent
 TESTS_DIR = ROOT / "tests"
@@ -54,16 +55,6 @@ class FileReport:
         if not any(existing.name == case.name for existing in cases):
             cases.append(case)
         self.tags.update(marker_tags(case.markers, self.path))
-
-
-def clean_docstring(doc: str | None) -> str | None:
-    """Return the first non-empty, trimmed line of a docstring, or None."""
-    if not doc:
-        return None
-    cleaned = inspect.cleandoc(doc).strip()
-    if not cleaned:
-        return None
-    return cleaned.splitlines()[0].strip()
 
 
 def marker_tags(markers: set[str], path: Path) -> set[str]:

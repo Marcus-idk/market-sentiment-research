@@ -30,7 +30,7 @@ Use these rules across all tests to keep the suite readable and uniform.
 
 - Catalog + collection note
   - Pytest only collects tests from files matching the default patterns (e.g., `test_*.py` / `*_test.py`).
-  - `tools/generate_test_catalog.py` lists every `tests/**/*.py` file, but it only lists tests that pytest actually collects.
+  - `tools/generate_test_catalog.py` lists every `tests/**/*.py` file. If pytest is installed, it uses pytest collection; otherwise it falls back to name-based AST scanning (best effort).
   - Do not name helper functions `test_*` in non-test modules (e.g., `tests/helpers.py`); keep helpers named like `make_*` / `build_*`, or rename the file to a test-pattern name if it contains real tests.
 
 - Assertions

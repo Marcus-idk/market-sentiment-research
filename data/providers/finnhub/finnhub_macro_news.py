@@ -13,7 +13,8 @@ from config.providers.finnhub import FinnhubSettings
 from data import DataSourceError, NewsDataSource
 from data.models import NewsEntry, NewsItem, NewsType
 from data.providers.finnhub.finnhub_client import FinnhubClient
-from utils.symbols import parse_symbols
+from utils.datetime_utils import epoch_seconds_to_utc_datetime
+from utils.symbols import normalize_symbol_list, parse_symbols
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         """Initialize the Finnhub macro news provider."""
         super().__init__(source_name)
         self.settings = settings
-        self.symbols = [s.strip().upper() for s in symbols if s.strip()]
+        self.symbols = normalize_symbol_list(symbols)
         self.client = FinnhubClient(settings)
         self.last_fetched_max_id: int | None = None
 
@@ -110,7 +111,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
                     published_ts = article.get("datetime")
                     if isinstance(published_ts, (int, float)):
                         try:
-                            published_dt = datetime.fromtimestamp(published_ts, tz=UTC)
+                            published_dt = epoch_seconds_to_utc_datetime(published_ts)
                         except (ValueError, OSError, OverflowError):
                             published_dt = None
                         if published_dt and published_dt <= buffer_time:
@@ -157,11 +158,18 @@ class FinnhubMacroNewsProvider(NewsDataSource):
             Returns an empty list when required fields are missing/invalid or the article is
             at/before the buffer cutoff.
         """
-        headline = article.get("headline", "").strip()
-        url = article.get("url", "").strip()
-        datetime_epoch = article.get("datetime", 0)
+        headline_value = article.get("headline")
+        headline = headline_value.strip() if isinstance(headline_value, str) else ""
+        url_value = article.get("url")
+        url = url_value.strip() if isinstance(url_value, str) else ""
+        datetime_epoch = article.get("datetime")
 
-        if not headline or not url or datetime_epoch <= 0:
+        if (
+            not headline
+            or not url
+            or not isinstance(datetime_epoch, (int, float))
+            or datetime_epoch <= 0
+        ):
             logger.debug(
                 "Skipping macro news article due to missing required fields "
                 "(id=%s url=%s datetime=%r)",
@@ -172,7 +180,7 @@ class FinnhubMacroNewsProvider(NewsDataSource):
             return []
 
         try:
-            published = datetime.fromtimestamp(datetime_epoch, tz=UTC)
+            published = epoch_seconds_to_utc_datetime(datetime_epoch)
         except (ValueError, OSError, OverflowError) as exc:
             logger.debug(
                 "Skipping macro news article due to invalid epoch %s: %s",
@@ -186,10 +194,14 @@ class FinnhubMacroNewsProvider(NewsDataSource):
         if buffer_time and published <= buffer_time:
             return []
 
-        related = article.get("related", "").strip()
+        related_value = article.get("related")
+        related = related_value.strip() if isinstance(related_value, str) else ""
         symbols = self._extract_symbols_from_related(related)
-        source = article.get("source", "").strip() or "Finnhub"
-        summary = article.get("summary", "").strip()
+        source_value = article.get("source")
+        source = source_value.strip() if isinstance(source_value, str) else ""
+        source = source or "Finnhub"
+        summary_value = article.get("summary")
+        summary = summary_value.strip() if isinstance(summary_value, str) else ""
         content = summary if summary else None
 
         entries: list[NewsEntry] = []

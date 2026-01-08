@@ -4,7 +4,6 @@ import logging
 from datetime import (
     UTC,
     datetime,
-    timezone,  # noqa: F401 - used by tests via monkeypatch
 )
 from decimal import Decimal, InvalidOperation
 from typing import Any
@@ -13,8 +12,10 @@ from config.providers.finnhub import FinnhubSettings
 from data import DataSourceError, PriceDataSource
 from data.models import PriceData
 from data.providers.finnhub.finnhub_client import FinnhubClient
+from utils.datetime_utils import epoch_seconds_to_utc_datetime
 from utils.market_sessions import classify_us_session
 from utils.retry import RetryableError
+from utils.symbols import normalize_symbol_list
 
 logger = logging.getLogger(__name__)
 
@@ -27,7 +28,7 @@ class FinnhubPriceProvider(PriceDataSource):
     ) -> None:
         """Initialize the Finnhub price provider."""
         super().__init__(source_name)
-        self.symbols = [s.strip().upper() for s in symbols if s.strip()]
+        self.symbols = normalize_symbol_list(symbols)
         self.client = FinnhubClient(settings)
 
     async def validate_connection(self) -> bool:
@@ -90,10 +91,10 @@ class FinnhubPriceProvider(PriceDataSource):
             )
             return None
 
-        quote_timestamp = quote.get("t", 0)
-        if quote_timestamp > 0:
+        quote_timestamp = quote.get("t")
+        if isinstance(quote_timestamp, (int, float)) and quote_timestamp > 0:
             try:
-                timestamp = datetime.fromtimestamp(quote_timestamp, tz=UTC)
+                timestamp = epoch_seconds_to_utc_datetime(quote_timestamp)
             except (ValueError, OSError, OverflowError) as exc:
                 logger.debug(
                     "Invalid quote timestamp for %s: %r (%s) - using now()",

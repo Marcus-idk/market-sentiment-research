@@ -15,21 +15,13 @@ def normalize_to_utc(dt: datetime) -> datetime:
     return dt.astimezone(UTC)
 
 
-def parse_rfc3339(timestamp_str: str) -> datetime:
-    """Parse RFC3339/ISO 8601 timestamp string to a UTC datetime.
+def epoch_seconds_to_utc_datetime(epoch_seconds: object) -> datetime:
+    """Convert epoch seconds to a UTC-aware datetime.
 
     Notes:
-        Handles common Z/offset/naive formats and normalizes to UTC.
+        Providers commonly return epoch seconds (ints/floats). This helper
+        centralizes the conversion and keeps provider code consistent.
     """
-    if not isinstance(timestamp_str, str):
-        raise TypeError(f"timestamp_str must be str, got {type(timestamp_str).__name__}")
-
-    if timestamp_str.endswith("Z"):
-        dt = datetime.fromisoformat(timestamp_str.replace("Z", "+00:00"))
-    elif "+" in timestamp_str or timestamp_str.count("-") > 2:
-        dt = datetime.fromisoformat(timestamp_str)
-    else:
-        # Assume UTC if no timezone info present
-        dt = datetime.fromisoformat(timestamp_str).replace(tzinfo=UTC)
-
-    return normalize_to_utc(dt)
+    if not isinstance(epoch_seconds, (int, float)):
+        raise TypeError(f"epoch_seconds must be int or float, got {type(epoch_seconds).__name__}")
+    return datetime.fromtimestamp(epoch_seconds, tz=UTC)

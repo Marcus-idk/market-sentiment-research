@@ -3,11 +3,12 @@
 from __future__ import annotations
 
 import ast
-import inspect
 import logging
 from collections.abc import Iterable
 from dataclasses import dataclass, field
 from pathlib import Path
+
+from tool_utils import clean_docstring
 
 ROOT = Path(__file__).resolve().parent.parent
 OUTPUT_PATH = ROOT / "docs" / "Summary.md"
@@ -44,16 +45,6 @@ class ModuleInfo:
     module_doc: str | None
     functions: list[FunctionInfo] = field(default_factory=list)
     classes: list[ClassInfo] = field(default_factory=list)
-
-
-def clean_docstring(doc: str | None) -> str | None:
-    """Return the first non-empty, trimmed line of a docstring, or None."""
-    if not doc:
-        return None
-    cleaned = inspect.cleandoc(doc).strip()
-    if not cleaned:
-        return None
-    return cleaned.splitlines()[0].strip()
 
 
 def is_property_method(decorators: Iterable[ast.expr]) -> bool:
@@ -159,7 +150,6 @@ def parse_env_example(path: Path) -> list[tuple[str, str]]:
         key = line.split("=", 1)[0].strip()
         description = " ".join(comment_buffer).strip() or "(no description)"
         env_vars.append((key, description))
-        # comment_buffer.clear()
         last_line_was_comment = False
     return env_vars
 

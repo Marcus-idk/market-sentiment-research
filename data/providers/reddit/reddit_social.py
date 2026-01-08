@@ -14,6 +14,8 @@ from config.providers.reddit import RedditSettings
 from data.base import SocialDataSource
 from data.models import SocialDiscussion
 from data.providers.reddit.reddit_client import RedditClient
+from utils.datetime_utils import epoch_seconds_to_utc_datetime
+from utils.symbols import normalize_symbol_list
 
 logger = logging.getLogger(__name__)
 
@@ -30,7 +32,7 @@ class RedditSocialProvider(SocialDataSource):
         """Initialize the Reddit social provider."""
         super().__init__(source_name)
         self.settings = settings
-        self.symbols = [s.strip().upper() for s in symbols if s.strip()]
+        self.symbols = normalize_symbol_list(symbols)
         self.client = RedditClient(settings)
 
     async def validate_connection(self) -> bool:
@@ -88,6 +90,8 @@ class RedditSocialProvider(SocialDataSource):
         global_since: datetime | None,
     ) -> datetime | None:
         """Return per-symbol cursor when available, else fall back to global."""
+        # NOTE: Duplicated in other providers; consider extracting a shared helper
+        # (e.g., in data/base.py).
         if symbol_since_map is not None and symbol in symbol_since_map:
             return symbol_since_map[symbol]
         return global_since
@@ -147,7 +151,7 @@ class RedditSocialProvider(SocialDataSource):
 
         try:
             # defensive conversion float()
-            published = datetime.fromtimestamp(float(created_utc), tz=UTC)
+            published = epoch_seconds_to_utc_datetime(float(created_utc))
         except (ValueError, OSError, OverflowError, TypeError) as exc:
             submission_id = getattr(submission, "id", "unknown")
             logger.debug(

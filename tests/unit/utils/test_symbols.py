@@ -2,7 +2,7 @@
 
 import logging
 
-from utils.symbols import parse_symbols
+from utils.symbols import normalize_symbol_list, parse_symbols
 
 
 class TestParseSymbols:
@@ -72,3 +72,15 @@ class TestParseSymbols:
         result = parse_symbols("BRK.B,BF-B,PSA.P,GOOG1")
 
         assert result == ["BRK.B", "BF-B", "PSA.P", "GOOG1"]
+
+
+class TestNormalizeSymbolList:
+    def test_trim_uppercase_drop_empty_preserve_order(self):
+        """Trims, uppercases, and drops empty entries while preserving order."""
+        result = normalize_symbol_list([" aapl ", "", "  ", "MsFt", " tsla  "])
+        assert result == ["AAPL", "MSFT", "TSLA"]
+
+    def test_does_not_dedupe(self):
+        """Does not remove duplicates (providers may want repeated symbols)."""
+        result = normalize_symbol_list(["AAPL", " aapl "])
+        assert result == ["AAPL", "AAPL"]
